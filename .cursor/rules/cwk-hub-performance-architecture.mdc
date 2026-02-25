@@ -1,0 +1,138 @@
+---
+description: CWK Hub SPA performance, architecture, SEO, and state management guidelines
+alwaysApply: true
+---
+
+# Project: CWK Hub SPA Performance & Architecture
+
+You are an expert React + TypeScript + Vite engineer helping build CWK Hub, a single‑page web application (SPA) used by Code With Kids for operations and portals (admins, educators, learners, parents, partner organisations).
+
+Your job: apply and preserve the following architecture and performance guidelines. When generating or editing code, prefer solutions that follow these rules, and suggest refactors if existing code violates them.
+
+---
+
+## 1) Fixing heavy initial load
+
+**Goal:** Make the first screen (e.g. login or dashboard) load fast even on low‑end devices.
+
+### 1.1 Code‑split by route
+- Use route‑based code‑splitting and lazy loading.
+- Load only the code for the current route (e.g. login or admin dashboard).
+- Lazy‑load other sections like:
+  - Parent portal
+  - Partner organisation views
+  - Reports and analytics dashboards
+- Prefer dynamic `import()` and React `lazy/Suspense` for route components.
+
+### 1.2 Lazy‑load heavy components
+- Do NOT include heavy components in the initial bundle when not needed.
+- Lazy‑load:
+  - Charts and analytics widgets
+  - Large, virtualised tables
+  - Rich text editors
+  - Report/export modals and similar secondary UI
+- Only load these when the user opens the relevant screen or interaction.
+
+### 1.3 Tree‑shaking and bundle analysis
+- Favour libraries that tree‑shake well.
+- Avoid unused imports and "kitchen‑sink" utility libraries.
+- Keep the bundle lean and periodically run a bundle analyzer.
+- If you introduce a new library, consider its weight and whether a lighter alternative or native API would work.
+
+### 1.4 Optimize assets and network
+- Use compressed images and SVGs where appropriate.
+- Ensure gzip/Brotli compression is enabled in build/deploy config.
+- Cache static assets aggressively with long‑lived cache headers and content hashes.
+- Avoid unnecessary API calls on first load; defer non‑critical requests until after first paint.
+
+### 1.5 Implementation pattern for CWK Hub
+When designing routes and components, follow this structure:
+- Ship a very light login + "shell" layout first.
+- Admin / educator / parent / partner modules are separate, lazy‑loaded route chunks.
+- Dashboards:
+  - Load core stats and key info immediately.
+  - Progressively load heavier widgets (charts, advanced filters, reports) after the main content is visible.
+
+---
+
+## 2) SEO and shareable links
+
+CWK Hub is primarily a logged‑in app. SEO is only critical for public pages and shareable links.
+
+### 2.1 Separation of concerns
+- Prefer keeping public marketing pages separate from the SPA:
+  - Marketing site (SEO‑friendly) at `codewithkids.co.ke` (e.g. Next.js or static).
+  - CWK Hub app at `hub.codewithkids.co.ke`.
+- Do NOT over‑complicate CWK Hub with full marketing‑site SEO if a separate site exists.
+
+### 2.2 If doing SEO inside the SPA
+For any public routes inside CWK Hub (e.g. shared enrolment pages, docs):
+
+- Use SSR or static generation for public routes when possible, so HTML contains content and meta tags at render time.
+- Manage meta tags per route:
+  - Titles
+  - Descriptions
+  - Open Graph / social share tags
+- Ensure each public view has:
+  - A clean, crawlable URL
+  - Stable deep links for sharing
+
+### 2.3 For CWK Hub specifically (logged‑in app)
+- SEO priority is low, but we must:
+  - Set proper titles and share tags for any public "invitation" or "share" pages (e.g. class enrolment links).
+  - Use clean URLs for deep links such as `/class/:id/attendance` so educators can share links internally.
+
+When adding routes or pages, think: "Is this public and shareable?" If yes, enforce good metadata and clean URLs.
+
+---
+
+## 3) Managing complexity, performance & bugs
+
+We want a maintainable SPA with predictable behaviour.
+
+### 3.1 Sensible state management
+- Use **global state** only for values that are truly global, such as:
+  - Authenticated user info
+  - Current organisation / role context
+  - Feature flags and app‑wide config
+- Use **local/component state** for:
+  - Filters
+  - Modals and dialogs
+  - View‑specific UI state
+- For server data (e.g. classes, learners, attendance, invoices):
+  - Use a dedicated data‑fetching library with caching (e.g. React Query or SWR).
+  - Avoid building ad‑hoc global state for server data when a query library can handle caching, refetching, and invalidation.
+
+### 3.2 Bundle and performance budgets
+- Treat performance as a first‑class requirement.
+- Set and respect budgets:
+  - Initial JS bundle size threshold (e.g. "keep under X KB").
+  - Acceptable load metrics (e.g. LCP under Y seconds on a 3G‑like setup).
+- Integrate checks into CI where possible (e.g. fail builds when budgets are exceeded).
+- Run Lighthouse / PageSpeed metrics regularly and fix regressions.
+- Use error and performance monitoring (e.g. Sentry or equivalent) to catch slow views and JS errors early.
+
+### 3.3 Avoid common SPA bugs
+- Always clean up side‑effects:
+  - Remove subscriptions, timers, intervals, and event listeners in `useEffect` clean‑ups.
+- Be explicit about navigation behaviour:
+  - Ensure back/forward buttons behave intuitively.
+  - Handle role changes (e.g. admin → educator) by resetting or invalidating relevant caches and state.
+- Avoid memory leaks or zombie network calls by:
+  - Cancelling requests where appropriate.
+  - Not holding onto stale references in long‑lived components.
+
+---
+
+## General guidance for the assistant (Cursor)
+
+- When generating new components, routes, or data‑fetching logic:
+  - Propose lazy‑loading and code‑splitting where appropriate.
+  - Choose libraries and patterns that keep the bundle small and performance high.
+  - Structure state so that global vs local responsibilities are clear.
+- When editing existing code:
+  - Point out violations of these rules and suggest refactors.
+  - Prefer incremental improvements that move the codebase toward this architecture.
+- When asked for architectural advice:
+  - Base recommendations on these CWK Hub constraints and goals.
+  - Optimise for fast perceived performance, maintainability, and clarity for future developers joining the project.

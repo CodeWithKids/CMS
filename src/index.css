@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 180 20% 98%;
+    --foreground: 200 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 25% 10%;
+
+    --primary: 174 84% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 20% 94%;
+    --secondary-foreground: 200 25% 15%;
+
+    --muted: 200 15% 93%;
+    --muted-foreground: 200 10% 45%;
+
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 15% 88%;
+    --input: 200 15% 88%;
+    --ring: 174 84% 32%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 200 25% 12%;
+    --sidebar-foreground: 200 15% 85%;
+    --sidebar-primary: 174 84% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 20% 18%;
+    --sidebar-accent-foreground: 200 15% 90%;
+    --sidebar-border: 200 20% 20%;
+    --sidebar-ring: 174 84% 42%;
+
+    /* Custom tokens */
+    --success: 152 69% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 210 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --badge-active: 152 69% 40%;
+    --badge-alumni: 200 10% 60%;
+    --badge-draft: 200 15% 70%;
+    --badge-sent: 210 80% 55%;
+    --badge-partial: 38 92% 50%;
+    --badge-paid: 152 69% 40%;
+  }
+
+  .dark {
+    --background: 200 25% 7%;
+    --foreground: 200 15% 93%;
+    --card: 200 25% 10%;
+    --card-foreground: 200 15% 93%;
+    --popover: 200 25% 10%;
+    --popover-foreground: 200 15% 93%;
+    --primary: 174 84% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 200 20% 15%;
+    --secondary-foreground: 200 15% 90%;
+    --muted: 200 20% 15%;
+    --muted-foreground: 200 10% 55%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 200 20% 18%;
+    --input: 200 20% 18%;
+    --ring: 174 84% 42%;
+    --sidebar-background: 200 25% 5%;
+    --sidebar-foreground: 200 15% 85%;
+    --sidebar-primary: 174 84% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 20% 12%;
+    --sidebar-accent-foreground: 200 15% 90%;
+    --sidebar-border: 200 20% 15%;
+    --sidebar-ring: 174 84% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .page-container {
+    @apply p-6 lg:p-8 max-w-7xl mx-auto;
+  }
+
+  .page-title {
+    @apply text-2xl lg:text-3xl font-bold text-foreground mb-1;
+  }
+
+  .page-subtitle {
+    @apply text-muted-foreground mb-6;
+  }
+
+  .stat-card {
+    @apply bg-card rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  .data-table {
+    @apply w-full bg-card rounded-xl border overflow-hidden;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-sm border-t;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-muted/30;
+  }
+}

@@ -1,0 +1,20 @@
+---
+description: CWK Hub Educator flow – functional spec and implementation conventions
+globs: src/features/educator/**/*, src/pages/educator/**/*
+alwaysApply: false
+---
+
+# Educator Flow Implementation
+
+When editing or adding educator-related code, follow the [Educator Flow MVP spec](../../docs/EDUCATOR_FLOW_MVP.md) and [implementation plan](../../docs/EDUCATOR_MVP_IMPLEMENTATION_PLAN.md).
+
+## Conventions
+
+- Use **feature-based** structure: `features/educator`, `features/lessonPlans`, etc.
+- Types: `Session` uses `leadEducatorId` (facilitator) and `assistantEducatorIds` (coaches). Use auth helpers from `features/educator/lib/auth.ts`: `isFacilitator`, `isCoach`, `getSessionRoleForUser`, `canEditSession`.
+- **Lesson plans**: `LessonPlanTemplate` (library by track), `LessonPlanInstance` (per session); status `not_started` | `draft` | `ready`. Facilitator edits; coach view-only + optional coach notes.
+- **Inventory**: Checkout/return via `useInventory().checkout`, `returnItem`, `getItemsCheckedOutTo`. Show "My devices" on educator dashboard.
+- **Schedule**: `AvailabilitySlot` in `ScheduleContext`; week view with sessions overlay; educator edits own slots only.
+- **Dashboard**: Today’s/Upcoming/Past sessions with role badge (Facilitator/Coach), learning track, device indicator, status chips (Lesson plan, Attendance, Report, Expenses), quick buttons. Hours summary (facilitating vs coaching). My classes with tracks.
+- **Session pages**: Show `SessionRoleChips` (Facilitator + Coach names). Coach feedback field on report (visible to admin/lead).
+- Persist to **mock/contexts**; design hooks so swapping to API + React Query is straightforward.
