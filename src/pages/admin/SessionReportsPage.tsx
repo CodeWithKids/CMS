@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
@@ -47,7 +47,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Send } from "lucide-react";
+import { FileText, Send, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -76,12 +78,19 @@ export default function SessionReportsPage() {
   const { list, getBySession } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sessionTypes, setSessionTypes] = useState<SessionReportSessionTypeAdmin[]>([]);
   const [organisation, setOrganisation] = useState<string>("all");
   const [statuses, setStatuses] = useState<SessionReportStatusAdmin[]>([]);
   const [reminderDialog, setReminderDialog] = useState<{ educatorName: string } | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(t);
+  }, []);
 
   const summariesFromReports = useMemo(() => {
     const filtered = list({
@@ -104,7 +113,7 @@ export default function SessionReportsPage() {
     const sessionsWithoutSubmitted = mockSessions.filter(
       (s) => getBySession(s.id)?.status !== "submitted"
     );
-    let out = sessionsWithoutSubmitted
+    const out = sessionsWithoutSubmitted
       .filter((s) => {
         if (dateFrom && s.date < dateFrom) return false;
         if (dateTo && s.date > dateTo) return false;
@@ -176,6 +185,17 @@ export default function SessionReportsPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <Skeleton className="h-9 w-64 mb-2" />
+        <Skeleton className="h-5 w-96 mb-6" />
+        <Skeleton className="h-32 w-full mb-6" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
       <h1 className="page-title flex items-center gap-2">
@@ -184,6 +204,19 @@ export default function SessionReportsPage() {
       <p className="page-subtitle">
         View and filter session reports by date, session type, organisation, or status.
       </p>
+
+      {isError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load session reports.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setIsError(false)}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card className="mb-6">
         <CardHeader>

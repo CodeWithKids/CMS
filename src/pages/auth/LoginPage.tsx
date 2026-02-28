@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
 import { mockUsers, getLearnerByUserId } from "@/mockData";
-import { Code, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 const MAKERSPACE_LOGIN_ERROR =
   "Only active Makerspace members can log in. Please check your membership.";
@@ -44,8 +44,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <Code className="w-9 h-9 text-primary-foreground" />
+          <div className="flex justify-center mb-4">
+            <img
+              src="/cwk-logo.png"
+              alt="Code With Kids"
+              className="h-16 w-auto object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold">Code With Kids</h1>
           <p className="text-muted-foreground mt-2">STEM Education Operations System</p>

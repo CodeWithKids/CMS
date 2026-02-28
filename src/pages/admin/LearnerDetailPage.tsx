@@ -1,10 +1,17 @@
+import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useLearnerAdminProfile } from "@/hooks/useLearnerAdminProfile";
+import { useAttendance } from "@/context/AttendanceContext";
+import { useEnrollments } from "@/context/EnrollmentsContext";
+import { getTerm, getSessionsForTerm, getSession, getClass, getCurrentTerm } from "@/mockData";
+import { mockTerms } from "@/mockData";
 import { BADGE_DEFINITIONS } from "@/constants/badges";
 import { ArrowLeft, User, Award, ClipboardList, Users } from "lucide-react";
+import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -34,6 +41,49 @@ function badgeLabel(badgeId: string): string {
 export default function LearnerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const profile = useLearnerAdminProfile(id ?? undefined);
+  const { getByLearner } = useAttendance();
+  const { getEnrollmentsForLearner } = useEnrollments();
+  const currentTerm = getCurrentTerm();
+  const [selectedTermId, setSelectedTermId] = useState(
+    currentTerm?.id ?? mockTerms[0]?.id ?? ""
+  );
+  const termOptions = useMemo(
+    () => mockTerms.map((t) => ({ term: t, label: t.name })),
+    []
+  );
+  const attendanceRecords = id ? getByLearner(id) : [];
+  const selectedTerm = getTerm(selectedTermId);
+  const selectedTermSessionIds = selectedTerm
+    ? new Set(getSessionsForTerm(selectedTermId).map((s) => s.id))
+    : new Set<string>();
+  const selectedTermRecords = attendanceRecords.filter((r) =>
+    selectedTermSessionIds.has(r.sessionId)
+  );
+  const recentAttendanceForTerm = useMemo(() => {
+    return selectedTermRecords
+      .map((r) => ({ record: r, session: getSession(r.sessionId) }))
+      .filter(
+        (x): x is { record: (typeof selectedTermRecords)[0]; session: NonNullable<ReturnType<typeof getSession>> } =>
+          !!x.session
+      )
+      .sort((a, b) => (b.session.date > a.session.date ? 1 : -1))
+      .slice(0, 15)
+      .map(({ record, session }) => {
+        const cls = getClass(session.classId);
+        const status: "present" | "absent" | "late" =
+          record.status === "present" || record.status === "late"
+            ? "present"
+            : record.status === "absent" || record.status === "excused"
+              ? "absent"
+              : "late";
+        return {
+          sessionId: session.id,
+          date: session.date,
+          status,
+          className: cls?.name ?? session.classId,
+        };
+      });
+  }, [selectedTermRecords]);
 
   if (id === undefined) {
     return (
@@ -61,9 +111,29 @@ export default function LearnerDetailPage() {
     profile.presentCountCurrentTerm +
     profile.absentCountCurrentTerm +
     profile.lateCountCurrentTerm;
+  const presentCountSelected = selectedTermRecords.filter(
+    (r) => r.status === "present" || r.status === "late"
+  ).length;
+  const totalSessionsSelected = selectedTermRecords.length;
+  const attendancePercentageSelected =
+    totalSessionsSelected > 0
+      ? Math.round((presentCountSelected / totalSessionsSelected) * 100)
+      : 0;
+  const enrollmentsForLearner = getEnrollmentsForLearner(id);
+  const enrolledInSelectedTerm = enrollmentsForLearner.some(
+    (e) => e.termId === selectedTermId
+  );
 
   return (
     <div className="page-container max-w-4xl">
+      <PageBreadcrumbs
+        items={[
+          { label: "Admin", href: "/admin/dashboard" },
+          { label: "Learners", href: "/admin/learners" },
+          { label: profile.fullName },
+        ]}
+        className="mb-4"
+      />
       <Link
         to="/admin/learners"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -137,24 +207,44 @@ export default function LearnerDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Attendance */}
+      {/* Attendance by term */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="w-5 h-5" /> Attendance
+            <ClipboardList className="w-5 h-5" /> Attendance by term
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-3xl font-bold">{profile.attendancePercentageCurrentTerm}%</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {profile.presentCountCurrentTerm} present
-            {totalSessionsCurrentTerm > 0
-              ? ` / ${totalSessionsCurrentTerm} sessions this term`
-              : " (no sessions this term)"}
-          </p>
-          {profile.recentAttendance.length > 0 && (
+          <div className="mb-3">
+            <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue placeholder="Select term" />
+              </SelectTrigger>
+              <SelectContent>
+                {termOptions.map(({ term, label }) => (
+                  <SelectItem key={term.id} value={term.id}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {!enrolledInSelectedTerm ? (
+            <p className="text-muted-foreground">Not enrolled this term.</p>
+          ) : totalSessionsSelected > 0 ? (
             <>
-              <h4 className="text-sm font-medium mt-4 mb-2">Recent attendance</h4>
+              <p className="text-3xl font-bold">{attendancePercentageSelected}%</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {presentCountSelected} present / {totalSessionsSelected} sessions in{" "}
+                {selectedTerm?.name ?? "selected term"}
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground">Enrolled this term; no attendance recorded yet.</p>
+          )}
+          {recentAttendanceForTerm.length > 0 && (
+            <>
+              <h4 className="text-sm font-medium mt-4 mb-2">Attendance – {selectedTerm?.name ?? "selected term"}</h4>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -164,7 +254,7 @@ export default function LearnerDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profile.recentAttendance.map((row) => (
+                  {recentAttendanceForTerm.map((row) => (
                     <TableRow key={row.sessionId}>
                       <TableCell>{row.date}</TableCell>
                       <TableCell>{row.className}</TableCell>

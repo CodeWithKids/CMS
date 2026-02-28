@@ -52,18 +52,6 @@ export default function InventoryFormPage() {
   const isEdit = id && id !== "new";
   const existing = isEdit ? getItem(id) : null;
 
-  const isAdmin = currentUser?.role === "admin";
-  if (!isAdmin) {
-    return (
-      <div className="p-6">
-        <p className="text-muted-foreground">Only admin can add or edit inventory.</p>
-        <Link to="/inventory" className="text-primary hover:underline text-sm">
-          ← Back to inventory
-        </Link>
-      </div>
-    );
-  }
-
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -78,6 +66,18 @@ export default function InventoryFormPage() {
       notes: existing?.notes ?? "",
     },
   });
+
+  const isAdmin = currentUser?.role === "admin";
+  if (!isAdmin) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Only admin can add or edit inventory.</p>
+        <Link to="/inventory" className="text-primary hover:underline text-sm">
+          ← Back to inventory
+        </Link>
+      </div>
+    );
+  }
 
   if (isEdit && !existing) {
     return (

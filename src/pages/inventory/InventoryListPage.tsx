@@ -1,8 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useInventory } from "@/context/InventoryContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -34,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { getEducatorName } from "@/mockData";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_STATUS_LABELS } from "@/types";
 import type { InventoryCategory, InventoryStatus } from "@/types";
-import { Package, Plus, Pencil, Trash2 } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 
 const ALL_CATEGORIES = "all";
 const ALL_STATUSES = "all";
@@ -49,6 +51,13 @@ export default function InventoryListPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(t);
+  }, []);
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -67,6 +76,21 @@ export default function InventoryListPage() {
     deleteItem(id);
     setDeleteTarget(null);
     if (deleteTarget?.id === id) navigate("/inventory");
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-40 mb-2" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+        </div>
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
 
   return (
@@ -88,6 +112,19 @@ export default function InventoryListPage() {
           </Button>
         )}
       </div>
+
+      {isError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load inventory.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setIsError(false)}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
@@ -131,6 +168,24 @@ export default function InventoryListPage() {
               </SelectContent>
             </Select>
           </div>
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No items found</p>
+              <p className="text-sm mt-1">
+                {items.length === 0
+                  ? "Add your first inventory item to get started."
+                  : "No items match your filters. Try adjusting search or filters."}
+              </p>
+              {isAdmin && items.length === 0 && (
+                <Button asChild className="mt-4">
+                  <Link to="/inventory/new">
+                    <Plus className="w-4 h-4" /> Add item
+                  </Link>
+                </Button>
+              )}
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -178,10 +233,13 @@ export default function InventoryListPage() {
                       >
                         {INVENTORY_STATUS_LABELS[item.status]}
                       </Badge>
-                      {item.status === "checked_out" && (item.checkedOutByEducatorId ?? item.assignedEducatorId) && (
+                      {item.status === "checked_out" &&
+                        ((item.checkedOutByEducatorId ?? item.assignedEducatorId) || item.checkedOutAt || item.dueAt) && (
                         <p className="text-xs text-muted-foreground">
-                          Checked out by {getEducatorName(item.checkedOutByEducatorId ?? item.assignedEducatorId!)}
+                          {(item.checkedOutByEducatorId ?? item.assignedEducatorId) &&
+                            `Checked out by ${getEducatorName(item.checkedOutByEducatorId ?? item.assignedEducatorId!)}`}
                           {item.checkedOutAt && ` since ${new Date(item.checkedOutAt).toLocaleDateString("en-ZA")}`}
+                          {item.dueAt && ` · Due ${new Date(item.dueAt).toLocaleDateString("en-ZA")}`}
                         </p>
                       )}
                     </div>
@@ -210,6 +268,7 @@ export default function InventoryListPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

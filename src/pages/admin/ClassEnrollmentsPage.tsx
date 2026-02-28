@@ -17,6 +17,7 @@ import {
   getConflictOtherClassName,
   getBadgeCountInClassSessions,
 } from "@/lib/classEnrolmentsUtils";
+import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, Users, Save, AlertTriangle, Award, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ClassEnrollmentStatus } from "@/types";
@@ -98,6 +109,7 @@ export default function ClassEnrollmentsPage() {
   const [statusByLearner, setStatusByLearner] = useState<Record<string, ClassEnrollmentStatus>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionValue, setBulkActionValue] = useState("");
+  const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!cls || !term) return;
@@ -260,6 +272,15 @@ export default function ClassEnrollmentsPage() {
 
   return (
     <div className="page-container">
+      <PageBreadcrumbs
+        items={[
+          { label: "Admin", href: "/admin/dashboard" },
+          { label: "Classes", href: "/admin/classes" },
+          { label: cls.name },
+          { label: "Enrolments" },
+        ]}
+        className="mb-4"
+      />
       <Link
         to="/admin/classes"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -361,7 +382,12 @@ export default function ClassEnrollmentsPage() {
                 <Select
                   value={bulkActionValue}
                   onValueChange={(v) => {
-                    if (v === "enroll" || v === "completed" || v === "dropped") applyBulk(v);
+                    if (v === "dropped") {
+                      setDropConfirmOpen(true);
+                      setBulkActionValue("");
+                      return;
+                    }
+                    if (v === "enroll" || v === "completed") applyBulk(v);
                   }}
                 >
                   <SelectTrigger className="w-[200px]">
@@ -541,6 +567,22 @@ export default function ClassEnrollmentsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={dropConfirmOpen} onOpenChange={setDropConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as dropped</AlertDialogTitle>
+            <AlertDialogDescription>
+              Drop {selectedIds.size} learner{selectedIds.size !== 1 ? "s" : ""} from this class for this term? They
+              will be marked as dropped. Click Save below to persist changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={applyBulkDropped}>Mark as dropped</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

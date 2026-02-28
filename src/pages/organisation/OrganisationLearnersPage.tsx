@@ -1,11 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
-import { Search } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Users } from "lucide-react";
 
 export default function OrganisationLearnersPage() {
   const { organisation, learners, isOrgUser } = useOrganisationLearners();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => {
@@ -18,10 +24,26 @@ export default function OrganisationLearnersPage() {
     );
   }, [learners, search]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(t);
+  }, []);
+
   if (!isOrgUser || !organisation) {
     return (
       <div className="page-container">
         <p className="text-muted-foreground">Organisation not found. Please contact support.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <Skeleton className="h-9 w-48 mb-2" />
+        <Skeleton className="h-5 w-80 mb-6" />
+        <Skeleton className="h-10 max-w-sm mb-6" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -32,6 +54,19 @@ export default function OrganisationLearnersPage() {
       <p className="page-subtitle">
         View details of learners linked to {organisation.name}
       </p>
+
+      {isError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load learners.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setIsError(false)}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="relative max-w-sm mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -46,9 +81,15 @@ export default function OrganisationLearnersPage() {
 
       {filtered.length === 0 ? (
         <div className="bg-card rounded-xl border p-8 text-center text-muted-foreground">
-          {learners.length === 0
-            ? "No learners are currently linked to your organisation."
-            : "No learners match your search."}
+          <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="font-medium">
+            {learners.length === 0
+              ? "No learners are currently linked to your organisation."
+              : "No learners match your search."}
+          </p>
+          <p className="text-sm mt-1">
+            {learners.length === 0 ? "Contact Code With Kids to link learners to your organisation." : "Try a different search."}
+          </p>
         </div>
       ) : (
         <div className="bg-card rounded-xl border overflow-hidden">

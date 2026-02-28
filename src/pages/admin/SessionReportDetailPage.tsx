@@ -14,7 +14,8 @@ import {
   SESSION_REPORT_SESSION_TYPE_ADMIN_LABELS,
   SESSION_REPORT_STATUS_ADMIN_LABELS,
 } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -220,6 +221,14 @@ export default function SessionReportDetailPage() {
 
   return (
     <div className="page-container max-w-3xl">
+      <PageBreadcrumbs
+        items={[
+          { label: "Admin", href: "/admin/dashboard" },
+          { label: "Session reports", href: "/admin/session-reports" },
+          { label: `Report ${detailView.sessionDate}` },
+        ]}
+        className="mb-4"
+      />
       <Link
         to="/admin/session-reports"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -315,6 +324,28 @@ export default function SessionReportDetailPage() {
               <CardTitle className="text-base">Follow-up actions</CardTitle>
             </CardHeader>
             <CardContent className="text-sm whitespace-pre-wrap">{detailView.followUpActions}</CardContent>
+          </Card>
+        )}
+
+        {report.coachFeedback && report.coachFeedback.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Coach feedback</CardTitle>
+              <CardDescription>Feedback from coaches on this session (visible to admin and lead educator).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {report.coachFeedback.map((entry) => (
+                <div key={`${entry.educatorId}-${entry.createdAt}`} className="rounded-lg border bg-muted/30 p-3 text-sm">
+                  <p className="font-medium text-muted-foreground mb-1">{getEducatorName(entry.educatorId)}</p>
+                  <p className="whitespace-pre-wrap">{entry.text}</p>
+                  {entry.createdAt && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {new Date(entry.createdAt).toLocaleString("en-ZA", { dateStyle: "short", timeStyle: "short" })}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </CardContent>
           </Card>
         )}
       </div>

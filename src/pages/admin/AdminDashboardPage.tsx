@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -7,6 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -81,6 +85,14 @@ const PARTNER_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function AdminDashboardPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(t);
+  }, []);
+
   const peopleStats = getPeopleStats(mockUsers, mockLearners);
   const financeStats = getFinanceStats(mockInvoices, mockLearners);
   const pendingApprovals = pendingUsers();
@@ -107,14 +119,88 @@ export default function AdminDashboardPage() {
     []
   );
 
+  const sessionReportsMissingCount = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const submittedSessionIds = new Set(
+      mockSessionReports.filter((r) => r.status === "submitted").map((r) => r.sessionId)
+    );
+    return mockSessions.filter(
+      (s) => s.date < today && !submittedSessionIds.has(s.id)
+    ).length;
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-8">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-8">
+      {isError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load the dashboard.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setIsError(false)}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">
           Operations overview: people, finance, and pending actions.
         </p>
       </div>
+
+      {/* Pending actions summary */}
+      {(sessionReportsMissingCount > 0 || pendingApprovals.length > 0) && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Pending actions</h2>
+          <div className="flex flex-wrap gap-3">
+            {sessionReportsMissingCount > 0 && (
+              <Link
+                to="/admin/session-reports"
+                className="inline-flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+              >
+                <span className="text-muted-foreground">Session reports missing:</span>
+                <span className="text-primary">{sessionReportsMissingCount}</span>
+                <span className="text-muted-foreground">→ View</span>
+              </Link>
+            )}
+            {pendingApprovals.length > 0 && (
+              <Link
+                to="/admin/account-approvals"
+                className="inline-flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+              >
+                <span className="text-muted-foreground">Account approvals:</span>
+                <span className="text-primary">{pendingApprovals.length}</span>
+                <span className="text-muted-foreground">→ View</span>
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Overview: active partners */}
       <section>

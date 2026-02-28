@@ -14,10 +14,15 @@ export interface EducatorNote {
   createdAt: string; // ISO
 }
 
+const DATE_NOTE_PREFIX = "date:";
+
 interface EducatorNotesContextType {
   getNotesForSession: (sessionId: string) => EducatorNote[];
   addNote: (sessionId: string, text: string) => void;
   deleteNote: (sessionId: string, noteId: string) => void;
+  /** Notes for a given date (e.g. "Today's notes"). Uses sessionId `date:YYYY-MM-DD`. */
+  getNotesForDate: (date: string) => EducatorNote[];
+  addNoteForDate: (date: string, text: string) => void;
 }
 
 const EducatorNotesContext = createContext<EducatorNotesContextType | undefined>(undefined);
@@ -40,6 +45,11 @@ export function EducatorNotesProvider({ children }: { children: ReactNode }) {
     [notes]
   );
 
+  const getNotesForDate = useCallback(
+    (date: string) => getNotesForSession(`${DATE_NOTE_PREFIX}${date}`),
+    [getNotesForSession]
+  );
+
   const addNote = useCallback((sessionId: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -50,13 +60,18 @@ export function EducatorNotesProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const addNoteForDate = useCallback(
+    (date: string, text: string) => addNote(`${DATE_NOTE_PREFIX}${date}`, text),
+    [addNote]
+  );
+
   const deleteNote = useCallback((sessionId: string, noteId: string) => {
     setNotes((prev) => prev.filter((n) => !(n.sessionId === sessionId && n.id === noteId)));
   }, []);
 
   const value = useMemo(
-    () => ({ getNotesForSession, addNote, deleteNote }),
-    [getNotesForSession, addNote, deleteNote]
+    () => ({ getNotesForSession, addNote, deleteNote, getNotesForDate, addNoteForDate }),
+    [getNotesForSession, addNote, deleteNote, getNotesForDate, addNoteForDate]
   );
 
   return (

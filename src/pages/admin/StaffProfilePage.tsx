@@ -1,5 +1,11 @@
 import { useParams, Link } from "react-router-dom";
-import { getStaffMember } from "@/mockData";
+import {
+  getStaffMember,
+  mockClasses,
+  getSessionsForTerm,
+  getCurrentTerm,
+} from "@/mockData";
+import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import {
   Card,
   CardContent,
@@ -8,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, Briefcase, FileText, FolderOpen } from "lucide-react";
+import { ArrowLeft, User, Briefcase, FileText, FolderOpen, BookOpen, Calendar, Clock } from "lucide-react";
 import type { ContractType, PayType, PreferredPaymentMethod } from "@/types";
 
 const contractLabels: Record<ContractType, string> = {
@@ -43,7 +49,26 @@ function formatDate(iso: string): string {
 
 export default function StaffProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const staff = getStaffMember(id ?? "");
+  const staffId = id ?? "";
+  const staff = getStaffMember(staffId);
+
+  const currentTerm = getCurrentTerm();
+  const termId = currentTerm?.id ?? "t1";
+  const assignedClasses = staff ? mockClasses.filter((c) => c.educatorId === staffId) : [];
+  const sessionsThisTerm = staff
+    ? getSessionsForTerm(termId).filter(
+        (s) =>
+          s.leadEducatorId === staffId ||
+          (s.assistantEducatorIds ?? []).includes(staffId)
+      )
+    : [];
+  const hoursThisTerm = sessionsThisTerm.reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
+  const facilitatingHours = sessionsThisTerm
+    .filter((s) => s.leadEducatorId === staffId)
+    .reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
+  const coachingHours = sessionsThisTerm
+    .filter((s) => (s.assistantEducatorIds ?? []).includes(staffId))
+    .reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
 
   if (!staff) {
     return (
@@ -58,6 +83,14 @@ export default function StaffProfilePage() {
 
   return (
     <div className="p-6 space-y-6">
+      <PageBreadcrumbs
+        items={[
+          { label: "Admin", href: "/admin/dashboard" },
+          { label: "Staff", href: "/admin/hr/staff" },
+          { label: staff.name },
+        ]}
+        className="mb-4"
+      />
       <Link
         to="/admin/hr/staff"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -121,6 +154,59 @@ export default function StaffProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Assigned classes & sessions (educators) */}
+      {staff.role === "educator" && (assignedClasses.length > 0 || sessionsThisTerm.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" /> Workload this term
+            </CardTitle>
+            <CardDescription>
+              {currentTerm?.name ?? "Current term"} — assigned classes, sessions, and hours.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {assignedClasses.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Assigned classes</p>
+                <ul className="space-y-1">
+                  {assignedClasses.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        to={`/admin/classes/${c.id}/enrolments`}
+                        className="text-primary hover:underline text-sm"
+                      >
+                        {c.name}
+                      </Link>
+                      <span className="text-muted-foreground text-sm ml-2">
+                        {c.program} · {c.ageGroup}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4" /> Sessions this term
+                </p>
+                <p className="text-xl font-semibold">{sessionsThisTerm.length}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" /> Hours summary
+                </p>
+                <p className="text-xl font-semibold">{hoursThisTerm.toFixed(1)} h</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {facilitatingHours.toFixed(1)} h facilitating · {coachingHours.toFixed(1)} h coaching
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Employment & pay */}
       <Card>

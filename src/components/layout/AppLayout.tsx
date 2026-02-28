@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, createElement } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
 import {
   Users, BookOpen, LayoutDashboard, Calendar, FileText, Clock,
-  GraduationCap, MessageSquare, LogOut, Menu, X, Code,
-  UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, Laptop, CalendarDays,
+  GraduationCap, MessageSquare, LogOut, Menu, X,
+  UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, CalendarDays,
 } from "lucide-react";
 import type { UserRole } from "@/types";
+import { educatorNavItems, educatorNavIconMap } from "@/features/layout/educatorNav";
 
 type NavEntry =
   | { type: "link"; label: string; path: string; icon: React.ReactNode }
@@ -32,6 +33,11 @@ const adminNav: NavEntry[] = [
 
 const financeNav: NavEntry[] = [
   { type: "link", label: "Dashboard", path: "/finance/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+  { type: "link", label: "Invoices", path: "/finance/invoices", icon: <FileText className="w-5 h-5" /> },
+  { type: "link", label: "Adjustments", path: "/finance/adjustments", icon: <TrendingUp className="w-5 h-5" /> },
+  { type: "link", label: "Educators", path: "/finance/educators", icon: <Users className="w-5 h-5" /> },
+  { type: "link", label: "Inventory", path: "/finance/inventory", icon: <Package className="w-5 h-5" /> },
+  { type: "link", label: "Reports", path: "/finance/reports", icon: <BarChart2 className="w-5 h-5" /> },
   { type: "link", label: "Educator payments", path: "/finance/educator-payments", icon: <Wallet className="w-5 h-5" /> },
   { type: "link", label: "Session expenses", path: "/finance/session-expenses", icon: <ReceiptText className="w-5 h-5" /> },
   { type: "link", label: "Session reports", path: "/admin/session-reports", icon: <FileText className="w-5 h-5" /> },
@@ -40,19 +46,17 @@ const financeNav: NavEntry[] = [
   { type: "link", label: "Year overview", path: "/finance/year-overview", icon: <BarChart2 className="w-5 h-5" /> },
 ];
 
+const educatorNav: NavEntry[] = educatorNavItems.map((item) => ({
+  type: "link" as const,
+  label: item.label,
+  path: item.to,
+  icon: createElement(educatorNavIconMap[item.iconKey], { className: "w-5 h-5" }),
+}));
+
 const navByRole: Record<UserRole, NavEntry[]> = {
   admin: adminNav,
   finance: financeNav,
-  educator: [
-    { type: "link", label: "Dashboard", path: "/educator/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
-    { type: "link", label: "My classes", path: "/educator/dashboard", icon: <BookOpen className="w-5 h-5" /> },
-    { type: "link", label: "My devices", path: "/educator/dashboard", icon: <Laptop className="w-5 h-5" /> },
-    { type: "link", label: "Schedule", path: "/educator/schedule", icon: <Calendar className="w-5 h-5" /> },
-    { type: "link", label: "Team schedules", path: "/educator/team-schedule", icon: <CalendarDays className="w-5 h-5" /> },
-    { type: "link", label: "Profile", path: "/educator/profile", icon: <UserCircle className="w-5 h-5" /> },
-    { type: "link", label: "Earnings", path: "/educator/earnings", icon: <Wallet className="w-5 h-5" /> },
-    { type: "link", label: "Inventory", path: "/inventory", icon: <Package className="w-5 h-5" /> },
-  ],
+  educator: educatorNav,
   student: [
     { type: "link", label: "Dashboard", path: "/student/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     { type: "link", label: "Profile", path: "/student/profile", icon: <UserCircle className="w-5 h-5" /> },
@@ -88,9 +92,11 @@ export default function AppLayout() {
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           <Link to={getRoleDashboard(currentUser.role)} className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Code className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img
+              src="/cwk-logo.png"
+              alt="Code With Kids"
+              className="h-8 w-auto object-contain"
+            />
             <span className="font-bold text-lg hidden sm:inline">Code With Kids</span>
           </Link>
         </div>

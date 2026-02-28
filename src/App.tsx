@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,12 +15,13 @@ import { ScheduleProvider } from "@/context/ScheduleContext";
 import { LessonPlansProvider } from "@/context/LessonPlansContext";
 import { SessionsProvider } from "@/context/SessionsContext";
 import { EducatorNotesProvider } from "@/context/EducatorNotesContext";
+import { FinanceProvider } from "@/context/FinanceContext";
 
 import LoginPage from "@/pages/auth/LoginPage";
 import AppLayout from "@/components/layout/AppLayout";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
-import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
+const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
 import LearnersPage from "@/pages/admin/LearnersPage";
 import LearnerDetailPage from "@/pages/admin/LearnerDetailPage";
 import ClassesPage from "@/pages/admin/ClassesPage";
@@ -35,14 +37,22 @@ import EducatorHoursPage from "@/pages/admin/EducatorHoursPage";
 import ExpensesPage from "@/pages/admin/ExpensesPage";
 import AccountApprovalsPage from "@/pages/admin/AccountApprovalsPage";
 
-import FinanceDashboardPage from "@/pages/finance/FinanceDashboardPage";
+const FinanceDashboardPage = lazy(() => import("@/pages/finance/FinanceDashboardPage"));
+import InvoiceListPage from "@/pages/finance/InvoiceListPage";
+import InvoiceDetailPage from "@/pages/finance/InvoiceDetailPage";
+import AdjustmentsListPage from "@/pages/finance/AdjustmentsListPage";
+import AdjustmentDetailPage from "@/pages/finance/AdjustmentDetailPage";
+import EducatorsListPage from "@/pages/finance/EducatorsListPage";
+import EducatorFinanceDetailPage from "@/pages/finance/EducatorFinanceDetailPage";
+import FinanceInventoryPage from "@/pages/finance/FinanceInventoryPage";
+import FinanceReportsPage from "@/pages/finance/FinanceReportsPage";
 import FinanceEducatorPaymentsPage from "@/pages/finance/EducatorPaymentsPage";
 import FinanceIncomePage from "@/pages/finance/IncomePage";
 import FinanceExpensesPage from "@/pages/finance/ExpensesPage";
 import SessionExpensesPage from "@/pages/finance/SessionExpensesPage";
 import YearOverviewPage from "@/pages/finance/YearOverviewPage";
 
-import EducatorDashboard from "@/pages/educator/EducatorDashboard";
+const EducatorDashboard = lazy(() => import("@/pages/educator/EducatorDashboard"));
 import EducatorSchedulePage from "@/features/educator/components/EducatorSchedulePage";
 import TeamSchedulePage from "@/pages/educator/TeamSchedulePage";
 import EducatorEarningsPage from "@/pages/educator/EducatorEarningsPage";
@@ -61,6 +71,8 @@ import FeedbackPage from "@/pages/student/FeedbackPage";
 
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import InvoicesPage from "@/pages/parent/InvoicesPage";
+import ParentInvoiceDetailPage from "@/pages/parent/ParentInvoiceDetailPage";
+import ParentChildDetailPage from "@/pages/parent/ParentChildDetailPage";
 
 import InventoryListPage from "@/pages/inventory/InventoryListPage";
 import InventoryDetailPage from "@/pages/inventory/InventoryDetailPage";
@@ -91,7 +103,9 @@ const App = () => (
         <AttendanceProvider>
         <SessionReportsProvider>
         <InventoryProvider>
+        <FinanceProvider>
         <BrowserRouter>
+          <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
@@ -102,6 +116,14 @@ const App = () => (
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/finance" element={<Navigate to="/finance/dashboard" replace />} />
               <Route path="/finance/dashboard" element={<FinanceDashboardPage />} />
+              <Route path="/finance/invoices" element={<InvoiceListPage />} />
+              <Route path="/finance/invoices/:id" element={<InvoiceDetailPage />} />
+              <Route path="/finance/adjustments" element={<AdjustmentsListPage />} />
+              <Route path="/finance/adjustments/:id" element={<AdjustmentDetailPage />} />
+              <Route path="/finance/educators" element={<EducatorsListPage />} />
+              <Route path="/finance/educators/:id" element={<EducatorFinanceDetailPage />} />
+              <Route path="/finance/inventory" element={<FinanceInventoryPage />} />
+              <Route path="/finance/reports" element={<FinanceReportsPage />} />
               <Route path="/finance/educator-payments" element={<FinanceEducatorPaymentsPage />} />
               <Route path="/finance/income" element={<FinanceIncomePage />} />
               <Route path="/finance/expenses" element={<FinanceExpensesPage />} />
@@ -155,6 +177,8 @@ const App = () => (
             <Route element={<ProtectedRoute allowedRoles={["parent"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/parent/dashboard" element={<ParentDashboard />} />
               <Route path="/parent/invoices" element={<InvoicesPage />} />
+              <Route path="/parent/invoices/:id" element={<ParentInvoiceDetailPage />} />
+              <Route path="/parent/children/:id" element={<ParentChildDetailPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["organisation"]}><AppLayout /></ProtectedRoute>}>
@@ -165,7 +189,9 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
+        </FinanceProvider>
         </InventoryProvider>
         </SessionReportsProvider>
         </AttendanceProvider>

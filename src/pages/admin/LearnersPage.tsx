@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { mockLearners, getOrganization } from "@/mockData";
-import { Search } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -15,6 +17,7 @@ import type { LearnerEnrolmentType } from "@/types";
 export default function LearnersPage() {
   const [search, setSearch] = useState("");
   const [enrolmentFilter, setEnrolmentFilter] = useState<LearnerEnrolmentType | "all">("all");
+  const [isError, setIsError] = useState(false);
 
   const filtered = useMemo(() => {
     let list = mockLearners;
@@ -36,6 +39,19 @@ export default function LearnersPage() {
     <div className="page-container">
       <h1 className="page-title">Learners</h1>
       <p className="page-subtitle">Manage all registered learners (members and partner-org)</p>
+
+      {isError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load learners.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setIsError(false)}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex flex-wrap gap-4 mb-4">
         <div className="relative max-w-sm flex-1 min-w-[200px]">
@@ -108,7 +124,11 @@ export default function LearnersPage() {
         </tbody>
       </table>
       {filtered.length === 0 && (
-        <p className="text-sm text-muted-foreground py-4">No learners match the filters.</p>
+        <p className="text-sm text-muted-foreground py-6">
+          {search.trim() || enrolmentFilter !== "all"
+            ? "No learners match your filters. Try changing the search or enrolment type."
+            : "No learners in the system yet."}
+        </p>
       )}
     </div>
   );

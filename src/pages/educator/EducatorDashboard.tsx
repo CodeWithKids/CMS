@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
@@ -6,6 +6,7 @@ import { useSessionReports } from "@/context/SessionReportsContext";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
 import { useLessonPlans } from "@/context/LessonPlansContext";
 import { useInventory } from "@/context/InventoryContext";
+import { useEducatorNotes } from "@/context/EducatorNotesContext";
 import { mockClasses, getClass, getCurrentTerm } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { LEARNING_TRACK_LABELS } from "@/types";
@@ -14,7 +15,9 @@ import { EducatorSessionCard } from "@/features/educator/components/EducatorSess
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Clock, BookOpen, History, AlertCircle, Wallet, Laptop, Award } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Clock, BookOpen, History, AlertCircle, Wallet, Laptop, Award, StickyNote } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -35,6 +38,7 @@ export default function EducatorDashboard() {
   const { getInstanceForSession } = useLessonPlans();
   const { getItemsCheckedOutTo } = useInventory();
   const { getSessionsForEducatorByRole, getSessionsForClass } = useSessions();
+  const { getNotesForDate, addNoteForDate } = useEducatorNotes();
 
   const todaySessions = useMemo(
     () => getSessionsForEducatorByRole(educatorId, { date: today }),
@@ -109,11 +113,40 @@ export default function EducatorDashboard() {
   }, [myClasses, getSessionsForClass]);
 
   const [loadError, setLoadError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [todayNoteText, setTodayNoteText] = useState("");
+
+  const todayNotes = useMemo(() => getNotesForDate(today), [today, getNotesForDate]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="page-container">
+        <Skeleton className="h-9 w-56 mb-2" />
+        <Skeleton className="h-5 w-48 mb-6" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">
       <h1 className="page-title">Educator Dashboard</h1>
       <p className="page-subtitle">Welcome back, {currentUser?.name}</p>
+      <p className="text-sm text-muted-foreground mb-4">Your classes and devices are below.</p>
 
       {loadError && (
         <Alert variant="destructive" className="mb-4">
@@ -183,6 +216,54 @@ export default function EducatorDashboard() {
           </Link>
         </div>
       )}
+
+      {/* Today's notes / reminders */}
+      <div className="mb-6 p-4 rounded-xl border bg-card">
+        <h2 className="font-semibold flex items-center gap-2 mb-3">
+          <StickyNote className="w-5 h-5 text-primary" /> Today&apos;s notes
+        </h2>
+        <p className="text-sm text-muted-foreground mb-3">Quick reminders or notes for today. Session-specific notes are on each session card.</p>
+        {todayNotes.length > 0 && (
+          <ul className="space-y-2 mb-3">
+            {todayNotes.map((n) => (
+              <li key={n.id} className="text-sm rounded-md bg-muted/50 px-3 py-2 whitespace-pre-wrap">
+                {n.text}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add a note or reminder for today..."
+            value={todayNoteText}
+            onChange={(e) => setTodayNoteText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                const t = todayNoteText.trim();
+                if (t) {
+                  addNoteForDate(today, t);
+                  setTodayNoteText("");
+                }
+              }
+            }}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              const t = todayNoteText.trim();
+              if (t) {
+                addNoteForDate(today, t);
+                setTodayNoteText("");
+              }
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-card rounded-xl border p-5">
