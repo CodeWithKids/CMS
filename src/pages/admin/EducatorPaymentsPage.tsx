@@ -24,19 +24,19 @@ export default function EducatorPaymentsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Educator payments</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Salaries</h1>
         <p className="text-muted-foreground">
-          Read-only view of stipends and salaries per period (Finance handles entry).
+          Details of team salaries — stipends, salaries, and bonuses by period.
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5" /> Payments by period
+            <Wallet className="w-5 h-5" /> Team salaries
           </CardTitle>
           <CardDescription>
-            All educator payments from Finance data.
+            Salary and payment details by team member and period. Finance handles entry.
           </CardDescription>
         </CardHeader>
         <CardContent>

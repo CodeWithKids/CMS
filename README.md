@@ -15,6 +15,11 @@ CWK-CMS is an **operations and learning hub** for a kids' coding program. It let
 
 The current codebase is a **React frontend** that uses **mock data** only. It is intended to be connected to a real backend (API) later.
 
+### Branding
+
+- **Logo:** The app uses the Code With Kids logo from `public/cwk-logo.png`. It appears on the **login page** and in the **main header** (next to “Code With Kids”) when logged in. Replace or update this file with your official logo asset to keep branding consistent.
+- **Display name:** “Code With Kids” and “CWK Hub” are used in the UI and in page titles/meta tags.
+
 ---
 
 ## User roles and features
@@ -67,6 +72,7 @@ shadcn/ui and Tailwind provide data-heavy components (tables, cards, dialogs, fo
 - **Role-based access** — Routes are protected by role. If a user hits a route for another role, they are redirected to their role's default page (e.g. student → `/student/dashboard`).
 - **Fake authentication** — An `AuthContext` holds the current user (`id`, `name`, `role`). Login selects a user from mock users; the chosen user is persisted in `localStorage`. A role switcher in the UI lets you switch roles during development.
 - **Mock data** — All lists and details come from in-memory arrays in `src/mockData/index.ts` (learners, classes, sessions, invoices, events, class enrollments). No API calls yet.
+- **Finance account** — Income (invoices) and expenses are read from a single source, `src/mockData/financeAccount.ts`, so all finance reports, Income and Expenses tabs, and admin dashboards use the same data for transparency and accuracy. In production, replace the in-memory finance account with API calls to your finance/accounting backend.
 - **Layout** — Top navbar ("Code With Kids" + role switcher), left sidebar (menu items depend on role), main content area for each page.
 
 ---

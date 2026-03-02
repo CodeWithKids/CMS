@@ -32,7 +32,7 @@ import { getAdminOverviewSummary } from "@/lib/adminOverview";
 import {
   mockUsers,
   mockLearners,
-  mockInvoices,
+  getFinanceAccountInvoices,
   mockOrganizations,
   mockSessions,
   mockSessionReports,
@@ -94,16 +94,16 @@ export default function AdminDashboardPage() {
   }, []);
 
   const peopleStats = getPeopleStats(mockUsers, mockLearners);
-  const financeStats = getFinanceStats(mockInvoices, mockLearners);
+  const financeStats = getFinanceStats(getFinanceAccountInvoices(), mockLearners);
   const pendingApprovals = pendingUsers();
   const learnersWithPending = getLearnersWithPendingPayments(
     mockLearners,
-    mockInvoices,
+    getFinanceAccountInvoices(),
     getOrganization
   );
   const organizationsWithPending = getOrganizationsWithPendingPayments(
     mockLearners,
-    mockInvoices,
+    getFinanceAccountInvoices(),
     getOrganization
   );
 

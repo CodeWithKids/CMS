@@ -4,6 +4,7 @@ import type {
   LessonPlanInstance,
   EducatorBadge,
   LessonPlanBlock,
+  CoachingNote,
 } from "@/types";
 
 const today = new Date().toISOString().split("T")[0];
@@ -200,8 +201,8 @@ export const mockLessonPlanInstances: LessonPlanInstance[] = [
 
 // ——— Educator badges (earned by educators; MVP: mock or derive from session counts)
 export const mockEducatorBadges: EducatorBadge[] = [
-  { id: "eb1", educatorId: "u2", trackId: "game_design", name: "Scratch Champion", description: "10+ sessions in Game Design (Scratch)", earnedAt: "2024-12-01" },
-  { id: "eb2", educatorId: "u2", trackId: "python", name: "Python Master", description: "10+ sessions and 15+ hours in Python", earnedAt: "2025-01-15" },
+  { id: "eb1", educatorId: "u2", trackId: "game_design", name: "Scratch Champion", description: "10+ sessions in Game Design (Scratch)", earnedAt: "2026-01-10" },
+  { id: "eb2", educatorId: "u2", trackId: "python", name: "Python Master", description: "10+ sessions and 15+ hours in Python", earnedAt: "2026-01-15" },
 ];
 
 export function getAvailabilitySlotsForEducator(educatorId: string): AvailabilitySlot[] {
@@ -218,4 +219,14 @@ export function getLessonPlanInstanceForSession(sessionId: string): LessonPlanIn
 
 export function getEducatorBadgesForEducator(educatorId: string): EducatorBadge[] {
   return mockEducatorBadges.filter((b) => b.educatorId === educatorId);
+}
+
+// ——— L&D Manager: coaching notes (in-memory; replace with API)
+export const mockCoachingNotes: CoachingNote[] = [
+  { id: "cn1", educatorId: "u2", authorId: "u16", date: "2026-02-20", text: "Observed Scratch session: great engagement. Suggestion: clearer instructions at start for repeat block.", trackRef: "Game Design (Scratch)", sessionId: "s1" },
+  { id: "cn2", educatorId: "u2", authorId: "u16", date: "2026-02-18", text: "Game design track – learners on task. Consider more pair share.", trackRef: "Game Design (Scratch)", sessionId: null },
+];
+
+export function getCoachingNotesForEducator(educatorId: string): CoachingNote[] {
+  return mockCoachingNotes.filter((c) => c.educatorId === educatorId);
 }

@@ -9,15 +9,16 @@ import { useInventory } from "@/context/InventoryContext";
 import { useEducatorNotes } from "@/context/EducatorNotesContext";
 import { mockClasses, getClass, getCurrentTerm } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
-import { LEARNING_TRACK_LABELS } from "@/types";
-import type { LearningTrack } from "@/types";
+import { LEARNING_TRACK_LABELS, SESSION_TYPE_LABELS } from "@/types";
+import type { LearningTrack, SessionType } from "@/types";
 import { EducatorSessionCard } from "@/features/educator/components/EducatorSessionCard";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Clock, BookOpen, History, AlertCircle, Wallet, Laptop, Award, StickyNote } from "lucide-react";
+import { Clock, BookOpen, History, AlertCircle, Wallet, Laptop, Award, StickyNote, ListTodo } from "lucide-react";
+import { useMyTasks } from "@/features/tasks/context/TasksContext";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -57,14 +58,6 @@ export default function EducatorDashboard() {
   );
 
   const weekStart = useMemo(() => getWeekStart(new Date()), []);
-  const sessionsWithoutReport = useMemo(
-    () =>
-      getSessionsForEducatorByRole(educatorId, { from: weekStart, to: today }).filter(
-        (s) => getReportBySession(s.id)?.status !== "submitted"
-      ),
-    [educatorId, weekStart, getReportBySession, getSessionsForEducatorByRole]
-  );
-  const reminderCount = sessionsWithoutReport.length;
 
   const myClasses = useMemo(
     () =>
@@ -102,6 +95,19 @@ export default function EducatorDashboard() {
   );
   const dashboardBadges = useMemo(() => computeEducatorBadges(educatorId, allSessionsForBadges), [educatorId, allSessionsForBadges]);
 
+  const myTasks = useMyTasks(educatorId);
+  const nextTasks = useMemo(
+    () =>
+      [...myTasks]
+        .sort((a, b) => {
+          const aDue = a.dueDate ?? "9999-12-31";
+          const bDue = b.dueDate ?? "9999-12-31";
+          return aDue.localeCompare(bDue) || a.createdAt.localeCompare(b.createdAt);
+        })
+        .slice(0, 3),
+    [myTasks]
+  );
+
   const tracksByClass = useMemo(() => {
     const map = new Map<string, LearningTrack[]>();
     for (const c of myClasses) {
@@ -111,6 +117,39 @@ export default function EducatorDashboard() {
     }
     return map;
   }, [myClasses, getSessionsForClass]);
+
+  /** Order of the six CWK program/session types for grouping My classes. */
+  const SESSION_TYPE_ORDER: SessionType[] = [
+    "makerspace",
+    "school_stem_club",
+    "virtual",
+    "home",
+    "organization",
+    "miradi",
+  ];
+
+  const sessionTypeByClass = useMemo(() => {
+    const map = new Map<string, SessionType>();
+    for (const c of myClasses) {
+      const sessions = getSessionsForClass(c.id);
+      const types = sessions.map((s) => s.sessionType);
+      const primary = types.length > 0 ? types[0] : "makerspace";
+      map.set(c.id, primary);
+    }
+    return map;
+  }, [myClasses, getSessionsForClass]);
+
+  const myClassesByProgramType = useMemo(() => {
+    const byType = new Map<SessionType, typeof myClasses>();
+    for (const st of SESSION_TYPE_ORDER) byType.set(st, []);
+    for (const c of myClasses) {
+      const st = sessionTypeByClass.get(c.id) ?? "makerspace";
+      const list = byType.get(st) ?? [];
+      list.push(c);
+      byType.set(st, list);
+    }
+    return SESSION_TYPE_ORDER.flatMap((st) => (byType.get(st) ?? []).map((c) => ({ class: c, sessionType: st })));
+  }, [myClasses, sessionTypeByClass]);
 
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,20 +200,6 @@ export default function EducatorDashboard() {
         </Alert>
       )}
 
-      {reminderCount > 0 && (
-        <div className="mb-4 p-3 rounded-lg border bg-amber-500/10 border-amber-500/30 flex items-center gap-2 text-sm flex-wrap">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>
-            You still have {reminderCount} session{reminderCount !== 1 ? "s" : ""} without reports. Sessions are not complete until the report is submitted.
-          </span>
-          {sessionsWithoutReport[0] && (
-            <Link to={`/educator/sessions/${sessionsWithoutReport[0].id}/report`} className="text-primary hover:underline font-medium shrink-0">
-              Fill session report
-            </Link>
-          )}
-        </div>
-      )}
-
       {/* Hours summary */}
       <div className="mb-6 p-4 rounded-xl border bg-card grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
@@ -216,6 +241,39 @@ export default function EducatorDashboard() {
           </Link>
         </div>
       )}
+
+      {/* My tasks */}
+      <div className="mb-6 p-4 rounded-xl border bg-card">
+        <h2 className="font-semibold flex items-center gap-2 mb-3">
+          <ListTodo className="w-5 h-5 text-primary" /> My tasks
+        </h2>
+        {nextTasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>
+        ) : (
+          <ul className="space-y-2 mb-3">
+            {nextTasks.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium truncate">{t.title}</span>
+                <span className="text-muted-foreground shrink-0">{t.dueDate ?? "—"}</span>
+                <span
+                  className={`shrink-0 text-xs px-2 py-0.5 rounded ${
+                    t.status === "done"
+                      ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                      : t.status === "in_progress"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {t.status.replace("_", " ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link to="/educator/tasks" className="text-sm text-primary hover:underline">
+          View all tasks →
+        </Link>
+      </div>
 
       {/* Today's notes / reminders */}
       <div className="mb-6 p-4 rounded-xl border bg-card">
@@ -315,30 +373,6 @@ export default function EducatorDashboard() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border p-5">
-        <h2 className="font-semibold flex items-center gap-2 mb-4">
-          <History className="w-5 h-5 text-primary" /> Past sessions
-        </h2>
-        {pastSessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No past sessions.</p>
-        ) : (
-          <div className="space-y-3">
-            {pastSessions.map((s) => (
-              <EducatorSessionCard
-                key={s.id}
-                session={s}
-                currentUser={currentUser}
-                lessonPlanStatus={getInstanceForSession(s.id)?.status ?? "not_started"}
-                attendanceStatus={getAttendanceBySession(s.id).length > 0 ? "done" : "pending"}
-                reportStatus={(getReportBySession(s.id)?.status as "draft" | "submitted") ?? "pending"}
-                expensesStatus={getExpenseBySessionAndEducator(s.id, educatorId) ? "logged" : "pending"}
-                hasDeviceCheckedOut={false}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* My devices */}
       <div className="bg-card rounded-xl border p-5">
         <h2 className="font-semibold flex items-center gap-2 mb-4">
@@ -369,18 +403,26 @@ export default function EducatorDashboard() {
         )}
       </div>
 
-      {/* My Classes */}
+      {/* My Classes — grouped by the six CWK program types */}
       <div className="bg-card rounded-xl border p-5">
         <h2 className="font-semibold flex items-center gap-2 mb-4">
           <BookOpen className="w-5 h-5 text-primary" /> My Classes
         </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Classes by program type: Makerspace Session, School STEM Club, Virtual Session, Home Sessions, Organization Session, Miradi Session.
+        </p>
         <div className="space-y-3">
-          {myClasses.map((c) => {
+          {myClassesByProgramType.map(({ class: c, sessionType }) => {
             const tracks = tracksByClass.get(c.id) ?? [];
+            const programLabel = SESSION_TYPE_LABELS[sessionType];
             return (
               <Link key={c.id} to={`/educator/classes/${c.id}`} className="block p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                 <p className="font-medium text-sm">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{c.program} · {c.ageGroup} · {c.location}</p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{programLabel}</span>
+                  {" · "}
+                  {c.ageGroup} · {c.location}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {c.learnerIds.length} learners
                   {tracks.length > 0 && (
@@ -393,6 +435,31 @@ export default function EducatorDashboard() {
             );
           })}
         </div>
+      </div>
+
+      {/* Past sessions — last so current/upcoming content is prioritised */}
+      <div className="bg-card rounded-xl border p-5">
+        <h2 className="font-semibold flex items-center gap-2 mb-4">
+          <History className="w-5 h-5 text-primary" /> Past sessions
+        </h2>
+        {pastSessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No past sessions.</p>
+        ) : (
+          <div className="space-y-3">
+            {pastSessions.map((s) => (
+              <EducatorSessionCard
+                key={s.id}
+                session={s}
+                currentUser={currentUser}
+                lessonPlanStatus={getInstanceForSession(s.id)?.status ?? "not_started"}
+                attendanceStatus={getAttendanceBySession(s.id).length > 0 ? "done" : "pending"}
+                reportStatus={(getReportBySession(s.id)?.status as "draft" | "submitted") ?? "pending"}
+                expensesStatus={getExpenseBySessionAndEducator(s.id, educatorId) ? "logged" : "pending"}
+                hasDeviceCheckedOut={false}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,10 +4,11 @@ import { useAuth, getRoleDashboard } from "@/context/AuthContext";
 import {
   Users, BookOpen, LayoutDashboard, Calendar, FileText, Clock,
   GraduationCap, MessageSquare, LogOut, Menu, X,
-  UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, CalendarDays,
+  UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, CalendarDays, Megaphone,
 } from "lucide-react";
 import type { UserRole } from "@/types";
 import { educatorNavItems, educatorNavIconMap } from "@/features/layout/educatorNav";
+import { ldManagerNavItems, ldManagerNavIconMap } from "@/features/ld-manager/nav";
 
 type NavEntry =
   | { type: "link"; label: string; path: string; icon: React.ReactNode }
@@ -17,9 +18,10 @@ const adminNav: NavEntry[] = [
   { type: "link", label: "Dashboard", path: "/admin/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
   { type: "section", label: "HR" },
   { type: "link", label: "Staff directory", path: "/admin/hr/staff", icon: <UserCircle className="w-5 h-5" /> },
+  { type: "link", label: "Team profiles", path: "/admin/educator-profiles", icon: <UserCircle className="w-5 h-5" /> },
   { type: "section", label: "Finance oversight" },
-  { type: "link", label: "Educator payments", path: "/admin/finance/educator-payments", icon: <Wallet className="w-5 h-5" /> },
-  { type: "link", label: "Educator hours", path: "/admin/educator-hours", icon: <Clock className="w-5 h-5" /> },
+  { type: "link", label: "Salaries", path: "/admin/finance/educator-payments", icon: <Wallet className="w-5 h-5" /> },
+  { type: "link", label: "Income", path: "/finance/income", icon: <TrendingUp className="w-5 h-5" /> },
   { type: "link", label: "Expenses", path: "/admin/finance/expenses", icon: <Receipt className="w-5 h-5" /> },
   { type: "section", label: "System setup" },
   { type: "link", label: "Account approvals", path: "/admin/account-approvals", icon: <UserPlus className="w-5 h-5" /> },
@@ -29,6 +31,7 @@ const adminNav: NavEntry[] = [
   { type: "link", label: "Session reports", path: "/admin/session-reports", icon: <FileText className="w-5 h-5" /> },
   { type: "link", label: "Schedules", path: "/admin/schedules", icon: <Calendar className="w-5 h-5" /> },
   { type: "link", label: "Inventory", path: "/inventory", icon: <Package className="w-5 h-5" /> },
+  { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
 ];
 
 const financeNav: NavEntry[] = [
@@ -44,6 +47,7 @@ const financeNav: NavEntry[] = [
   { type: "link", label: "Income", path: "/finance/income", icon: <TrendingUp className="w-5 h-5" /> },
   { type: "link", label: "Expenses", path: "/finance/expenses", icon: <Receipt className="w-5 h-5" /> },
   { type: "link", label: "Year overview", path: "/finance/year-overview", icon: <BarChart2 className="w-5 h-5" /> },
+  { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
 ];
 
 const educatorNav: NavEntry[] = educatorNavItems.map((item) => ({
@@ -51,6 +55,13 @@ const educatorNav: NavEntry[] = educatorNavItems.map((item) => ({
   label: item.label,
   path: item.to,
   icon: createElement(educatorNavIconMap[item.iconKey], { className: "w-5 h-5" }),
+}));
+
+const ldManagerNav: NavEntry[] = ldManagerNavItems.map((item) => ({
+  type: "link" as const,
+  label: item.label,
+  path: item.to,
+  icon: createElement(ldManagerNavIconMap[item.iconKey], { className: "w-5 h-5" }),
 }));
 
 const navByRole: Record<UserRole, NavEntry[]> = {
@@ -67,11 +78,33 @@ const navByRole: Record<UserRole, NavEntry[]> = {
   parent: [
     { type: "link", label: "Dashboard", path: "/parent/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     { type: "link", label: "Invoices", path: "/parent/invoices", icon: <FileText className="w-5 h-5" /> },
+    { type: "link", label: "Events", path: "/parent/events", icon: <Calendar className="w-5 h-5" /> },
   ],
   organisation: [
     { type: "link", label: "Dashboard", path: "/organisation/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     { type: "link", label: "Our learners", path: "/organisation/learners", icon: <Users className="w-5 h-5" /> },
+    { type: "link", label: "Invoices & receipts", path: "/organisation/invoices", icon: <FileText className="w-5 h-5" /> },
+    { type: "link", label: "Events", path: "/organisation/events", icon: <Calendar className="w-5 h-5" /> },
   ],
+  partnerships: [
+    { type: "link", label: "Dashboard", path: "/partnerships/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { type: "link", label: "Active partnerships", path: "/partnerships", icon: <Users className="w-5 h-5" /> },
+    { type: "link", label: "Campaigns linked to partnerships", path: "/partnerships/campaigns", icon: <Megaphone className="w-5 h-5" /> },
+    { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
+  ],
+  marketing: [
+    { type: "link", label: "Overview", path: "/marketing/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
+    { type: "link", label: "Campaigns", path: "/marketing/campaigns", icon: <Megaphone className="w-5 h-5" /> },
+    { type: "link", label: "Brand Kit", path: "/marketing/brand-kit", icon: <BookOpen className="w-5 h-5" /> },
+    { type: "link", label: "Profile", path: "/marketing/profile", icon: <UserCircle className="w-5 h-5" /> },
+  ],
+  social_media: [
+    { type: "link", label: "Dashboard", path: "/social-media/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { type: "link", label: "Content & posts", path: "/social-media/content", icon: <Megaphone className="w-5 h-5" /> },
+    { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
+  ],
+  ld_manager: ldManagerNav,
 };
 
 export default function AppLayout() {
@@ -123,10 +156,11 @@ export default function AppLayout() {
           <nav className="p-3 space-y-1 mt-2">
             {navItems.map((item, i) => {
               if (item.type === "section") {
+                const isAdminSection = currentUser.role === "admin";
                 return (
                   <div
                     key={`section-${item.label}-${i}`}
-                    className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+                    className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider ${isAdminSection ? "text-[#F9C846]" : "text-muted-foreground"}`}
                   >
                     {item.label}
                   </div>

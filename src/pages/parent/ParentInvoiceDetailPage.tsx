@@ -1,7 +1,8 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { parentChildMap, mockInvoices, getLearner } from "@/mockData";
+import { parentChildMap, getFinanceAccountInvoices, getLearner, getReceiptForInvoice } from "@/mockData";
 import { ArrowLeft, CreditCard } from "lucide-react";
+import { ReceiptView } from "@/features/invoices/components/ReceiptView";
 import type { Invoice } from "@/types";
 
 const statusStyles: Record<string, string> = {
@@ -26,7 +27,7 @@ export default function ParentInvoiceDetailPage() {
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
 
-  const invoice = id ? (mockInvoices as Invoice[]).find((i) => i.id === id) : undefined;
+  const invoice = id ? getFinanceAccountInvoices().find((i) => i.id === id) : undefined;
   const allowed =
     invoice?.learnerId != null && childIds.includes(invoice.learnerId);
   const learner = invoice?.learnerId != null ? getLearner(invoice.learnerId) : null;
@@ -139,6 +140,17 @@ export default function ParentInvoiceDetailPage() {
             </p>
           </div>
         )}
+
+        {invoice.status === "paid" && (() => {
+          const payerLabel = learner ? `${learner.firstName} ${learner.lastName}` : null;
+          const receipt = getReceiptForInvoice(invoice, payerLabel);
+          return receipt ? (
+            <div className="pt-4 border-t mt-4">
+              <h3 className="font-semibold mb-3">Receipt</h3>
+              <ReceiptView receipt={receipt} />
+            </div>
+          ) : null;
+        })()}
       </div>
     </div>
   );

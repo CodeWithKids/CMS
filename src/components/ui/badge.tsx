@@ -12,6 +12,8 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
+        /* CWK accent: yellow highlight for tags/highlights */
+        accent: "border-transparent bg-cwk-yellow/20 text-cwk-navy border-cwk-yellow/30 dark:bg-cwk-yellow/15 dark:text-cwk-cream dark:border-cwk-yellow/25",
       },
     },
     defaultVariants: {

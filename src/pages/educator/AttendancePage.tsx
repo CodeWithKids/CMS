@@ -7,6 +7,7 @@ import { useSessionExpenses } from "@/context/SessionExpensesContext";
 import { getClass, getLearner } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { getSessionRoleForUser, canEditSession } from "@/features/educator/lib/auth";
+import { AddCoachDialog } from "@/features/educator/components/AddCoachDialog";
 import { BADGE_DEFINITIONS } from "@/constants/badges";
 import { SessionRoleChips } from "@/features/educator/components/SessionRoleChips";
 import { ArrowLeft, CheckCircle, XCircle, Clock, Receipt, Save, FileText, CalendarCheck, Star, Award, UserPlus } from "lucide-react";

@@ -38,6 +38,7 @@ export default function InvoicesPage() {
               <th>Term</th>
               <th>Amount</th>
               <th>Status</th>
+              <th>Receipt</th>
             </tr>
           </thead>
           <tbody>
@@ -57,6 +58,15 @@ export default function InvoicesPage() {
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[inv.status] ?? ""}`}>
                       {inv.status.replace("_", " ")}
                     </span>
+                  </td>
+                  <td>
+                    {inv.status === "paid" ? (
+                      <Link to={`/parent/invoices/${inv.id}`} className="text-primary hover:underline text-sm">
+                        View receipt
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
                   </td>
                 </tr>
               );

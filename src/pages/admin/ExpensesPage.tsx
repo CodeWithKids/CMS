@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockExpenses } from "@/mockData";
+import { getFinanceAccountExpenses } from "@/mockData";
 import { useMemo } from "react";
 import { Receipt } from "lucide-react";
 import { EXPENSE_CATEGORY_LABELS } from "@/types";
@@ -16,8 +16,8 @@ import { formatCurrency } from "@/lib/financeUtils";
 
 export default function ExpensesPage() {
   const byPeriod = useMemo(() => {
-    const map = new Map<string, { total: number; items: typeof mockExpenses }>();
-    for (const ex of mockExpenses) {
+    const map = new Map<string, { total: number; items: ReturnType<typeof getFinanceAccountExpenses> }>();
+    for (const ex of getFinanceAccountExpenses()) {
       const period = new Date(ex.date).toLocaleDateString("en-ZA", { month: "short", year: "numeric" });
       const existing = map.get(period);
       if (!existing) {
@@ -35,7 +35,7 @@ export default function ExpensesPage() {
   }, []);
 
   const grandTotal = useMemo(
-    () => mockExpenses.reduce((sum, ex) => sum + ex.amount, 0),
+    () => getFinanceAccountExpenses().reduce((sum, ex) => sum + ex.amount, 0),
     []
   );
 

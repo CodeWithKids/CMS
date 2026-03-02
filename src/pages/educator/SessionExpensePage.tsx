@@ -9,6 +9,7 @@ import { getClass } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { canEditSession, getSessionRoleForUser } from "@/features/educator/lib/auth";
 import { AddCoachDialog } from "@/features/educator/components/AddCoachDialog";
+import { SessionRoleChips } from "@/features/educator/components/SessionRoleChips";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

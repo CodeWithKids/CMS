@@ -174,9 +174,9 @@ export default function LearnerDetailPage() {
                   {[profile.schoolName, profile.organisationName].filter(Boolean).join(" · ")}
                 </p>
               )}
-              {(profile.dateOfBirth || profile.gender) && (
+              {(profile.joinedAt || profile.gender) && (
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {[profile.dateOfBirth && `DOB: ${profile.dateOfBirth}`, profile.gender].filter(Boolean).join(" · ")}
+                  {[profile.joinedAt && `Date joined: ${profile.joinedAt}`, profile.gender].filter(Boolean).join(" · ")}
                 </p>
               )}
             </div>

@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { getPaidAmount, formatCurrency } from "@/lib/financeUtils";
-import { mockInvoices, getLearner, getOrganization, getCurrentTerm } from "@/mockData";
+import { getFinanceAccountInvoices, getLearner, getOrganization, getCurrentTerm } from "@/mockData";
 import {
   INVOICE_SOURCE_LABELS,
   getIncomeSessionTypeFromSource,
@@ -65,11 +71,16 @@ const ALL = "all";
 
 export default function FinanceIncomePage() {
   const currentTerm = getCurrentTerm();
-  const termStart = currentTerm?.startDate ?? "2025-01-01";
-  const termEnd = currentTerm?.endDate ?? "2025-12-31";
+  const termStart = currentTerm?.startDate ?? "2026-01-01";
+  const termEnd = currentTerm?.endDate ?? "2026-12-31";
 
   const [dateFrom, setDateFrom] = useState(termStart);
   const [dateTo, setDateTo] = useState(termEnd);
+  const [detailCard, setDetailCard] = useState<{
+    sessionType: IncomeSessionType;
+    payerType: IncomePayerType;
+    label: string;
+  } | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string>(ALL);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<string>(ALL);
   const [organisationFilter, setOrganisationFilter] = useState<string>(ALL);
@@ -77,7 +88,7 @@ export default function FinanceIncomePage() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
 
   const entries = useMemo(() => {
-    return mockInvoices.map((inv) => {
+    return getFinanceAccountInvoices().map((inv) => {
       const payerLabel =
         inv.organizationId != null
           ? (getOrganization(inv.organizationId)?.name ?? "—")
@@ -153,13 +164,53 @@ export default function FinanceIncomePage() {
     return Array.from(map.entries()).map(([orgId, total]) => ({ orgId, total }));
   }, [receivedInFilter]);
 
+  // Entries for the selected card (for detail dialog)
+  const cardEntries = useMemo(() => {
+    if (!detailCard) return [];
+    const { sessionType, payerType } = detailCard;
+    return receivedInFilter.filter((e) => {
+      if (e.payerType !== payerType) return false;
+      if (sessionType === "ORGANISATION_SESSION") {
+        return e.sessionType === "ORGANISATION_SESSION" || e.sessionType === "MIRADI_SESSION";
+      }
+      return e.sessionType === sessionType;
+    });
+  }, [detailCard, receivedInFilter]);
+
+  // Monthly breakdown for card detail (paid/received by month)
+  const cardMonthlyBreakdown = useMemo(() => {
+    const byMonth = new Map<string, number>();
+    for (const e of cardEntries) {
+      const date = e.inv.paidDate ?? e.date;
+      const monthKey = date.slice(0, 7); // YYYY-MM
+      byMonth.set(monthKey, (byMonth.get(monthKey) ?? 0) + getIncomeAmount(e.inv));
+    }
+    return Array.from(byMonth.entries())
+      .map(([month, total]) => ({ month, total }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+  }, [cardEntries]);
+
+  // By school or organisation for card detail (when payer is school/org)
+  const cardByEntity = useMemo(() => {
+    if (!detailCard || (detailCard.payerType !== "SCHOOL" && detailCard.payerType !== "ORGANISATION")) return [];
+    const byId = new Map<string, number>();
+    for (const e of cardEntries) {
+      const id = e.inv.organizationId ?? "_none";
+      if (id === "_none") continue;
+      byId.set(id, (byId.get(id) ?? 0) + getIncomeAmount(e.inv));
+    }
+    return Array.from(byId.entries())
+      .map(([id, total]) => ({ id, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [detailCard, cardEntries]);
+
   const sources = useMemo(() => {
-    const set = new Set(mockInvoices.map((i) => i.source));
+    const set = new Set(getFinanceAccountInvoices().map((i) => i.source));
     return Array.from(set).sort();
   }, []);
 
   const organisations = useMemo(() => {
-    const set = new Set(mockInvoices.map((i) => i.organizationId).filter(Boolean) as string[]);
+    const set = new Set(getFinanceAccountInvoices().map((i) => i.organizationId).filter(Boolean) as string[]);
     return Array.from(set).sort();
   }, []);
 
@@ -194,10 +245,14 @@ export default function FinanceIncomePage() {
             : total;
           const displayTotal = sessionType === "ORGANISATION_SESSION" ? miradiTotal : total;
           return (
-            <Card key={`${sessionType}-${payerType}`}>
+            <Card
+              key={`${sessionType}-${payerType}`}
+              className="cursor-pointer transition-colors hover:bg-muted/50"
+              onClick={() => setDetailCard({ sessionType, payerType, label })}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{label}</CardTitle>
-                <CardDescription>Selected period</CardDescription>
+                <CardDescription>Selected period · Click to view details</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{formatCurrency(displayTotal)}</p>
@@ -206,6 +261,105 @@ export default function FinanceIncomePage() {
           );
         })}
       </div>
+
+      {/* Detail dialog when a summary card is clicked */}
+      <Dialog open={!!detailCard} onOpenChange={(open) => !open && setDetailCard(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{detailCard?.label ?? "Income details"}</DialogTitle>
+          </DialogHeader>
+          {detailCard && (
+            <div className="space-y-6">
+              <p className="text-muted-foreground text-sm">
+                Total received in selected period:{" "}
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(cardEntries.reduce((s, e) => s + getIncomeAmount(e.inv), 0))}
+                </span>
+              </p>
+
+              {/* Monthly payments */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Monthly payments</h3>
+                {cardMonthlyBreakdown.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payments in this period.</p>
+                ) : (
+                  <ul className="space-y-1 text-sm border rounded-md p-3 bg-muted/30">
+                    {cardMonthlyBreakdown.map(({ month, total }) => (
+                      <li key={month} className="flex justify-between">
+                        <span>
+                          {new Intl.DateTimeFormat("en-ZA", { month: "long", year: "numeric" }).format(
+                            new Date(month + "-01")
+                          )}
+                        </span>
+                        <span className="font-medium">{formatCurrency(total)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* By school or by organisation */}
+              {cardByEntity.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">
+                    {detailCard.payerType === "SCHOOL" ? "By school" : "By organisation"}
+                  </h3>
+                  <ul className="space-y-1 text-sm border rounded-md p-3 bg-muted/30">
+                    {cardByEntity.map(({ id, total }) => (
+                      <li key={id} className="flex justify-between">
+                        <span>{getOrganization(id)?.name ?? id}</span>
+                        <span className="font-medium">{formatCurrency(total)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* All payments table */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2">All payments</h3>
+                <div className="border rounded-md overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Client / description</TableHead>
+                        {detailCard.payerType !== "PARENT" && <TableHead>Organisation</TableHead>}
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cardEntries.map((e) => (
+                        <TableRow key={e.inv.id}>
+                          <TableCell className="text-sm">{formatDate(e.inv.paidDate ?? e.date)}</TableCell>
+                          <TableCell>
+                            <span className="font-medium">{e.payerLabel}</span>
+                            {e.description && (
+                              <span className="text-muted-foreground text-xs block">{e.description}</span>
+                            )}
+                          </TableCell>
+                          {detailCard.payerType !== "PARENT" && (
+                            <TableCell className="text-sm">
+                              {e.inv.organizationId
+                                ? getOrganization(e.inv.organizationId)?.name ?? e.inv.organizationId
+                                : "—"}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right font-medium">{formatCurrency(getIncomeAmount(e.inv))}</TableCell>
+                          <TableCell>
+                            <Badge variant={e.inv.status === "paid" ? "default" : "secondary"}>{e.statusLabel}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Group totals by session type and by payer type */}
       <div className="grid gap-4 md:grid-cols-2">

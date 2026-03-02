@@ -124,6 +124,74 @@ export default function EducatorProfilePage() {
 
       <Card className="mb-6">
         <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="w-5 h-5" /> Educator badges
+          </CardTitle>
+          <CardDescription>Track mastery and achievements</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {badges.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No badges earned yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-4">
+              {badges.map((b) => (
+                <div key={b.id} className="p-4 rounded-lg border bg-muted/30 min-w-[200px]">
+                  <p className="font-medium">{b.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{b.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Earned {new Date(b.earnedAt).toLocaleDateString("en-ZA")}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" /> Hours taught
+          </CardTitle>
+          <CardDescription>Facilitating and coaching hours ({PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? period})</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-2xl font-semibold">{hours.facilitating}h</p>
+              <p className="text-sm text-muted-foreground">Facilitating</p>
+            </div>
+            <div>
+              <p className="text-2xl font-semibold">{hours.coaching}h</p>
+              <p className="text-sm text-muted-foreground">Coaching</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5" /> Learning tracks facilitated
+          </CardTitle>
+          <CardDescription>Sessions and hours per track (facilitator only)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {tracksFacilitated.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No facilitating sessions yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {tracksFacilitated.map(({ track, sessions, hours: h }) => (
+                <li key={track} className="flex justify-between items-center py-2 border-b last:border-0">
+                  <span className="font-medium">{LEARNING_TRACK_LABELS[track] ?? track}</span>
+                  <span className="text-muted-foreground text-sm">{sessions} sessions · {h}h</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle>Sessions history</CardTitle>
@@ -197,74 +265,6 @@ export default function EducatorProfilePage() {
           )}
           {sessionsInPeriod.length === 0 && (
             <p className="text-sm text-muted-foreground py-4">No sessions in this period.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" /> Hours taught
-          </CardTitle>
-          <CardDescription>Facilitating and coaching hours ({PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? period})</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-2xl font-semibold">{hours.facilitating}h</p>
-              <p className="text-sm text-muted-foreground">Facilitating</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold">{hours.coaching}h</p>
-              <p className="text-sm text-muted-foreground">Coaching</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5" /> Learning tracks facilitated
-          </CardTitle>
-          <CardDescription>Sessions and hours per track (facilitator only)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {tracksFacilitated.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No facilitating sessions yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {tracksFacilitated.map(({ track, sessions, hours: h }) => (
-                <li key={track} className="flex justify-between items-center py-2 border-b last:border-0">
-                  <span className="font-medium">{LEARNING_TRACK_LABELS[track] ?? track}</span>
-                  <span className="text-muted-foreground text-sm">{sessions} sessions · {h}h</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Award className="w-5 h-5" /> Educator badges
-          </CardTitle>
-          <CardDescription>Track mastery and achievements</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {badges.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No badges earned yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-4">
-              {badges.map((b) => (
-                <div key={b.id} className="p-4 rounded-lg border bg-muted/30 min-w-[200px]">
-                  <p className="font-medium">{b.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{b.description}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Earned {new Date(b.earnedAt).toLocaleDateString("en-ZA")}</p>
-                </div>
-              ))}
-            </div>
           )}
         </CardContent>
       </Card>

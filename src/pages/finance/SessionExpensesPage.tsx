@@ -38,8 +38,8 @@ export default function SessionExpensesPage() {
   const { currentUser } = useAuth();
   const { expenses, updateExpense } = useSessionExpenses();
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
-  const [dateFrom, setDateFrom] = useState("2025-01-01");
-  const [dateTo, setDateTo] = useState("2025-12-31");
+  const [dateFrom, setDateFrom] = useState("2026-01-01");
+  const [dateTo, setDateTo] = useState("2026-12-31");
 
   const filtered = useMemo(() => {
     return expenses.filter((e) => {

@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { getTodaySessionsForStudent, getClass, getEducatorName, mockEvents, getLearnerByUserId } from "@/mockData";
-import { Clock, Calendar, ExternalLink, User } from "lucide-react";
+import { useBadgeAwards } from "@/context/BadgeAwardsContext";
+import { BADGE_DEFINITIONS } from "@/constants/badges";
+import { getTodaySessionsForStudent, getClass, mockEvents, getLearnerByUserId } from "@/mockData";
+import { Clock, Calendar, ExternalLink, User, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const platformLinks = [
   { name: "Scratch", url: "https://scratch.mit.edu", color: "bg-amber-500" },
@@ -19,6 +22,15 @@ export default function StudentDashboard() {
 
   const todaySessions = learnerId ? getTodaySessionsForStudent(learnerId) : [];
   const studentEvents = mockEvents.filter((e) => e.target === "students");
+  const { getByLearner: getBadgeAwardsByLearner } = useBadgeAwards();
+  const badgeAwards = learnerId ? getBadgeAwardsByLearner(learnerId) : [];
+  const badgeSummary = (() => {
+    const byType: Record<string, number> = {};
+    for (const a of badgeAwards) {
+      byType[a.badgeId] = (byType[a.badgeId] ?? 0) + 1;
+    }
+    return { total: badgeAwards.length, byType };
+  })();
 
   const needsAvatar = currentUser?.role === "student" && !currentUser?.avatarId;
 
@@ -39,6 +51,40 @@ export default function StudentDashboard() {
           </Button>
         </div>
       )}
+
+      {/* Badges earned */}
+      <div className="mb-6 bg-card rounded-xl border p-5">
+        <h2 className="font-semibold flex items-center gap-2 mb-3">
+          <Award className="w-5 h-5 text-amber-500" /> Badges you&apos;ve earned
+        </h2>
+        {badgeSummary.total === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No badges yet. Earn badges in sessions when your educator awards them for things like Problem Solver, Team Player, or Creativity.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground mb-3">
+              You have earned <span className="font-semibold text-foreground">{badgeSummary.total}</span> badge{badgeSummary.total !== 1 ? "s" : ""} so far.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(badgeSummary.byType).map(([badgeId, count]) => {
+                const def = BADGE_DEFINITIONS.find((b) => b.id === badgeId);
+                return (
+                  <Badge
+                    key={badgeId}
+                    variant="secondary"
+                    className="text-xs font-normal py-1.5 px-2.5 bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-500/20"
+                    title={def?.description}
+                  >
+                    {def?.label ?? badgeId}
+                    {count > 1 ? ` ×${count}` : ""}
+                  </Badge>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Today's Sessions */}

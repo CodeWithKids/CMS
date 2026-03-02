@@ -1,7 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
+import { useTasks } from "@/features/tasks/context/TasksContext";
+import { useNotifications } from "@/context/NotificationsContext";
 import { getSession, getClass, getEducatorName } from "@/mockData";
 import { mockSessions } from "@/mockData";
 import {
@@ -85,7 +88,16 @@ export default function SessionReportsPage() {
   const [sessionTypes, setSessionTypes] = useState<SessionReportSessionTypeAdmin[]>([]);
   const [organisation, setOrganisation] = useState<string>("all");
   const [statuses, setStatuses] = useState<SessionReportStatusAdmin[]>([]);
-  const [reminderDialog, setReminderDialog] = useState<{ educatorName: string } | null>(null);
+  const [reminderDialog, setReminderDialog] = useState<{
+    educatorName: string;
+    sessionId: string;
+    leadEducatorId: string;
+    sessionDate: string;
+    className: string;
+  } | null>(null);
+  const { currentUser } = useAuth();
+  const { createTask } = useTasks();
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
@@ -172,17 +184,42 @@ export default function SessionReportsPage() {
 
   const handleSendReminderClick = (e: React.MouseEvent, row: SessionReportSummary) => {
     e.stopPropagation();
-    setReminderDialog({ educatorName: row.leadEducatorName });
+    const session = getSession(row.sessionId);
+    const leadEducatorId = session?.leadEducatorId ?? "";
+    if (!leadEducatorId) {
+      toast({ title: "Could not determine educator", variant: "destructive" });
+      return;
+    }
+    setReminderDialog({
+      educatorName: row.leadEducatorName,
+      sessionId: row.sessionId,
+      leadEducatorId,
+      sessionDate: row.sessionDate,
+      className: row.className,
+    });
   };
 
   const handleConfirmReminder = () => {
-    if (reminderDialog) {
-      toast({
-        title: "Reminder sent",
-        description: `A reminder to submit the session report has been sent to ${reminderDialog.educatorName}.`,
-      });
-      setReminderDialog(null);
-    }
+    if (!reminderDialog) return;
+    const { leadEducatorId, sessionId, sessionDate, className, educatorName } = reminderDialog;
+    const adminId = currentUser?.id ?? "u1";
+    createTask({
+      title: `Submit session report: ${className} (${sessionDate})`,
+      description: "A reminder was sent. Please submit the session report.",
+      createdById: adminId,
+      assigneeIds: [leadEducatorId],
+      status: "todo",
+    });
+    addNotification(
+      leadEducatorId,
+      `Reminder: Please submit the session report for ${className} (${sessionDate}).`,
+      `/educator/sessions/${sessionId}/report`
+    );
+    toast({
+      title: "Reminder sent",
+      description: `A task was added to ${educatorName}'s to-do list and they will see a notification.`,
+    });
+    setReminderDialog(null);
   };
 
   if (isLoading) {
@@ -379,7 +416,7 @@ export default function SessionReportsPage() {
             <AlertDialogTitle>Send reminder</AlertDialogTitle>
             <AlertDialogDescription>
               {reminderDialog
-                ? `Send a reminder to ${reminderDialog.educatorName} to submit the session report? They will receive an email or in-app notification.`
+                ? `Send a reminder to ${reminderDialog.educatorName}? A to-do will be added to their task list and they will see a notification on their Tasks tab.`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -1,4 +1,93 @@
-export type UserRole = "admin" | "educator" | "finance" | "student" | "parent" | "organisation";
+export type UserRole = "admin" | "educator" | "finance" | "student" | "parent" | "organisation" | "partnerships" | "marketing" | "social_media" | "ld_manager";
+
+/** Social media post/content (Social Media Marketing team). */
+export interface SocialPost {
+  id: string;
+  platform: string; // e.g. Facebook, Instagram
+  title: string;
+  status: "draft" | "scheduled" | "published";
+  scheduledDate?: string; // ISO date
+  publishedDate?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+/** Program types a partnership can fall under. */
+export const PARTNERSHIP_PROGRAM_TYPES = [
+  "Makerspace Session",
+  "School STEM Club",
+  "Virtual Session",
+  "Home Sessions",
+  "Organization Session",
+  "Miradi Session (Compassion Churches)",
+] as const;
+
+export type PartnershipProgramType = (typeof PARTNERSHIP_PROGRAM_TYPES)[number];
+
+/** Active partnership (Partnership and Communications). */
+export interface Partnership {
+  id: string;
+  name: string;
+  type: string;
+  /** Program type this partnership falls under. */
+  programType?: PartnershipProgramType | string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  status: "active" | "inactive" | "pending";
+  notes?: string;
+  createdAt: string; // ISO date
+}
+
+/** Marketing campaign (Marketing and Strategies). Can link to a partnership for alignment. */
+export interface MarketingCampaign {
+  id: string;
+  name: string;
+  type: string; // e.g. Social, Email, Event, Print
+  channel?: string; // e.g. Facebook, Instagram, Newsletter
+  status: "draft" | "active" | "completed" | "paused";
+  startDate?: string; // ISO date
+  endDate?: string;
+  /** Optional link to a partnership (Partnership & Communications ↔ Marketing alignment). */
+  partnershipId?: string;
+  notes?: string;
+  createdAt: string; // ISO date
+}
+
+/** Coaching invite status: educator must accept the calendar invite. */
+export type CoachingInviteStatus = "pending" | "accepted" | "declined";
+
+/** L&D Manager–scheduled coaching/mentoring session; educator receives invite and must accept. */
+export interface CoachingInvite {
+  id: string;
+  educatorId: string;
+  createdById: string; // LDM user id
+  date: string; // ISO date
+  startTime: string; // "HH:mm"
+  endTime: string;
+  title?: string | null;
+  notes?: string | null;
+  status: CoachingInviteStatus;
+  createdAt: string; // ISO
+  respondedAt?: string | null; // ISO, when educator accepted/declined
+}
+/** Task status for L&D-assigned educator tasks. */
+export type TaskStatus = "todo" | "in_progress" | "done";
+
+/** Task assigned by L&D to educator(s). Front-end only for now; replace with API. */
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  createdById: string;
+  assigneeIds: string[];
+  status: TaskStatus;
+  dueDate?: string; // ISO date
+  trackId?: LearningTrack | null;
+  classId?: string | null;
+  createdAt: string; // ISO date
+  updatedAt?: string;
+}
 
 export type UserStatus = "pending" | "active" | "rejected";
 
@@ -64,6 +153,8 @@ export interface Learner {
   badgesCountByType?: Partial<Record<BadgeType, number>>;
   /** Learning track; can be inferred from session reports if missing. */
   learningTrackId?: LearningTrack | null;
+  /** Date the learner joined the program (ISO date). */
+  joinedAt?: string | null;
 }
 
 // ——— Admin learner profile (read-only view for GET /api/admin/learners/:id) ———
@@ -78,7 +169,8 @@ export interface LearnerAdminProfile {
   id: string;
   fullName: string;
   avatarUrl?: string | null;
-  dateOfBirth?: string | null;
+  /** Date the learner joined the program (shown instead of DOB on admin detail). */
+  joinedAt?: string | null;
   gender?: "male" | "female" | "other" | null;
 
   schoolName?: string | null;
@@ -213,6 +305,7 @@ export interface ClassEnrollment {
   status: ClassEnrollmentStatus;
 }
 
+/** CWK classes and programs: Makerspace, School STEM Club, Virtual, Home, Organisation, Miradi. */
 export type SessionType =
   | "makerspace"
   | "school_stem_club"
@@ -240,6 +333,7 @@ export type LearningTrack =
   | "blockchain"
   | "esports";
 
+/** Display labels for CWK classes and programs (session types). */
 export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   makerspace: "Makerspace Session",
   school_stem_club: "School STEM Club",
@@ -392,6 +486,17 @@ export interface EducatorBadge {
   earnedAt: string; // ISO date
 }
 
+/** L&D Manager coaching note about an educator (timeline entry). */
+export interface CoachingNote {
+  id: string;
+  educatorId: string;
+  authorId: string; // L&D or admin user ID
+  date: string; // ISO date
+  text: string;
+  trackRef?: string | null; // e.g. "Robotics L1"
+  sessionId?: string | null;
+}
+
 export type InvoiceSource =
   | "school_club"
   | "makerspace"
@@ -443,6 +548,20 @@ export interface Invoice {
   sessionType?: IncomeSessionType | null;
   /** Income categorisation: who pays (PARENT / SCHOOL / ORGANISATION) for finance reports. */
   payerType?: IncomePayerType | null;
+}
+
+/** Receipt generated when an invoice is paid. Parents, schools, organisations, and Miradi can view receipts on their profile. */
+export interface Receipt {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  receiptNumber: string;
+  paidDate: string; // ISO date
+  amountPaid: number;
+  description?: string | null;
+  /** Payer context: learner name (parent), or org/school name (organisation). */
+  payerLabel?: string | null;
+  createdAt: string; // ISO, when receipt was generated
 }
 
 /** Source → who pays. School STEM Club and organisation: invoice to school/org; others are learner/parent fees. */
@@ -514,6 +633,14 @@ export interface EventEntity {
   time: string;
   description: string;
   target: string;
+}
+
+/** A learner registered for an event. Parents and organisations can register their learners for upcoming events. */
+export interface EventRegistration {
+  id: string;
+  eventId: string;
+  learnerId: string;
+  registeredAt: string; // ISO date
 }
 
 export interface Feedback {
@@ -639,8 +766,14 @@ export interface EducatorPayment {
 
 // Expense (Finance module)
 export type ExpenseCategoryType =
+  | "salaries"
   | "rent"
+  | "water"
+  | "electricity"
   | "internet"
+  | "office_supplies"
+  | "toiletries"
+  | "consumables"
   | "utilities"
   | "repairs"
   | "equipment"
@@ -649,6 +782,18 @@ export type ExpenseCategoryType =
   | "marketing"
   | "events"
   | "misc";
+
+/** Categories that are typically recurring monthly (shown in monthly expense breakdown). */
+export const MONTHLY_EXPENSE_CATEGORIES: ExpenseCategoryType[] = [
+  "salaries",
+  "rent",
+  "water",
+  "electricity",
+  "internet",
+  "office_supplies",
+  "toiletries",
+  "consumables",
+];
 
 export interface Expense {
   id: string;
@@ -661,8 +806,14 @@ export interface Expense {
 }
 
 export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategoryType, string> = {
+  salaries: "Salaries",
   rent: "Rent",
+  water: "Water",
+  electricity: "Electricity",
   internet: "Internet",
+  office_supplies: "Office supplies",
+  toiletries: "Toiletries supplies",
+  consumables: "Consumables (Coffee, Tea, Cocoa, Sugar)",
   utilities: "Utilities",
   repairs: "Repairs",
   equipment: "Equipment",

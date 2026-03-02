@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { getSessionsForStudent, getClass } from "@/mockData";
+import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
 import type { Feedback } from "@/types";
 import { MessageSquare, Star, X } from "lucide-react";
 
 export default function FeedbackPage() {
   const learnerId = "l1";
   const sessions = getSessionsForStudent(learnerId);
-  const [feedbacks, setFeedbacks] = useState<Record<string, Feedback>>({});
+  const { addFeedback, getFeedbackForSession } = useLearnerFeedback();
   const [activeSession, setActiveSession] = useState<string | null>(null);
 
   // Form state
@@ -16,16 +17,15 @@ export default function FeedbackPage() {
   const [improvement, setImprovement] = useState("");
 
   const submitFeedback = (sessionId: string) => {
-    setFeedbacks((prev) => ({
-      ...prev,
-      [sessionId]: { sessionId, studentId: learnerId, rating, understood, likedMost, improvement },
-    }));
+    addFeedback({ sessionId, studentId: learnerId, rating, understood, likedMost, improvement });
     setActiveSession(null);
     setRating(5);
     setUnderstood("yes");
     setLikedMost("");
     setImprovement("");
   };
+
+  const feedbackForSession = (sessionId: string) => getFeedbackForSession(sessionId).find((f) => f.studentId === learnerId);
 
   return (
     <div className="page-container">
@@ -35,7 +35,7 @@ export default function FeedbackPage() {
       <div className="space-y-3">
         {sessions.map((s) => {
           const cls = getClass(s.classId);
-          const hasFeedback = !!feedbacks[s.id];
+          const hasFeedback = !!feedbackForSession(s.id);
           return (
             <div key={s.id} className="bg-card rounded-xl border p-4 flex items-center justify-between">
               <div>

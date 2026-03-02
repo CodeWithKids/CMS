@@ -66,6 +66,10 @@ export function getRoleDashboard(role: UserRole): string {
     student: "/student/dashboard",
     parent: "/parent/dashboard",
     organisation: "/organisation/dashboard",
+    partnerships: "/partnerships/dashboard",
+    marketing: "/marketing/dashboard",
+    social_media: "/social-media/dashboard",
+    ld_manager: "/ld/dashboard",
   };
   return map[role];
 }

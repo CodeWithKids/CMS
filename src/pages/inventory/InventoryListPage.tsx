@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { getEducatorName } from "@/mockData";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_STATUS_LABELS } from "@/types";
 import type { InventoryCategory, InventoryStatus } from "@/types";
-import { Package, Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, AlertCircle, LogIn, LogOut } from "lucide-react";
 
 const ALL_CATEGORIES = "all";
 const ALL_STATUSES = "all";
@@ -101,7 +101,7 @@ export default function InventoryListPage() {
           <p className="text-muted-foreground">
             {isAdmin
               ? "Manage equipment and kits. Add, edit, or remove items."
-              : "View equipment and kits. Contact admin to request changes."}
+              : "View equipment and kits. Open an item to check it out (if available) or return it."}
           </p>
         </div>
         {isAdmin && (
@@ -195,11 +195,14 @@ export default function InventoryListPage() {
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Status</TableHead>
-                {isAdmin && <TableHead className="w-28">Actions</TableHead>}
+                {(isAdmin || currentUser?.role === "educator") && <TableHead className="w-32">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((item) => (
+              {filtered.map((item) => {
+                const isEducator = currentUser?.role === "educator";
+                const checkedOutToMe = isEducator && (item.status === "checked_out" || item.status === "assigned") && (item.checkedOutByEducatorId ?? item.assignedEducatorId) === currentUser?.id;
+                return (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
                     <Link
@@ -264,8 +267,23 @@ export default function InventoryListPage() {
                       </div>
                     </TableCell>
                   )}
+                  {!isAdmin && isEducator && (
+                    <TableCell>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/inventory/${item.id}`}>
+                          {item.status === "available" ? (
+                            <><LogIn className="w-3.5 h-3.5 mr-1" /> Check out</>
+                          ) : checkedOutToMe ? (
+                            <><LogOut className="w-3.5 h-3.5 mr-1" /> Return</>
+                          ) : (
+                            "View"
+                          )}
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
-              ))}
+              );})}
             </TableBody>
           </Table>
           )}

@@ -254,11 +254,26 @@ export default function ClassEnrollmentsPage() {
     });
   };
 
-  if (!cls || !term) {
+  if (!cls) {
     return (
-      <div className="page-container">
-        <p className="text-muted-foreground">Class or term not found.</p>
-        <Link to="/admin/classes" className="text-primary hover:underline text-sm">
+      <div className="page-container p-6">
+        <p className="text-muted-foreground">
+          Class not found{classId ? ` for id "${classId}".` : "."} Check the URL or choose a class from the list.
+        </p>
+        <Link to="/admin/classes" className="text-primary hover:underline text-sm mt-2 inline-block">
+          ← Back to classes
+        </Link>
+      </div>
+    );
+  }
+
+  if (!term) {
+    return (
+      <div className="page-container p-6">
+        <p className="text-muted-foreground">
+          Term not found for this class (termId: {cls.termId}). Check mock data.
+        </p>
+        <Link to="/admin/classes" className="text-primary hover:underline text-sm mt-2 inline-block">
           ← Back to classes
         </Link>
       </div>
@@ -387,7 +402,9 @@ export default function ClassEnrollmentsPage() {
                       setBulkActionValue("");
                       return;
                     }
-                    if (v === "enroll" || v === "completed") applyBulk(v);
+                    if (v === "enroll") applyBulkEnroll();
+                    else if (v === "completed") applyBulkCompleted();
+                    setBulkActionValue("");
                   }}
                 >
                   <SelectTrigger className="w-[200px]">

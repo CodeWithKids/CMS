@@ -14,6 +14,15 @@ export default {
     },
     extend: {
       colors: {
+        /* Code With Kids brand palette (use in features via cwk-* or via semantic tokens) */
+        cwk: {
+          pink: "#F85A7A",
+          yellow: "#F9C846",
+          teal: "#21B29A",
+          navy: "#17324A",
+          cream: "#FFF7E6",
+          white: "#FFFFFF",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

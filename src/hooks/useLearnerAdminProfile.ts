@@ -128,8 +128,8 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
       id: learner.id,
       fullName: `${learner.firstName} ${learner.lastName}`.trim(),
       avatarUrl: avatarUrl ?? undefined,
-      dateOfBirth: learner.dateOfBirth ?? null,
-      gender: null,
+      joinedAt: learner.joinedAt ?? null,
+      gender: learner.gender ?? null,
 
       schoolName: learner.school ?? null,
       organisationName: organisation?.name ?? null,

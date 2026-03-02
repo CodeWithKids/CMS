@@ -17,6 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "lucide-react";
 
+import {
+  COMPULSORY_TEAM_MEETING,
+  COMPULSORY_EDUCATORS_MEETING,
+  isBiWeeklyThursday,
+} from "@/lib/compulsoryCalendarBlocks";
+
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 8);
 
@@ -119,7 +125,7 @@ export default function AdminSchedulesPage() {
               ? "Sessions for all educators"
               : educators.find((e) => e.id === selectedEducatorId)?.name}{" "}
             · {weekDates[0].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })} –{" "}
-            {weekDates[6].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
+            {weekDates[6].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}. Monday 9:00–10:00 team meeting; Thursday 9:00–10:00 educators meeting (bi-weekly), both blocked by default.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -157,8 +163,27 @@ export default function AdminSchedulesPage() {
                           timeToMinutes(s.startTime) < (hour + 1) * 60 &&
                           timeToMinutes(s.endTime) > hour * 60
                       );
+                      const isTeamMeetingSlot = dayOfWeek === COMPULSORY_TEAM_MEETING.dayOfWeek && hour === 9;
+                      const isEducatorsMeetingSlot =
+                        dayOfWeek === COMPULSORY_EDUCATORS_MEETING.dayOfWeek && hour === 9 && isBiWeeklyThursday(dateKey);
                       return (
                         <td key={dayIndex} className="border p-1 align-top min-w-[120px]">
+                          {isTeamMeetingSlot && (
+                            <div className="mb-1 rounded px-2 py-1 text-xs bg-muted border border-border font-medium">
+                              {COMPULSORY_TEAM_MEETING.label}
+                              <span className="block text-muted-foreground font-normal">
+                                {COMPULSORY_TEAM_MEETING.startTime}–{COMPULSORY_TEAM_MEETING.endTime}
+                              </span>
+                            </div>
+                          )}
+                          {isEducatorsMeetingSlot && (
+                            <div className="mb-1 rounded px-2 py-1 text-xs bg-muted border border-border font-medium">
+                              {COMPULSORY_EDUCATORS_MEETING.label}
+                              <span className="block text-muted-foreground font-normal">
+                                {COMPULSORY_EDUCATORS_MEETING.startTime}–{COMPULSORY_EDUCATORS_MEETING.endTime}
+                              </span>
+                            </div>
+                          )}
                           {cellSessions.map((s) => {
                             const cls = getClass(s.classId);
                             const leadName = educators.find((u) => u.id === s.leadEducatorId)?.name ?? "—";

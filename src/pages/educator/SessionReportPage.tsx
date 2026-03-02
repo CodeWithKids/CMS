@@ -6,7 +6,8 @@ import { z } from "zod";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useSessionReports } from "@/context/SessionReportsContext";
-import { getClass, mockUsers } from "@/mockData";
+import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
+import { getClass, getLearner, mockUsers } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { SessionRoleChips } from "@/features/educator/components/SessionRoleChips";
 import { AddCoachDialog } from "@/features/educator/components/AddCoachDialog";
@@ -39,7 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, FileText, Send, UserPlus, MessageSquare } from "lucide-react";
+import { ArrowLeft, FileText, Send, UserPlus, MessageSquare, Star } from "lucide-react";
 import { getSessionRoleForUser } from "@/features/educator/lib/auth";
 
 /** Sentinel value for "No coach needed"; filtered out when saving. */
@@ -126,6 +127,7 @@ export default function SessionReportPage() {
   const { currentUser } = useAuth();
   const { getBySession: getAttendanceBySession } = useAttendance();
   const { getBySession: getReportBySession, saveReport, saveCoachFeedback } = useSessionReports();
+  const { getFeedbackForSession } = useLearnerFeedback();
   const { getSessionById } = useSessions();
 
   const session = getSessionById(sessionId ?? "");
@@ -320,6 +322,39 @@ export default function SessionReportPage() {
               </CardContent>
             </Card>
           )}
+          {/* Learner feedback: submitted by students for this session */}
+          {sessionId && (() => {
+            const learnerFeedbacks = getFeedbackForSession(sessionId);
+            return learnerFeedbacks.length > 0 ? (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Learner feedback
+                  </CardTitle>
+                  <CardDescription>Feedback from learners who attended this session.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {learnerFeedbacks.map((f) => {
+                    const learner = getLearner(f.studentId);
+                    const name = learner ? `${learner.firstName} ${learner.lastName}` : f.studentId;
+                    return (
+                      <div key={`${f.sessionId}-${f.studentId}`} className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
+                        <p className="font-medium">{name}</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Star key={n} className={`w-4 h-4 ${n <= f.rating ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
+                          ))}
+                          <span className="text-muted-foreground text-xs ml-1">· Understood: {f.understood}</span>
+                        </div>
+                        {f.likedMost && <p><span className="text-muted-foreground">Liked most:</span> {f.likedMost}</p>}
+                        {f.improvement && <p><span className="text-muted-foreground">Improve:</span> {f.improvement}</p>}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            ) : null;
+          })()}
           {attendanceRecords.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Pre-filled: {presentCount} learners marked present/late in attendance. Adjust if needed.

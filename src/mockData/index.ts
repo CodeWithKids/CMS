@@ -4,8 +4,11 @@ import type {
   Organization,
   ClassEntity,
   Session,
+  CoachingInvite,
   Invoice,
+  Receipt,
   EventEntity,
+  EventRegistration,
   StaffMember,
   Program,
   Term,
@@ -33,73 +36,125 @@ export {
   getEducatorBadgesForEducator,
 } from "./educator";
 
+// Login mock: 7 team (admin, educator, finance, social_media, partnerships, ld_manager, marketing) + 5 other (school, organisation, parent, member learner, miradi)
 export const mockUsers: AppUser[] = [
-  { id: "u1", name: "Sarah Admin", role: "admin", email: "sarah@codewithkids.co.za", status: "active", createdAt: "2024-01-15" },
-  { id: "u2", name: "Mr. James", role: "educator", email: "james@codewithkids.co.za", status: "active", createdAt: "2024-02-01" },
-  { id: "u3", name: "Lisa Finance", role: "finance", email: "lisa@codewithkids.co.za", status: "active", createdAt: "2024-01-20" },
-  { id: "u4", name: "Alex Student", role: "student", email: "alex@mail.com", status: "active", createdAt: "2024-03-01", avatarId: "avatar-1" },
-  { id: "u5", name: "Mrs. Johnson", role: "parent", email: "johnson@mail.com", status: "active", createdAt: "2024-02-10", membershipStatus: "active" },
-  { id: "u6", name: "Tom Educator", role: "educator", email: "tom.new@mail.com", status: "pending", createdAt: "2025-02-01" },
-  { id: "u7", name: "Nina Parent", role: "parent", email: "nina.parent@mail.com", status: "pending", createdAt: "2025-02-10", membershipStatus: "inactive" },
-  { id: "u8", name: "Compassion Miradi Portal", role: "organisation", email: "miradi@compassion.org", status: "active", createdAt: "2024-06-01", organizationId: "org2" },
-  { id: "u9", name: "Riverside Academy Portal", role: "organisation", email: "admin@riverside.ac.za", status: "active", createdAt: "2024-06-01", organizationId: "org3" },
+  { id: "u1", name: "Sarah Admin (Super admin)", role: "admin", email: "sarah@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u2", name: "Vivian Cheboi (Educator)", role: "educator", email: "vivian@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u3", name: "Lisa Finance (Finance)", role: "finance", email: "lisa@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u13", name: "Ivy Mwende (Social media)", role: "social_media", email: "ivy@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u11", name: "Tonny Ndare (Partnerships)", role: "partnerships", email: "tonny@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u16", name: "Renice Owino (L&D Manager)", role: "ld_manager", email: "renice.ld@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u12", name: "Serah Karimi (Marketing)", role: "marketing", email: "serah@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u4", name: "Patricia Wanja (Member learner)", role: "student", email: "patricia.wanja@mail.com", status: "active", createdAt: "2026-01-01", avatarId: "avatar-1" },
+  { id: "u5", name: "Lucy Njeri (Parent)", role: "parent", email: "lucy.njeri@mail.com", status: "active", createdAt: "2026-01-01", membershipStatus: "active" },
+  { id: "u10", name: "Greenfield Primary (School)", role: "organisation", email: "office@greenfield.edu", status: "active", createdAt: "2026-01-01", organizationId: "org1" },
+  { id: "u9", name: "Spur Afrika (Organisation)", role: "organisation", email: "admin@spurafrika.org", status: "active", createdAt: "2026-01-01", organizationId: "org3" },
+  { id: "u8", name: "Compassion Miradi (Miradi)", role: "organisation", email: "miradi@compassion.org", status: "active", createdAt: "2026-01-01", organizationId: "org2" },
 ];
 
 export const mockOrganizations: Organization[] = [
   { id: "org1", name: "Greenfield Primary", type: "school", contactPerson: "Mr. Principal", contactPhone: "+27 11 100 1000", contactEmail: "office@greenfield.edu", location: "Johannesburg", status: "ACTIVE", overviewType: "SCHOOL" },
   { id: "org2", name: "Compassion Miradi", type: "church", contactPerson: "Pastor Sarah", contactPhone: "+27 11 200 2000", contactEmail: "miradi@compassion.org", location: "Nairobi", status: "ACTIVE", overviewType: "MIRADI" },
-  { id: "org3", name: "Riverside Academy", type: "school", contactPerson: "Ms. Director", contactPhone: "+27 11 300 3000", contactEmail: "admin@riverside.ac.za", location: "Cape Town", status: "ACTIVE", overviewType: "SCHOOL" },
+  { id: "org3", name: "Spur Afrika", type: "organisation", contactPerson: "Ms. Director", contactPhone: "+27 11 300 3000", contactEmail: "admin@spurafrika.org", location: "Cape Town", status: "ACTIVE", overviewType: "ORGANISATION" },
 ];
 
 export const mockLearners: Learner[] = [
-  { id: "l1", firstName: "Alex", lastName: "Johnson", dateOfBirth: "2014-03-15", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "active", userId: "u4", parentName: "Mrs. Johnson", parentPhone: "+27 82 123 4567", parentEmail: "johnson@mail.com", status: "active", gender: "male", scratchProfileUrl: "https://scratch.mit.edu/users/alex_coder/", typingProfileUrl: "https://www.typing.com/student/profile" },
-  { id: "l2", firstName: "Maya", lastName: "Patel", dateOfBirth: "2013-07-22", school: "Riverside Academy", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mr. Patel", parentPhone: "+27 83 234 5678", parentEmail: "patel@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/maya_dev/", robloxProfileUrl: "https://www.roblox.com/users/123456789/profile" },
-  { id: "l3", firstName: "Ethan", lastName: "Williams", dateOfBirth: "2012-11-08", school: "Oakwood School", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mrs. Williams", parentPhone: "+27 84 345 6789", parentEmail: "williams@mail.com", status: "active", gender: "male" },
-  { id: "l4", firstName: "Zara", lastName: "Nkosi", dateOfBirth: "2015-01-30", school: "Sunshine Primary", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org2", parentName: "Mrs. Nkosi", parentPhone: "", parentEmail: "", status: "active", gender: "female" },
-  { id: "l5", firstName: "Liam", lastName: "Brown", dateOfBirth: "2011-09-12", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "expired", userId: null, parentName: "Mr. Brown", parentPhone: "+27 86 567 8901", parentEmail: "brown@mail.com", status: "alumni", gender: "male" },
-  { id: "l6", firstName: "Sofia", lastName: "Garcia", dateOfBirth: "2014-05-18", school: "Riverside Academy", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org3", status: "active", gender: "female" },
+  { id: "l1", firstName: "Patricia", lastName: "Wanja", dateOfBirth: "2014-03-15", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "active", userId: "u4", parentName: "Lucy Njeri", parentPhone: "+254 7XX XXX XXXX", parentEmail: "lucy.njeri@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/patricia_coder/", typingProfileUrl: "https://www.typing.com/student/profile", joinedAt: "2026-01-15" },
+  { id: "l2", firstName: "Maya", lastName: "Patel", dateOfBirth: "2013-07-22", school: "Riverside Academy", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mr. Patel", parentPhone: "+27 83 234 5678", parentEmail: "patel@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/maya_dev/", robloxProfileUrl: "https://www.roblox.com/users/123456789/profile", joinedAt: "2026-01-20" },
+  { id: "l3", firstName: "Ethan", lastName: "Williams", dateOfBirth: "2012-11-08", school: "Oakwood School", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mrs. Williams", parentPhone: "+27 84 345 6789", parentEmail: "williams@mail.com", status: "active", gender: "male", joinedAt: "2026-01-22" },
+  { id: "l4", firstName: "Zara", lastName: "Nkosi", dateOfBirth: "2015-01-30", school: "Sunshine Primary", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org2", parentName: "Mrs. Nkosi", parentPhone: "", parentEmail: "", status: "active", gender: "female", joinedAt: "2026-01-10" },
+  { id: "l5", firstName: "Liam", lastName: "Brown", dateOfBirth: "2011-09-12", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "expired", userId: null, parentName: "Mr. Brown", parentPhone: "+27 86 567 8901", parentEmail: "brown@mail.com", status: "alumni", gender: "male", joinedAt: "2026-01-05" },
+  { id: "l6", firstName: "Sofia", lastName: "Garcia", dateOfBirth: "2014-05-18", school: "Riverside Academy", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org3", status: "active", gender: "female", joinedAt: "2026-01-18" },
 ];
 
+/** Canonical program names for classes (match SESSION_TYPE_LABELS). Daraja Tech falls under organisation sessions. */
+export const PROGRAM_NAMES = [
+  "Makerspace Session",
+  "School STEM Club",
+  "Virtual Session",
+  "Home Sessions",
+  "Organization Session",
+  "Daraja Tech program",
+  "Miradi Session (Compassion Churches)",
+] as const;
+
 export const mockClasses: ClassEntity[] = [
-  { id: "c1", name: "Scratch Explorers", program: "Coding Basics", ageGroup: "8-10", location: "Room A", educatorId: "u2", termId: "t1", learnerIds: ["l1", "l2", "l4"], capacity: 30 },
-  { id: "c2", name: "Python Pioneers", program: "Advanced Coding", ageGroup: "11-13", location: "Room B", educatorId: "u2", termId: "t1", learnerIds: ["l3", "l5", "l6"], capacity: 25 },
-  { id: "c3", name: "Robotics Club", program: "Robotics", ageGroup: "10-12", location: "Lab 1", educatorId: "u2", termId: "t1", learnerIds: ["l1", "l3", "l6"], capacity: 20 },
+  { id: "c1", name: "Code With Kids - Makerspace", program: "Makerspace Session", ageGroup: "8-13", location: "Makerspace", educatorId: "u2", termId: "t1", learnerIds: ["l1", "l2", "l4"], capacity: 30 },
+  { id: "c2", name: "Code With Kids - Virtual", program: "Virtual Session", ageGroup: "8-13", location: "Online", educatorId: "u2", termId: "t1", learnerIds: ["l3", "l5", "l6"], capacity: 25 },
+  { id: "c3", name: "Code With Kids - Home Sessions", program: "Home Sessions", ageGroup: "8-13", location: "Home", educatorId: "u2", termId: "t1", learnerIds: ["l1", "l3", "l6"], capacity: 20 },
+  { id: "c4", name: "Light International School", program: "School STEM Club", ageGroup: "8-13", location: "Light International School", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c5", name: "Kokomelon Schools", program: "School STEM Club", ageGroup: "8-13", location: "Kokomelon Schools", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c6", name: "Kianda School", program: "School STEM Club", ageGroup: "8-13", location: "Kianda School", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c7", name: "Vine Garden Academy", program: "School STEM Club", ageGroup: "8-13", location: "Vine Garden Academy", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c8", name: "KE 916 Kibera", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "KE 916 Kibera", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c9", name: "KE 370 Waithaka", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "KE 370 Waithaka", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c10", name: "KE 462 Limuru", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "KE 462 Limuru", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c11", name: "Kangemi Church CDC", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "Kangemi Church CDC", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c12", name: "Spur Afrika", program: "Organization Session", ageGroup: "8-13", location: "Spur Afrika", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c13", name: "Smart Kibera of Hope(SKOH)", program: "Organization Session", ageGroup: "8-13", location: "Smart Kibera of Hope", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c14", name: "Maisha Trust", program: "Organization Session", ageGroup: "8-13", location: "Maisha Trust", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
 ];
 
 const today = new Date().toISOString().split("T")[0];
 
 export const mockSessions: Session[] = [
   { id: "s1", classId: "c1", date: today, startTime: "09:00", endTime: "10:00", topic: "Introduction to Loops", sessionType: "makerspace", duration: "1_hour", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
-  { id: "s2", classId: "c2", date: today, startTime: "10:30", endTime: "11:30", topic: "Functions & Parameters", sessionType: "school_stem_club", duration: "1_hour", learningTrack: "python", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: ["u3"], durationHours: 1 },
-  { id: "s3", classId: "c1", date: "2025-03-01", startTime: "09:00", endTime: "10:00", topic: "Variables & Data Types", sessionType: "virtual", duration: "1_hour", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
-  { id: "s4", classId: "c3", date: today, startTime: "14:00", endTime: "15:30", topic: "Building a Robot Arm", sessionType: "organization", duration: "2_hours", learningTrack: "robotics", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: ["u3"], durationHours: 1.5 },
-  { id: "s5", classId: "c2", date: "2025-03-02", startTime: "10:30", endTime: "11:30", topic: "Lists & Loops", sessionType: "home", duration: "1_hour", learningTrack: "python", termId: "t1", leadEducatorId: "u3", assistantEducatorIds: ["u2"], durationHours: 1 },
-  { id: "s6", classId: "c1", date: "2025-03-03", startTime: "09:00", endTime: "10:00", topic: "Scratch Animation Project", sessionType: "miradi", duration: "2_hours", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 2 },
+  { id: "s2", classId: "c2", date: today, startTime: "10:30", endTime: "11:30", topic: "Functions & Parameters", sessionType: "school_stem_club", duration: "1_hour", learningTrack: "python", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
+  { id: "s3", classId: "c1", date: "2026-01-22", startTime: "09:00", endTime: "10:00", topic: "Variables & Data Types", sessionType: "virtual", duration: "1_hour", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
+  { id: "s4", classId: "c3", date: today, startTime: "14:00", endTime: "15:30", topic: "Building a Robot Arm", sessionType: "organization", duration: "2_hours", learningTrack: "robotics", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1.5 },
+  { id: "s5", classId: "c2", date: "2026-03-02", startTime: "10:30", endTime: "11:30", topic: "Lists & Loops", sessionType: "home", duration: "1_hour", learningTrack: "python", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
+  { id: "s6", classId: "c1", date: "2026-03-03", startTime: "09:00", endTime: "10:00", topic: "Scratch Animation Project", sessionType: "miradi", duration: "2_hours", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 2 },
+  // Patricia Wanja (l1) – 3 sessions in Feb 2026 (Saturdays 7th, 14th, 28th)
+  { id: "s7", classId: "c1", date: "2026-02-07", startTime: "09:00", endTime: "10:00", topic: "Loops and Patterns", sessionType: "makerspace", duration: "1_hour", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
+  { id: "s8", classId: "c1", date: "2026-02-14", startTime: "09:00", endTime: "10:00", topic: "Sprites and Animation", sessionType: "makerspace", duration: "1_hour", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
+  { id: "s9", classId: "c1", date: "2026-02-28", startTime: "09:00", endTime: "10:00", topic: "Project Build", sessionType: "makerspace", duration: "1_hour", learningTrack: "game_design", termId: "t1", leadEducatorId: "u2", assistantEducatorIds: [], durationHours: 1 },
+];
+
+/** Coaching/mentoring sessions scheduled by L&D Manager; educator must accept. */
+export const mockCoachingInvites: CoachingInvite[] = [
+  {
+    id: "ci1",
+    educatorId: "u2",
+    createdById: "u16",
+    date: "2026-02-15",
+    startTime: "11:00",
+    endTime: "12:00",
+    title: "Scratch facilitation check-in",
+    notes: "Review lesson delivery and classroom management.",
+    status: "accepted",
+    createdAt: "2026-02-10T09:00:00Z",
+    respondedAt: "2026-02-11T14:00:00Z",
+  },
 ];
 
 /** In-memory attendance records (can start empty; app uses AttendanceContext for live state). */
 export const mockAttendance: AttendanceRecord[] = [];
 
-export const mockInvoices: Invoice[] = [
-  // School club: one invoice per school/org (payerType SCHOOL)
-  { id: "inv-school-1", organizationId: "org2", learnerId: null, invoiceNumber: "INV-2025-SC-001", term: "Term 1 2025", totalAmount: 5000, status: "sent", dueDate: "2025-03-31", source: "school_club", sessionType: "SCHOOL_STEM_CLUB", payerType: "SCHOOL", description: "School club term fee – 2 learners", learnerCount: 2 },
-  { id: "inv-school-2", organizationId: "org3", learnerId: null, invoiceNumber: "INV-2025-SC-002", term: "Term 1 2025", totalAmount: 2500, status: "paid", dueDate: "2025-02-28", source: "school_club", sessionType: "SCHOOL_STEM_CLUB", payerType: "SCHOOL", description: "School club term fee – 1 learner", learnerCount: 1, paidAmount: 2500, paidDate: "2025-02-20" },
-  // Organisation (payerType ORGANISATION)
-  { id: "inv5", organizationId: "org2", learnerId: null, invoiceNumber: "INV-2025-005", term: "Term 1 2025", totalAmount: 2500, status: "sent", dueDate: "2025-01-15", source: "organization", sessionType: "ORGANISATION_SESSION", payerType: "ORGANISATION", description: "Organisation session fee" },
-  // Parent-paid (sessionType + payerType PARENT)
-  { id: "inv3", learnerId: "l2", invoiceNumber: "INV-2025-003", term: "Term 1 2025", totalAmount: 3000, status: "partially_paid", dueDate: "2025-02-28", source: "makerspace", sessionType: "MAKERSPACE", payerType: "PARENT", paidAmount: 1500 },
-  { id: "inv4", learnerId: "l3", invoiceNumber: "INV-2025-004", term: "Term 1 2025", totalAmount: 2500, status: "draft", dueDate: "2025-03-31", source: "home_session", sessionType: "HOME_SESSION", payerType: "PARENT" },
-  { id: "inv7", learnerId: "l1", invoiceNumber: "INV-2025-007", term: "Term 1 2025", totalAmount: 800, status: "paid", dueDate: "2025-03-01", source: "camp", sessionType: "OTHER", payerType: "PARENT", paidAmount: 800, paidDate: "2025-02-28" },
-  { id: "inv8", learnerId: "l2", invoiceNumber: "INV-2025-008", term: "Term 1 2025", totalAmount: 1200, status: "paid", dueDate: "2025-02-15", source: "miradi", sessionType: "MIRADI_SESSION", payerType: "ORGANISATION", paidAmount: 1200, paidDate: "2025-02-10" },
-  { id: "inv9", learnerId: "l5", invoiceNumber: "INV-2025-009", term: "Term 1 2025", totalAmount: 500, status: "paid", dueDate: "2025-01-20", source: "donation", sessionType: "OTHER", payerType: "PARENT", paidAmount: 500, paidDate: "2025-01-18" },
-  { id: "inv11", learnerId: "l3", invoiceNumber: "INV-2026-001", term: "Term 1 2026", totalAmount: 2600, status: "paid", dueDate: "2026-02-28", source: "makerspace", sessionType: "MAKERSPACE", payerType: "PARENT", paidAmount: 2600, paidDate: "2026-02-10" },
-];
+// Income and expenses: single source of truth from finance account (transparency & accuracy)
+import { getFinanceAccountInvoices, getFinanceAccountExpenses } from "./financeAccount";
+export { getFinanceAccountInvoices, getFinanceAccountExpenses } from "./financeAccount";
+export const mockInvoices = getFinanceAccountInvoices();
+export const mockExpenses = getFinanceAccountExpenses();
 
 export const mockEvents: EventEntity[] = [
-  { id: "e1", title: "STEM Fair 2025", date: "2025-03-15", time: "10:00", description: "Annual showcase of student projects", target: "students" },
-  { id: "e2", title: "Parent Info Evening", date: "2025-03-20", time: "18:00", description: "Meet the educators and learn about our programs", target: "parents" },
-  { id: "e3", title: "Coding Competition", date: "2025-04-05", time: "09:00", description: "Inter-school coding challenge", target: "students" },
+  { id: "e1", title: "STEM Fair 2026", date: "2026-03-15", time: "10:00", description: "Annual showcase of student projects", target: "students" },
+  { id: "e2", title: "Parent Info Evening", date: "2026-03-20", time: "18:00", description: "Meet the educators and learn about our programs", target: "parents" },
+  { id: "e3", title: "Coding Competition", date: "2026-04-05", time: "09:00", description: "Inter-school coding challenge", target: "students" },
+  { id: "e4", title: "Coding Event", date: "2026-02-21", time: "10:00", description: "Coding Event – Patricia Wanja attended", target: "students" },
+  { id: "e5", title: "Robotics Showcase", date: "2026-04-12", time: "14:00", description: "Demonstrations and hands-on robotics for learners", target: "students" },
+  { id: "e6", title: "School Partners Day", date: "2026-04-18", time: "09:00", description: "Networking and programme updates for school partners", target: "parents" },
 ];
+
+/** Event registrations (learner signed up for event). In production replace with API. */
+export const mockEventRegistrations: EventRegistration[] = [
+  { id: "er1", eventId: "e4", learnerId: "l1", registeredAt: "2026-02-01T10:00:00Z" },
+];
+
+/** Upcoming events: date >= today (ISO date string comparison). */
+export function getUpcomingEvents(): EventEntity[] {
+  const today = new Date().toISOString().slice(0, 10);
+  return mockEvents.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+}
 
 // Helper: get educator name by ID
 export const getEducatorName = (educatorId: string): string => {
@@ -170,7 +225,7 @@ export const getTerm = (id: string): Term | undefined =>
 
 /** Current term: term whose start/end contains today; fallback to latest term. */
 export function getCurrentTerm(): Term | undefined {
-  const date = new Date().toISOString().split("T")[0];
+  const date = "2026-01-15"; // Mock reference: current term is Term 1 2026
   const current = mockTerms.find(
     (t) => t.startDate <= date && t.endDate >= date
   );
@@ -210,7 +265,7 @@ export const getActiveLearnerIdsForClassInTerm = (classId: string, termId: strin
     .filter((e) => e.status === "active")
     .map((e) => e.learnerId);
 
-/** Default term ID for "current" term (e.g. Term 1 2025). Callers can override with a selector. */
+/** Default term ID for "current" term (e.g. Term 1 2026). Callers can override with a selector. */
 export const DEFAULT_TERM_ID = "t1";
 
 // Helper: sessions for a class
@@ -270,9 +325,36 @@ export const getSessionsForStudent = (learnerId: string): Session[] => {
 export const getInvoicesForParent = (learnerIds: string[]): Invoice[] =>
   mockInvoices.filter((inv) => inv.learnerId != null && learnerIds.includes(inv.learnerId));
 
+/** Invoices for an organisation (school, org, Miradi): only invoices billed to this organisation. */
+export function getInvoicesForOrganisation(organizationId: string): Invoice[] {
+  return getFinanceAccountInvoices().filter(
+    (inv) => inv.organizationId != null && inv.organizationId === organizationId
+  );
+}
+
+/** Receipt generated when invoice is paid. Returns null if invoice is not paid. */
+export function getReceiptForInvoice(
+  invoice: Invoice,
+  payerLabel?: string | null
+): Receipt | null {
+  if (invoice.status !== "paid" || !invoice.paidDate) return null;
+  const amountPaid = invoice.paidAmount ?? invoice.totalAmount;
+  return {
+    id: `receipt-${invoice.id}`,
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    receiptNumber: `RCPT-${invoice.invoiceNumber}`,
+    paidDate: invoice.paidDate,
+    amountPaid,
+    description: invoice.description ?? `${invoice.term} – ${invoice.source?.replace("_", " ") ?? "Invoice"}`,
+    payerLabel: payerLabel ?? null,
+    createdAt: invoice.paidDate,
+  };
+}
+
 // Mock parent-child relationship
 export const parentChildMap: Record<string, string[]> = {
-  u5: ["l1"], // Mrs. Johnson is Alex Johnson's parent
+  u5: ["l1"], // Lucy Njeri is Patricia Wanja's parent
 };
 
 // ——— HR: Staff (educators + admin + finance) ———
@@ -284,34 +366,34 @@ export const mockStaff: StaffMember[] = [
     role: "admin",
     phone: "+27 81 111 1111",
     employmentStatus: "active",
-    hireDate: "2024-01-15",
+    hireDate: "2026-01-01",
     contractType: "full_time",
     skills: ["Operations", "Admin"],
     notes: "Founder.",
     payType: "salary",
     baseRate: 35000,
     preferredPaymentMethod: "bank_transfer",
-    documents: [{ id: "d1", name: "Contract 2024", type: "contract", uploadedAt: "2024-01-15" }],
-    createdAt: "2024-01-15",
+    documents: [{ id: "d1", name: "Contract 2026", type: "contract", uploadedAt: "2026-01-01" }],
+    createdAt: "2026-01-01",
   },
   {
     id: "u2",
-    name: "Mr. James",
-    email: "james@codewithkids.co.za",
+    name: "Vivian Cheboi",
+    email: "vivian@codewithkids.co.za",
     role: "educator",
-    phone: "+27 82 222 2222",
+    phone: "+254 7XX XXX XXX",
     employmentStatus: "active",
-    hireDate: "2024-02-01",
+    hireDate: "2026-01-01",
     contractType: "part_time",
     skills: ["Scratch", "Python", "Robotics"],
-    notes: "Lead educator for Coding Basics and Advanced.",
+    notes: "Lead educator.",
     payType: "per_session",
     baseRate: 450,
     preferredPaymentMethod: "bank_transfer",
     documents: [
-      { id: "d2", name: "Teaching cert", type: "certification", uploadedAt: "2024-02-01" },
+      { id: "d2", name: "Teaching cert", type: "certification", uploadedAt: "2026-01-01" },
     ],
-    createdAt: "2024-02-01",
+    createdAt: "2026-01-01",
   },
   {
     id: "u3",
@@ -320,28 +402,81 @@ export const mockStaff: StaffMember[] = [
     role: "finance",
     phone: "+27 83 333 3333",
     employmentStatus: "active",
-    hireDate: "2024-01-20",
+    hireDate: "2026-01-01",
     contractType: "part_time",
     skills: ["Bookkeeping", "Invoicing"],
     payType: "stipend",
     baseRate: 8000,
     preferredPaymentMethod: "bank_transfer",
-    createdAt: "2024-01-20",
+    createdAt: "2026-01-01",
   },
   {
-    id: "u6",
-    name: "Tom Educator",
-    email: "tom.new@mail.com",
-    role: "educator",
-    phone: "+27 86 666 6666",
-    employmentStatus: "applicant",
-    contractType: "contractor",
-    skills: ["Game design", "Web design"],
-    notes: "Awaiting approval.",
-    payType: "per_session",
-    baseRate: 400,
+    id: "u11",
+    name: "Tonny Ndare",
+    email: "tonny@codewithkids.co.za",
+    role: "admin",
+    phone: "+254 7XX XXX XXX",
+    employmentStatus: "active",
+    hireDate: "2026-01-01",
+    contractType: "full_time",
+    skills: ["Partnerships", "Communications"],
+    notes: "Partnership and Communications.",
+    payType: "salary",
+    baseRate: 0,
+    preferredPaymentMethod: "bank_transfer",
     documents: [],
-    createdAt: "2025-02-01",
+    createdAt: "2026-01-01",
+  },
+  {
+    id: "u12",
+    name: "Serah Karimi",
+    email: "serah@codewithkids.co.za",
+    role: "admin",
+    phone: "+254 7XX XXX XXX",
+    employmentStatus: "active",
+    hireDate: "2026-01-01",
+    contractType: "full_time",
+    skills: ["Marketing", "Strategies"],
+    notes: "Marketing and Strategies.",
+    payType: "salary",
+    baseRate: 0,
+    preferredPaymentMethod: "bank_transfer",
+    documents: [],
+    createdAt: "2026-01-01",
+  },
+  {
+    id: "u13",
+    name: "Ivy Mwende",
+    email: "ivy@codewithkids.co.za",
+    role: "admin",
+    phone: "+254 7XX XXX XXX",
+    employmentStatus: "active",
+    hireDate: "2026-01-01",
+    contractType: "full_time",
+    skills: ["Social Media", "Marketing"],
+    notes: "Social Media Marketing (Lead).",
+    payType: "salary",
+    baseRate: 0,
+    preferredPaymentMethod: "bank_transfer",
+    documents: [],
+    createdAt: "2026-01-01",
+  },
+  {
+    id: "u16",
+    name: "Renice Owino",
+    email: "renice.ld@codewithkids.co.za",
+    role: "ld_manager",
+    phone: "+254 7XX XXX XXX",
+    employmentStatus: "active",
+    hireDate: "2026-01-01",
+    contractType: "full_time",
+    skills: ["Lesson plans", "Curriculum", "Facilitation"],
+    notes: "Learning Development Manager. Lesson plans, curriculum development. Also facilitates sessions.",
+    payType: "salary",
+    baseRate: 0,
+    preferredPaymentMethod: "bank_transfer",
+    documents: [],
+    createdAt: "2026-01-01",
   },
 ];
 
@@ -353,17 +488,14 @@ export const mockPrograms: Program[] = [
 ];
 
 export const mockTerms: Term[] = [
-  { id: "t1", name: "Term 1 2025", year: 2025, startDate: "2025-01-15", endDate: "2025-03-28" },
-  { id: "t2", name: "Term 2 2025", year: 2025, startDate: "2025-04-08", endDate: "2025-06-20" },
-  { id: "t3", name: "Term 3 2025", year: 2025, startDate: "2025-07-15", endDate: "2025-09-26" },
-  { id: "term-1-2026", name: "Term 1 2026", year: 2026, startDate: "2026-01-08", endDate: "2026-03-31" },
-  { id: "term-2-2026", name: "Term 2 2026", year: 2026, startDate: "2026-05-01", endDate: "2026-07-31" },
-  { id: "term-3-2026", name: "Term 3 2026", year: 2026, startDate: "2026-08-15", endDate: "2026-09-26" },
+  { id: "t1", name: "Term 1 2026", year: 2026, startDate: "2026-01-08", endDate: "2026-03-31" },
+  { id: "t2", name: "Term 2 2026", year: 2026, startDate: "2026-05-01", endDate: "2026-07-31" },
+  { id: "t3", name: "Term 3 2026", year: 2026, startDate: "2026-08-15", endDate: "2026-09-26" },
 ];
 
 /** Term-based enrolments. Who is in which class per term; status tracks active/dropped/completed for retention. */
 export const mockClassEnrollments: ClassEnrollment[] = [
-  // Term 1 2025: mirror current class.learnerIds
+  // Term 1 2026: mirror current class.learnerIds
   { id: "ce1", classId: "c1", learnerId: "l1", termId: "t1", status: "active" },
   { id: "ce2", classId: "c1", learnerId: "l2", termId: "t1", status: "active" },
   { id: "ce3", classId: "c1", learnerId: "l4", termId: "t1", status: "active" },
@@ -373,7 +505,7 @@ export const mockClassEnrollments: ClassEnrollment[] = [
   { id: "ce7", classId: "c3", learnerId: "l1", termId: "t1", status: "active" },
   { id: "ce8", classId: "c3", learnerId: "l3", termId: "t1", status: "active" },
   { id: "ce9", classId: "c3", learnerId: "l6", termId: "t1", status: "active" },
-  // Term 2 2025: l2 dropped from c1; l5 completed/dropped from c2; c3 same (retention example)
+  // Term 2 2026: l2 dropped from c1; l5 completed/dropped from c2; c3 same (retention example)
   { id: "ce10", classId: "c1", learnerId: "l1", termId: "t2", status: "active" },
   { id: "ce11", classId: "c1", learnerId: "l2", termId: "t2", status: "dropped" },
   { id: "ce12", classId: "c1", learnerId: "l4", termId: "t2", status: "active" },
@@ -420,11 +552,11 @@ export const mockExpenseCategories: ExpenseCategory[] = [
 
 // ——— Finance module ———
 export const mockEducatorPayments: EducatorPayment[] = [
-  { id: "ep1", educatorId: "u2", period: "Term 1 2025", type: "stipend", amount: 5400, status: "paid", datePaid: "2025-02-28", notes: "Sessions Jan–Feb" },
-  { id: "ep2", educatorId: "u2", period: "2025-03", type: "stipend", amount: 5850, status: "pending", notes: "March sessions" },
-  { id: "ep3", educatorId: "u3", period: "Term 1 2025", type: "stipend", amount: 8000, status: "paid", datePaid: "2025-02-28" },
-  { id: "ep4", educatorId: "u2", period: "2025-01", type: "salary", amount: 3200, status: "paid", datePaid: "2025-01-31" },
-  { id: "ep5", educatorId: "u6", period: "Term 1 2025", type: "bonus", amount: 500, status: "planned", notes: "Onboarding bonus (when approved)" },
+  { id: "ep1", educatorId: "u2", period: "Term 1 2026", type: "stipend", amount: 5400, status: "paid", datePaid: "2026-01-31", notes: "Sessions Jan 2026" },
+  { id: "ep2", educatorId: "u2", period: "2026-02", type: "stipend", amount: 5850, status: "pending", notes: "February sessions" },
+  { id: "ep3", educatorId: "u3", period: "Term 1 2026", type: "stipend", amount: 8000, status: "paid", datePaid: "2026-01-31" },
+  { id: "ep4", educatorId: "u2", period: "2026-01", type: "salary", amount: 3200, status: "paid", datePaid: "2026-01-31" },
+  { id: "ep5", educatorId: "u2", period: "Term 1 2026", type: "bonus", amount: 500, status: "planned", notes: "Onboarding bonus (when approved)" },
 ];
 
 /**
@@ -436,20 +568,6 @@ export const mockEducatorPayments: EducatorPayment[] = [
 export function getPaymentsForEducator(educatorId: string): EducatorPayment[] {
   return mockEducatorPayments.filter((p) => p.educatorId === educatorId);
 }
-
-export const mockExpenses: Expense[] = [
-  { id: "ex1", category: "rent", description: "Monthly rent — Ngong Road space", amount: 12000, date: "2025-02-01", paidTo: "Property Co", reference: "RENT-02" },
-  { id: "ex2", category: "internet", description: "ISP — fibre", amount: 1500, date: "2025-02-05", paidTo: "Telkom", reference: "INV-8821" },
-  { id: "ex3", category: "utilities", description: "Electricity and water", amount: 2300, date: "2025-02-10", paidTo: "City Power" },
-  { id: "ex4", category: "equipment", description: "Robotics kits, micro:bits, cables", amount: 5500, date: "2025-02-15", paidTo: "Tech Supplies Ltd", reference: "PO-445" },
-  { id: "ex5", category: "rent", description: "Monthly rent — Ngong Road", amount: 12000, date: "2025-03-01", paidTo: "Property Co", reference: "RENT-03" },
-  { id: "ex6", category: "repairs", description: "Laptop screen repair", amount: 1800, date: "2025-02-20", paidTo: "Repair Shop" },
-  { id: "ex7", category: "transport", description: "Educator transport to school club", amount: 450, date: "2025-02-12", paidTo: "Mr. James" },
-  { id: "ex8", category: "marketing", description: "Flyers and posters", amount: 800, date: "2025-02-25", paidTo: "Print Co" },
-  { id: "ex9", category: "supplies", description: "Stationery and consumables", amount: 620, date: "2025-02-08", paidTo: "Office Depot" },
-  { id: "ex10", category: "rent", description: "Monthly rent — Nov 2024", amount: 12000, date: "2024-11-01", paidTo: "Property Co", reference: "RENT-11" },
-  { id: "ex11", category: "equipment", description: "Laptop for 2026 programme", amount: 45000, date: "2026-01-15", paidTo: "Tech Store", reference: "PO-2026-01" },
-];
 
 export function getStaffMember(id: string): StaffMember | undefined {
   return mockStaff.find((s) => s.id === id);
@@ -467,7 +585,7 @@ export const mockEducatorSessionExpenses: EducatorSessionExpense[] = [
     otherAmount: 0,
     totalRequested: 240,
     status: "requested",
-    requestedAt: "2025-02-20T10:00:00.000Z",
+    requestedAt: "2026-01-20T10:00:00.000Z",
     notes: "Taxi to and from school",
   },
   {
@@ -479,8 +597,8 @@ export const mockEducatorSessionExpenses: EducatorSessionExpense[] = [
     transportFrom: 85,
     totalRequested: 170,
     status: "issued",
-    requestedAt: "2025-02-18T09:00:00.000Z",
-    issuedAt: "2025-02-22T14:00:00.000Z",
+    requestedAt: "2026-01-18T09:00:00.000Z",
+    issuedAt: "2026-01-22T14:00:00.000Z",
     processedBy: "u3",
   },
   {
@@ -493,9 +611,9 @@ export const mockEducatorSessionExpenses: EducatorSessionExpense[] = [
     otherAmount: 50,
     totalRequested: 450,
     status: "paid",
-    requestedAt: "2025-02-15T08:00:00.000Z",
-    issuedAt: "2025-02-17T11:00:00.000Z",
-    paidAt: "2025-02-25T09:00:00.000Z",
+    requestedAt: "2026-01-15T08:00:00.000Z",
+    issuedAt: "2026-01-17T11:00:00.000Z",
+    paidAt: "2026-01-25T09:00:00.000Z",
     processedBy: "u3",
     notes: "Parking fee",
   },
@@ -508,7 +626,7 @@ export const mockEducatorSessionExpenses: EducatorSessionExpense[] = [
     transportFrom: 0,
     totalRequested: 0,
     status: "requested",
-    requestedAt: "2025-02-21T12:00:00.000Z",
+    requestedAt: "2026-01-21T12:00:00.000Z",
     notes: "Virtual session – no transport",
   },
 ];
@@ -528,7 +646,7 @@ export const mockInventoryItems: InventoryItem[] = [
   { id: "inv7", name: "USB-C cables", category: "other", assetTag: "CWK-CAB-001", quantity: 25, status: "available", location: "Storage cabinet", notes: "Various lengths" },
   { id: "inv8", name: "Projector – Epson", category: "projector", assetTag: "CWK-PRO-001", quantity: 1, status: "available", location: "Makerspace" },
   { id: "inv9", name: "Laptop – HP", category: "laptop", assetTag: "CWK-LAP-003", quantity: 1, status: "under_maintenance", location: "Makerspace", notes: "Screen crack; charger missing" },
-  { id: "inv10", name: "Tablet – Samsung", category: "other", assetTag: "CWK-TAB-001", quantity: 1, status: "retired", location: "Home set", notes: "Reported missing Jan 2025" },
+  { id: "inv10", name: "Tablet – Samsung", category: "other", assetTag: "CWK-TAB-001", quantity: 1, status: "retired", location: "Home set", notes: "Reported missing Jan 2026" },
 ];
 
 export function getInventoryItem(id: string): InventoryItem | undefined {

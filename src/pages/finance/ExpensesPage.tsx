@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { mockExpenses } from "@/mockData";
+import { getFinanceAccountExpenses } from "@/mockData";
 import { Receipt } from "lucide-react";
-import { EXPENSE_CATEGORY_LABELS } from "@/types";
+import { EXPENSE_CATEGORY_LABELS, MONTHLY_EXPENSE_CATEGORIES } from "@/types";
 import type { ExpenseCategoryType } from "@/types";
 
 import { formatCurrency } from "@/lib/financeUtils";
@@ -28,12 +28,12 @@ function formatDate(iso: string): string {
 const ALL_CATEGORIES = "all";
 
 export default function FinanceExpensesPage() {
-  const [dateFrom, setDateFrom] = useState("2025-01-01");
-  const [dateTo, setDateTo] = useState("2025-12-31");
+  const [dateFrom, setDateFrom] = useState("2026-01-01");
+  const [dateTo, setDateTo] = useState("2026-12-31");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES);
 
   const filtered = useMemo(() => {
-    return mockExpenses.filter((ex) => {
+    return getFinanceAccountExpenses().filter((ex) => {
       if (ex.date < dateFrom || ex.date > dateTo) return false;
       if (categoryFilter !== ALL_CATEGORIES && ex.category !== categoryFilter) return false;
       return true;
@@ -55,8 +55,36 @@ export default function FinanceExpensesPage() {
       .sort((a, b) => b.total - a.total);
   }, [filtered]);
 
+  // Group by month (YYYY-MM), then by monthly expense category
+  const byMonthWithCategories = useMemo(() => {
+    const byMonth = new Map<
+      string,
+      { total: number; byCategory: Map<ExpenseCategoryType, number>; items: typeof filtered }
+    >();
+    for (const ex of filtered) {
+      const monthKey = ex.date.slice(0, 7);
+      let entry = byMonth.get(monthKey);
+      if (!entry) {
+        entry = { total: 0, byCategory: new Map(), items: [] };
+        byMonth.set(monthKey, entry);
+      }
+      entry.total += ex.amount;
+      entry.byCategory.set(ex.category, (entry.byCategory.get(ex.category) ?? 0) + ex.amount);
+      entry.items.push(ex);
+    }
+    return Array.from(byMonth.entries())
+      .map(([monthKey, data]) => ({
+        monthKey,
+        monthLabel: new Intl.DateTimeFormat("en-ZA", { month: "long", year: "numeric" }).format(
+          new Date(monthKey + "-01")
+        ),
+        ...data,
+      }))
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  }, [filtered]);
+
   const categories = useMemo(() => {
-    const set = new Set(mockExpenses.map((e) => e.category));
+    const set = new Set(getFinanceAccountExpenses().map((e) => e.category));
     return Array.from(set).sort();
   }, []);
 
@@ -99,6 +127,55 @@ export default function FinanceExpensesPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Monthly expenses by month: salaries, rent, utilities, etc. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly expenses by month</CardTitle>
+          <CardDescription>
+            Salaries, rent, water, electricity, internet, office supplies, toiletries, and consumables per month.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {byMonthWithCategories.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No expenses in the selected date range.</p>
+          ) : (
+            byMonthWithCategories.map(({ monthKey, monthLabel, total, byCategory: monthByCat }) => (
+              <div key={monthKey} className="border rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-baseline">
+                  <h3 className="font-semibold">{monthLabel}</h3>
+                  <span className="text-sm text-muted-foreground">
+                    Month total: {formatCurrency(total)}
+                  </span>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MONTHLY_EXPENSE_CATEGORIES.map((cat) => {
+                      const amount = monthByCat.get(cat) ?? 0;
+                      return (
+                        <TableRow key={cat}>
+                          <TableCell className="text-muted-foreground">
+                            {EXPENSE_CATEGORY_LABELS[cat]}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {amount > 0 ? formatCurrency(amount) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ))
           )}
         </CardContent>
       </Card>

@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useCoachingInvites } from "@/context/CoachingInvitesContext";
 import { useSchedule } from "@/context/ScheduleContext";
-import { getClass } from "@/mockData";
+import { getClass, mockUsers } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { AvailabilitySlot, AvailabilitySlotType } from "@/types";
@@ -38,6 +39,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Plus, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+import {
+  COMPULSORY_TEAM_MEETING,
+  COMPULSORY_EDUCATORS_MEETING,
+  isBiWeeklyThursday,
+} from "@/lib/compulsoryCalendarBlocks";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 8); // 8–18
@@ -84,10 +91,14 @@ const SLOT_TYPE_LABELS: Record<AvailabilitySlotType, string> = {
   other: "Other",
 };
 
+const VIEW_ME = "me";
+const VIEW_TEAM = "team";
+
 export default function EducatorSchedulePage() {
   const { currentUser } = useAuth();
   const { getSessionsForEducatorByRole } = useSessions();
   const { getSlotsForEducator, addSlot, updateSlot, removeSlot } = useSchedule();
+  const { getForEducator: getCoachingInvitesForEducator } = useCoachingInvites();
   const { toast } = useToast();
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
@@ -97,6 +108,7 @@ export default function EducatorSchedulePage() {
     m.setDate(diff);
     return m.toISOString().split("T")[0];
   });
+  const [viewMode, setViewMode] = useState<string>(VIEW_ME);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [formDay, setFormDay] = useState(0);
@@ -106,19 +118,52 @@ export default function EducatorSchedulePage() {
   const [formNote, setFormNote] = useState("");
   const [deleteSlotId, setDeleteSlotId] = useState<string | null>(null);
 
+  const allEducators = useMemo(
+    () => mockUsers.filter((u) => u.role === "educator"),
+    []
+  );
   const educatorId = currentUser?.id ?? "";
-  const weekDates = useMemo(() => getWeekDates(new Date(weekStart)), [weekStart]);
-  const slots = useMemo(() => getSlotsForEducator(educatorId), [getSlotsForEducator, educatorId]);
+  const isViewingSelf = viewMode === VIEW_ME;
+  const isViewingTeam = viewMode === VIEW_TEAM;
 
+  const weekDates = useMemo(() => getWeekDates(new Date(weekStart)), [weekStart]);
+
+  /** When viewing "me": one educator's slots. When viewing "team": all educators' slots with educatorId attached for labelling. */
+  const slots = useMemo(() => {
+    if (isViewingSelf) return getSlotsForEducator(educatorId);
+    return allEducators.flatMap((e) =>
+      getSlotsForEducator(e.id).map((slot) => ({ ...slot, _educatorId: e.id, _educatorName: e.name }))
+    );
+  }, [getSlotsForEducator, educatorId, isViewingSelf, allEducators]);
+
+  /** When viewing "me": one educator's sessions. When viewing "team": all educators' sessions (role per session for label). */
   const sessionsInWeek = useMemo(() => {
     const start = weekDates[0].toISOString().split("T")[0];
     const end = weekDates[6].toISOString().split("T")[0];
-    return getSessionsForEducatorByRole(educatorId, { from: start, to: end });
-  }, [weekDates, educatorId, getSessionsForEducatorByRole]);
+    if (isViewingSelf) return getSessionsForEducatorByRole(educatorId, { from: start, to: end });
+    return allEducators.flatMap((e) =>
+      getSessionsForEducatorByRole(e.id, { from: start, to: end }).map((s) => ({
+        ...s,
+        _educatorId: e.id,
+        _educatorName: e.name,
+      }))
+    );
+  }, [weekDates, educatorId, getSessionsForEducatorByRole, isViewingSelf, allEducators]);
+
+  /** Coaching invites (accepted or pending) for this educator in the week — only when viewing "My schedule". */
+  const coachingInvitesInWeek = useMemo(() => {
+    if (!isViewingSelf) return [];
+    const start = weekDates[0].toISOString().split("T")[0];
+    const end = weekDates[6].toISOString().split("T")[0];
+    return getCoachingInvitesForEducator(educatorId).filter(
+      (inv) => (inv.status === "accepted" || inv.status === "pending") && inv.date >= start && inv.date <= end
+    );
+  }, [isViewingSelf, educatorId, weekDates, getCoachingInvitesForEducator]);
 
   const handleAddBlock = () => {
+    const myId = currentUser?.id ?? "";
     addSlot({
-      educatorId,
+      educatorId: myId,
       dayOfWeek: formDay,
       startTime: formStart,
       endTime: formEnd,
@@ -169,12 +214,14 @@ export default function EducatorSchedulePage() {
     setDialogOpen(true);
   };
 
+  const mySlotsForConflicts = useMemo(() => (isViewingSelf ? slots : []), [isViewingSelf, slots]);
   const slotConflicts = useMemo(() => {
     const set = new Set<string>();
-    for (let i = 0; i < slots.length; i++) {
-      for (let j = i + 1; j < slots.length; j++) {
-        const a = slots[i];
-        const b = slots[j];
+    const list = mySlotsForConflicts as AvailabilitySlot[];
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i];
+        const b = list[j];
         if (a.dayOfWeek !== b.dayOfWeek) continue;
         if (overlaps(a.startTime, a.endTime, b.startTime, b.endTime)) {
           set.add(a.id);
@@ -183,42 +230,63 @@ export default function EducatorSchedulePage() {
       }
     }
     return set;
-  }, [slots]);
+  }, [mySlotsForConflicts]);
+
+  const viewLabel = isViewingSelf ? "My schedule" : "Entire team schedule";
 
   return (
     <div className="page-container">
       <h1 className="page-title flex items-center gap-2">
-        <Calendar className="w-6 h-6" /> My Schedule
+        <Calendar className="w-6 h-6" /> Schedule
       </h1>
       <p className="page-subtitle text-muted-foreground mb-4">
-        View and edit your weekly availability. Sessions you facilitate or coach appear on the grid.
+        {isViewingSelf
+          ? "View and edit your weekly availability. Sessions you facilitate or coach appear on the grid. Accepted coaching invites from L&D also appear."
+          : "View all educators' sessions and availability in one place. Read-only."}
       </p>
 
       <div className="flex flex-wrap items-center gap-4 mb-4">
-        <Label className="text-sm">Week starting</Label>
-        <Input
-          type="date"
-          value={weekStart}
-          onChange={(e) => setWeekStart(e.target.value)}
-          className="w-[160px]"
-        />
-        <Button
-          onClick={() => {
-            setEditingSlotId(null);
-            resetForm();
-            setDialogOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" /> Add block
-        </Button>
+        <div>
+          <Label className="text-sm">View</Label>
+          <Select value={viewMode} onValueChange={setViewMode}>
+            <SelectTrigger className="w-[220px] mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={VIEW_ME}>My schedule</SelectItem>
+              <SelectItem value={VIEW_TEAM}>Entire team schedule</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-sm">Week starting</Label>
+          <Input
+            type="date"
+            value={weekStart}
+            onChange={(e) => setWeekStart(e.target.value)}
+            className="w-[160px] mt-1"
+          />
+        </div>
+        {isViewingSelf && (
+          <Button
+            className="mt-6"
+            onClick={() => {
+              setEditingSlotId(null);
+              resetForm();
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add block
+          </Button>
+        )}
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Week view</CardTitle>
           <CardDescription>
-            {weekDates[0].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })} –{" "}
-            {weekDates[6].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
+            {viewLabel} · {weekDates[0].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })} –{" "}
+            {weekDates[6].toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}. Monday 9:00–10:00 team meeting; Thursday 9:00–10:00 educators meeting (bi-weekly), both blocked by default.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -249,16 +317,61 @@ export default function EducatorSchedulePage() {
                       const cellSessions = sessionsInWeek.filter(
                         (s) => s.date === dateKey && timeToMinutes(s.startTime) < (hour + 1) * 60 && timeToMinutes(s.endTime) > hour * 60
                       );
+                      const cellCoaching = isViewingSelf
+                        ? coachingInvitesInWeek.filter(
+                            (inv) => inv.date === dateKey && timeToMinutes(inv.startTime) < (hour + 1) * 60 && timeToMinutes(inv.endTime) > hour * 60
+                          )
+                        : [];
+                      const isTeamMeetingSlot =
+                        dayOfWeek === COMPULSORY_TEAM_MEETING.dayOfWeek && hour === 9;
+                      const isEducatorsMeetingSlot =
+                        dayOfWeek === COMPULSORY_EDUCATORS_MEETING.dayOfWeek &&
+                        hour === 9 &&
+                        isBiWeeklyThursday(dateKey);
                       return (
                         <td key={dayIndex} className="border p-1 align-top min-w-[120px]">
+                          {isTeamMeetingSlot && (
+                            <div className="mb-1 rounded px-2 py-1 text-xs bg-muted border border-border font-medium">
+                              {COMPULSORY_TEAM_MEETING.label}
+                              <span className="block text-muted-foreground font-normal">
+                                {COMPULSORY_TEAM_MEETING.startTime}–{COMPULSORY_TEAM_MEETING.endTime}
+                              </span>
+                            </div>
+                          )}
+                          {isEducatorsMeetingSlot && (
+                            <div className="mb-1 rounded px-2 py-1 text-xs bg-muted border border-border font-medium">
+                              {COMPULSORY_EDUCATORS_MEETING.label}
+                              <span className="block text-muted-foreground font-normal">
+                                {COMPULSORY_EDUCATORS_MEETING.startTime}–{COMPULSORY_EDUCATORS_MEETING.endTime}
+                              </span>
+                            </div>
+                          )}
+                          {cellCoaching.map((inv) => (
+                            <div
+                              key={inv.id}
+                              className="mb-1 rounded px-2 py-1 text-xs bg-secondary/20 border border-secondary/40"
+                            >
+                              <span className="font-medium">{inv.title ?? "L&D Coaching"}</span>
+                              <span className="block text-muted-foreground">
+                                {inv.startTime}–{inv.endTime}
+                                {inv.status === "pending" && " · Pending accept"}
+                              </span>
+                            </div>
+                          ))}
                           {cellSessions.map((s) => {
                             const cls = getClass(s.classId);
-                            const role = getSessionRoleForUser(s, currentUser);
+                            const sessionWithEducator = s as typeof s & { _educatorId?: string; _educatorName?: string };
+                            const role = isViewingSelf
+                              ? getSessionRoleForUser(s, currentUser)
+                              : (sessionWithEducator._educatorId && s.leadEducatorId === sessionWithEducator._educatorId ? "facilitator" : "coach");
                             return (
                               <div
                                 key={s.id}
                                 className="mb-1 rounded px-2 py-1 text-xs bg-primary/15 border border-primary/30"
                               >
+                                {isViewingTeam && sessionWithEducator._educatorName && (
+                                  <span className="block font-medium text-muted-foreground text-[10px]">{sessionWithEducator._educatorName}</span>
+                                )}
                                 <span className="font-medium">{cls?.name ?? s.classId}</span>
                                 <span className="block text-muted-foreground">
                                   {s.startTime}–{s.endTime} · {LEARNING_TRACK_LABELS[s.learningTrack] ?? s.learningTrack}
@@ -271,27 +384,35 @@ export default function EducatorSchedulePage() {
                               </div>
                             );
                           })}
-                          {cellSlots.map((slot) => (
-                            <div
-                              key={slot.id}
-                              className={`mb-1 rounded px-2 py-1 text-xs flex items-center justify-between gap-1 ${
-                                slotConflicts.has(slot.id) ? "bg-destructive/15 border border-destructive/50" : "bg-muted"
-                              }`}
-                            >
-                              <span>
-                                {slot.startTime}–{slot.endTime} {SLOT_TYPE_LABELS[slot.type]}
-                                {slot.note && ` · ${slot.note}`}
-                              </span>
-                              <span className="flex gap-0.5">
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(slot)}>
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setDeleteSlotId(slot.id)} aria-label={`Remove block ${slot.startTime}-${slot.endTime}`}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </span>
-                            </div>
-                          ))}
+                          {cellSlots.map((slot) => {
+                            const slotWithEducator = slot as typeof slot & { _educatorName?: string };
+                            return (
+                              <div
+                                key={slot.id}
+                                className={`mb-1 rounded px-2 py-1 text-xs flex items-center justify-between gap-1 ${
+                                  isViewingSelf && slotConflicts.has(slot.id) ? "bg-destructive/15 border border-destructive/50" : "bg-muted"
+                                }`}
+                              >
+                                <span>
+                                  {isViewingTeam && slotWithEducator._educatorName && (
+                                    <span className="font-medium text-muted-foreground text-[10px]">{slotWithEducator._educatorName} · </span>
+                                  )}
+                                  {slot.startTime}–{slot.endTime} {SLOT_TYPE_LABELS[slot.type]}
+                                  {slot.note && ` · ${slot.note}`}
+                                </span>
+                                {isViewingSelf && (
+                                  <span className="flex gap-0.5">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(slot)}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setDeleteSlotId(slot.id)} aria-label={`Remove block ${slot.startTime}-${slot.endTime}`}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </td>
                       );
                     })}
@@ -302,10 +423,12 @@ export default function EducatorSchedulePage() {
           </div>
           {slots.length === 0 && (
             <p className="text-sm text-muted-foreground py-4">
-              No availability blocks yet. Click &quot;Add block&quot; to set your weekly availability.
+              {isViewingSelf
+                ? "No availability blocks yet. Click \"Add block\" to set your weekly availability."
+                : "No availability blocks for the team this week."}
             </p>
           )}
-          {slots.some((s) => slotConflicts.has(s.id)) && (
+          {isViewingSelf && slots.some((s) => slotConflicts.has(s.id)) && (
             <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
               Some blocks overlap. Please adjust times to avoid conflicts.
             </p>

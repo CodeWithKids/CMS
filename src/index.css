@@ -4,89 +4,117 @@
 
 @layer base {
   :root {
-    --background: 180 20% 98%;
-    --foreground: 200 25% 10%;
+    /* Code With Kids brand (HSL for shadcn compatibility) */
+    --cwk-pink: 348 93% 66%;
+    --cwk-pink-foreground: 0 0% 100%;
+    --cwk-yellow: 45 94% 63%;
+    --cwk-yellow-foreground: 211 52% 19%;
+    --cwk-teal: 169 69% 41%;
+    --cwk-teal-foreground: 0 0% 100%;
+    --cwk-navy: 211 52% 19%;
+    --cwk-navy-foreground: 0 0% 100%;
+    --cwk-cream: 38 100% 95%;
+    --cwk-white: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 200 25% 10%;
+    /* shadcn/ui → CWK theme */
+    --background: var(--cwk-cream);
+    --foreground: var(--cwk-navy);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 200 25% 10%;
+    --card: var(--cwk-white);
+    --card-foreground: var(--cwk-navy);
 
-    --primary: 174 84% 32%;
-    --primary-foreground: 0 0% 100%;
+    --popover: var(--cwk-white);
+    --popover-foreground: var(--cwk-navy);
 
-    --secondary: 200 20% 94%;
-    --secondary-foreground: 200 25% 15%;
+    --primary: var(--cwk-pink);
+    --primary-foreground: var(--cwk-pink-foreground);
 
-    --muted: 200 15% 93%;
-    --muted-foreground: 200 10% 45%;
+    --secondary: var(--cwk-teal);
+    --secondary-foreground: var(--cwk-teal-foreground);
 
-    --accent: 25 95% 53%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 38 30% 92%;
+    --muted-foreground: 211 30% 45%;
+
+    --accent: var(--cwk-yellow);
+    --accent-foreground: var(--cwk-yellow-foreground);
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 15% 88%;
-    --input: 200 15% 88%;
-    --ring: 174 84% 32%;
+    --border: 211 25% 88%;
+    --input: 211 25% 88%;
+    --ring: var(--cwk-pink);
 
     --radius: 0.75rem;
 
-    --sidebar-background: 200 25% 12%;
-    --sidebar-foreground: 200 15% 85%;
-    --sidebar-primary: 174 84% 42%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 20% 18%;
+    --sidebar-background: var(--cwk-navy);
+    --sidebar-foreground: 200 15% 90%;
+    --sidebar-primary: var(--cwk-pink);
+    --sidebar-primary-foreground: var(--cwk-pink-foreground);
+    --sidebar-accent: 211 40% 25%;
     --sidebar-accent-foreground: 200 15% 90%;
-    --sidebar-border: 200 20% 20%;
-    --sidebar-ring: 174 84% 42%;
+    --sidebar-border: 211 35% 28%;
+    --sidebar-ring: var(--cwk-pink);
 
-    /* Custom tokens */
-    --success: 152 69% 40%;
+    /* Semantic (aligned with CWK where useful) */
+    --success: var(--cwk-teal);
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: var(--cwk-yellow);
+    --warning-foreground: var(--cwk-navy);
     --info: 210 80% 55%;
     --info-foreground: 0 0% 100%;
 
-    --badge-active: 152 69% 40%;
+    --badge-active: var(--cwk-teal);
     --badge-alumni: 200 10% 60%;
     --badge-draft: 200 15% 70%;
     --badge-sent: 210 80% 55%;
-    --badge-partial: 38 92% 50%;
-    --badge-paid: 152 69% 40%;
+    --badge-partial: var(--cwk-yellow);
+    --badge-paid: var(--cwk-teal);
   }
 
   .dark {
-    --background: 200 25% 7%;
+    --cwk-pink: 348 93% 58%;
+    --cwk-yellow: 45 94% 55%;
+    --cwk-teal: 169 69% 45%;
+    --cwk-navy: 211 35% 12%;
+    --cwk-cream: 211 25% 8%;
+
+    --background: var(--cwk-cream);
     --foreground: 200 15% 93%;
-    --card: 200 25% 10%;
+
+    --card: 211 30% 11%;
     --card-foreground: 200 15% 93%;
-    --popover: 200 25% 10%;
+
+    --popover: 211 30% 11%;
     --popover-foreground: 200 15% 93%;
-    --primary: 174 84% 42%;
+
+    --primary: var(--cwk-pink);
     --primary-foreground: 0 0% 100%;
-    --secondary: 200 20% 15%;
-    --secondary-foreground: 200 15% 90%;
-    --muted: 200 20% 15%;
+
+    --secondary: var(--cwk-teal);
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 211 25% 18%;
     --muted-foreground: 200 10% 55%;
-    --accent: 25 95% 53%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 30%;
+
+    --accent: var(--cwk-yellow);
+    --accent-foreground: var(--cwk-navy);
+
+    --destructive: 0 62% 40%;
     --destructive-foreground: 0 0% 100%;
-    --border: 200 20% 18%;
-    --input: 200 20% 18%;
-    --ring: 174 84% 42%;
-    --sidebar-background: 200 25% 5%;
+
+    --border: 211 25% 20%;
+    --input: 211 25% 20%;
+    --ring: var(--cwk-pink);
+
+    --sidebar-background: 211 40% 8%;
     --sidebar-foreground: 200 15% 85%;
-    --sidebar-primary: 174 84% 42%;
+    --sidebar-primary: var(--cwk-pink);
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 20% 12%;
+    --sidebar-accent: 211 35% 16%;
     --sidebar-accent-foreground: 200 15% 90%;
-    --sidebar-border: 200 20% 15%;
-    --sidebar-ring: 174 84% 42%;
+    --sidebar-border: 211 30% 18%;
+    --sidebar-ring: var(--cwk-pink);
   }
 }
 

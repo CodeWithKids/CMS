@@ -1,15 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { mockClasses, getEducatorName, getTerm } from "@/mockData";
+import { mockClasses, getEducatorName, getTerm, PROGRAM_NAMES } from "@/mockData";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle } from "lucide-react";
 import { BookOpen } from "lucide-react";
 
 export default function ClassesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
+
+  const filteredClasses = useMemo(() => {
+    if (selectedPrograms.size === 0) return mockClasses;
+    return mockClasses.filter((c) => selectedPrograms.has(c.program));
+  }, [selectedPrograms]);
+
+  function toggleProgram(program: string) {
+    setSelectedPrograms((prev) => {
+      const next = new Set(prev);
+      if (next.has(program)) next.delete(program);
+      else next.add(program);
+      return next;
+    });
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
@@ -37,6 +53,34 @@ export default function ClassesPage() {
       <h1 className="page-title">Classes</h1>
       <p className="page-subtitle">All active classes and programs</p>
 
+      <div className="mb-6 rounded-lg border bg-card p-4">
+        <p className="text-sm font-medium text-muted-foreground mb-3">Filter by program</p>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {PROGRAM_NAMES.map((program) => (
+            <label
+              key={program}
+              className="flex items-center gap-2 cursor-pointer text-sm"
+            >
+              <Checkbox
+                checked={selectedPrograms.has(program)}
+                onCheckedChange={() => toggleProgram(program)}
+              />
+              <span>{program}</span>
+            </label>
+          ))}
+        </div>
+        {selectedPrograms.size > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 text-muted-foreground"
+            onClick={() => setSelectedPrograms(new Set())}
+          >
+            Clear filter
+          </Button>
+        )}
+      </div>
+
       {isError && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
@@ -56,6 +100,12 @@ export default function ClassesPage() {
           <p className="font-medium">No classes yet</p>
           <p className="text-sm mt-1">Add your first class to get started.</p>
         </div>
+      ) : filteredClasses.length === 0 ? (
+        <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
+          <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="font-medium">No classes match the selected programs</p>
+          <p className="text-sm mt-1">Select one or more programs above, or clear the filter.</p>
+        </div>
       ) : (
         <table className="data-table">
           <thead>
@@ -70,7 +120,7 @@ export default function ClassesPage() {
             </tr>
           </thead>
           <tbody>
-            {mockClasses.map((c) => (
+            {filteredClasses.map((c) => (
               <tr key={c.id}>
                 <td className="font-medium">{c.name}</td>
                 <td>{c.program}</td>
