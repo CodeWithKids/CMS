@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useReceivedDonations } from "@/features/partnerships/stores/receivedDonationsStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -15,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -23,8 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { getPaidAmount, formatCurrency } from "@/lib/financeUtils";
-import { getFinanceAccountInvoices, getLearner, getOrganization, getCurrentTerm } from "@/mockData";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
+import { getLearner, getOrganization, getCurrentTerm } from "@/mockData";
 import {
   INVOICE_SOURCE_LABELS,
   getIncomeSessionTypeFromSource,
@@ -34,6 +41,7 @@ import {
 } from "@/types";
 import type { InvoiceSource, IncomeSessionType, IncomePayerType } from "@/types";
 import type { Invoice } from "@/types";
+import { Plus, Pencil } from "lucide-react";
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-ZA", {
@@ -87,8 +95,21 @@ export default function FinanceIncomePage() {
   const [payerTypeFilter, setPayerTypeFilter] = useState<string>(ALL);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
 
+  const { currentUser } = useAuth();
+  const { donations, addDonation, updateDonation } = useReceivedDonations();
+  const [donationDialogOpen, setDonationDialogOpen] = useState(false);
+  const [editingDonationId, setEditingDonationId] = useState<string | null>(null);
+  const [donationForm, setDonationForm] = useState({
+    donorName: "",
+    amountKes: "" as string | number,
+    receivedDate: new Date().toISOString().split("T")[0],
+    notes: "",
+  });
+
+  const { getInvoices } = useFinanceAccount();
+  const invoices = getInvoices();
   const entries = useMemo(() => {
-    return getFinanceAccountInvoices().map((inv) => {
+    return invoices.map((inv) => {
       const payerLabel =
         inv.organizationId != null
           ? (getOrganization(inv.organizationId)?.name ?? "—")
@@ -111,7 +132,7 @@ export default function FinanceIncomePage() {
       const payerType = getEffectivePayerType(inv);
       return { inv, payerLabel, description, date, amount, statusLabel, sessionType, payerType };
     });
-  }, []);
+  }, [invoices]);
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
@@ -205,14 +226,14 @@ export default function FinanceIncomePage() {
   }, [detailCard, cardEntries]);
 
   const sources = useMemo(() => {
-    const set = new Set(getFinanceAccountInvoices().map((i) => i.source));
+    const set = new Set(invoices.map((i) => i.source));
     return Array.from(set).sort();
-  }, []);
+  }, [invoices]);
 
   const organisations = useMemo(() => {
-    const set = new Set(getFinanceAccountInvoices().map((i) => i.organizationId).filter(Boolean) as string[]);
+    const set = new Set(invoices.map((i) => i.organizationId).filter(Boolean) as string[]);
     return Array.from(set).sort();
-  }, []);
+  }, [invoices]);
 
   const sessionTypes = useMemo(() => {
     const set = new Set(entries.map((e) => e.sessionType));
@@ -427,6 +448,167 @@ export default function FinanceIncomePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Received donations — updates reflect on Partnerships tab */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="text-base">Received donations (partnerships)</CardTitle>
+              <CardDescription>
+                Record donations here; they appear under &quot;Funds secured this year&quot; on the Partnerships dashboard.
+              </CardDescription>
+            </div>
+            <Button onClick={() => { setEditingDonationId(null); setDonationForm({ donorName: "", amountKes: "", receivedDate: new Date().toISOString().split("T")[0], notes: "" }); setDonationDialogOpen(true); }}>
+              <Plus className="w-4 h-4 mr-2" /> Add donation
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Donor</TableHead>
+                <TableHead className="text-right">Amount (KES)</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {donations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                    No donations recorded yet. Add one to see it on the Partnerships tab.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                [...donations].sort((a, b) => b.receivedDate.localeCompare(a.receivedDate)).map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="text-sm">{formatDate(d.receivedDate)}</TableCell>
+                    <TableCell className="font-medium">{d.donorName}</TableCell>
+                    <TableCell className="text-right">{d.amountKes.toLocaleString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{d.notes ?? "—"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const donation = donations.find((x) => x.id === d.id);
+                          if (donation) {
+                            setEditingDonationId(donation.id);
+                            setDonationForm({
+                              donorName: donation.donorName,
+                              amountKes: donation.amountKes,
+                              receivedDate: donation.receivedDate,
+                              notes: donation.notes ?? "",
+                            });
+                            setDonationDialogOpen(true);
+                          }
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={donationDialogOpen}
+        onOpenChange={(open) => { setDonationDialogOpen(open); if (!open) setEditingDonationId(null); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingDonationId ? "Edit donation" : "Add received donation"}</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              This will appear under &quot;Funds secured this year&quot; on the Partnerships dashboard.
+            </p>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="donorName">Donor name</Label>
+              <Input
+                id="donorName"
+                value={donationForm.donorName}
+                onChange={(e) => setDonationForm((f) => ({ ...f, donorName: e.target.value }))}
+                placeholder="e.g. Local Rotary Club"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="amountKes">Amount (KES)</Label>
+              <Input
+                id="amountKes"
+                type="number"
+                min={1}
+                value={donationForm.amountKes === "" ? "" : donationForm.amountKes}
+                onChange={(e) => setDonationForm((f) => ({ ...f, amountKes: e.target.value === "" ? "" : Number(e.target.value) }))}
+                placeholder="50000"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="receivedDate">Date received</Label>
+              <Input
+                id="receivedDate"
+                type="date"
+                value={donationForm.receivedDate}
+                onChange={(e) => setDonationForm((f) => ({ ...f, receivedDate: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="donationNotes">Notes (optional)</Label>
+              <Textarea
+                id="donationNotes"
+                value={donationForm.notes}
+                onChange={(e) => setDonationForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="e.g. Community Donation Drive Q1"
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDonationDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const amount = typeof donationForm.amountKes === "number" ? donationForm.amountKes : Number(donationForm.amountKes);
+                if (!donationForm.donorName.trim() || !amount || amount <= 0) return;
+                if (editingDonationId) {
+                  updateDonation(editingDonationId, {
+                    donorName: donationForm.donorName.trim(),
+                    amountKes: amount,
+                    receivedDate: donationForm.receivedDate,
+                    notes: donationForm.notes.trim() || undefined,
+                  });
+                } else {
+                  addDonation({
+                    donorName: donationForm.donorName.trim(),
+                    amountKes: amount,
+                    receivedDate: donationForm.receivedDate,
+                    notes: donationForm.notes.trim() || undefined,
+                    recordedBy: currentUser?.name ?? "finance",
+                  });
+                }
+                setDonationDialogOpen(false);
+                setEditingDonationId(null);
+                setDonationForm({ donorName: "", amountKes: "", receivedDate: new Date().toISOString().split("T")[0], notes: "" });
+              }}
+              disabled={!donationForm.donorName.trim() || (typeof donationForm.amountKes === "string" ? !Number(donationForm.amountKes) : donationForm.amountKes <= 0)}
+            >
+              {editingDonationId ? "Save changes" : "Add donation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

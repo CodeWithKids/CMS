@@ -51,7 +51,16 @@ export function PaymentDialog({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const numAmount = Number(amount) || 0;
-  const valid = numAmount > 0 && numAmount <= maxAmount && date;
+  const amountError =
+    amount === ""
+      ? "Amount is required."
+      : numAmount <= 0
+        ? "Amount must be greater than 0."
+        : numAmount > maxAmount
+          ? "Amount cannot be more than the outstanding balance."
+          : null;
+  const dateError = !date ? "Date is required." : null;
+  const valid = !amountError && !dateError;
 
   const handleSubmit = () => {
     if (!valid) return;
@@ -88,6 +97,9 @@ export function PaymentDialog({
               onChange={(e) => setAmount(e.target.value)}
               className="mt-1"
             />
+            {amountError && (
+              <p className="mt-1 text-xs text-destructive">{amountError}</p>
+            )}
           </div>
           <div>
             <Label>Method</Label>
@@ -115,7 +127,15 @@ export function PaymentDialog({
           </div>
           <div>
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="mt-1"
+            />
+            {dateError && (
+              <p className="mt-1 text-xs text-destructive">{dateError}</p>
+            )}
           </div>
         </div>
         <DialogFooter>

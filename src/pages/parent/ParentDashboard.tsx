@@ -2,21 +2,59 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
-import { parentChildMap, getLearner, getTodaySessionsForStudent, getSessionsForStudent, getClass } from "@/mockData";
-import { User, Clock, ChevronRight } from "lucide-react";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
+import { parentChildMap, getLearner, getTodaySessionsForStudent, getSessionsForStudent, getClass, getInvoicesForParent } from "@/mockData";
+import { User, Clock, ChevronRight, FileText } from "lucide-react";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
 
 export default function ParentDashboard() {
   const { currentUser } = useAuth();
   const { getByLearner } = useAttendance();
+  const { getInvoices } = useFinanceAccount();
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
+  const invoices = getInvoicesForParent(getInvoices(), childIds);
+  const outstandingCount = invoices.filter(
+    (i) => i.status !== "paid" && i.status !== "draft"
+  ).length;
 
   return (
     <div className="page-container">
       <h1 className="page-title">Parent Dashboard</h1>
       <p className="page-subtitle">Welcome, {currentUser?.name}</p>
+
+      <div className="mb-6">
+        <RoleResponsibilitiesCard />
+      </div>
+
+      {outstandingCount > 0 && (
+        <Card className="mb-6 border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="font-medium">Outstanding invoices</p>
+                  <p className="text-sm text-muted-foreground">
+                    {outstandingCount} invoice{outstandingCount !== 1 ? "s" : ""} need your attention.
+                  </p>
+                </div>
+              </div>
+              <Button asChild>
+                <Link to="/parent/invoices">View invoices</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {childIds.map((childId) => {

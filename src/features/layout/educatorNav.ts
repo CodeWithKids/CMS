@@ -12,7 +12,7 @@ import {
 
 export const educatorNavItems = [
   { label: "Dashboard", to: "/educator/dashboard", iconKey: "dashboard" as const },
-  { label: "Schedule", to: "/educator/schedule", iconKey: "calendar" as const },
+  { label: "Schedule", to: "/schedule", iconKey: "calendar" as const },
   { label: "Coaching invites", to: "/educator/coaching-invites", iconKey: "coachingInvites" as const },
   { label: "Tasks", to: "/educator/tasks", iconKey: "tasks" as const },
   { label: "Events", to: "/events", iconKey: "events" as const },

@@ -2,14 +2,11 @@ import type { Invoice, Expense } from "@/types";
 
 /**
  * Finance account — single source of truth for income and expenses.
- *
- * All income (invoices) and expense data used in finance reports, dashboards,
- * and admin views MUST be read from this module to ensure transparency and
- * accuracy. In production, replace the in-memory data with API calls to your
- * finance/accounting backend.
+ * All data is maintained by the finance profile (FinanceAccountContext).
+ * Initial seed data below; runtime data lives in FinanceAccountProvider.
  */
 
-const financeAccountInvoices: Invoice[] = [
+export const INITIAL_FINANCE_ACCOUNT_INVOICES: Invoice[] = [
   { id: "inv-school-1", organizationId: "org2", learnerId: null, invoiceNumber: "INV-2026-SC-001", term: "Term 1 2026", totalAmount: 5000, status: "sent", dueDate: "2026-03-31", source: "school_club", sessionType: "SCHOOL_STEM_CLUB", payerType: "SCHOOL", description: "School club term fee – 2 learners", learnerCount: 2 },
   { id: "inv-school-2", organizationId: "org3", learnerId: null, invoiceNumber: "INV-2026-SC-002", term: "Term 1 2026", totalAmount: 2500, status: "paid", dueDate: "2026-02-28", source: "school_club", sessionType: "SCHOOL_STEM_CLUB", payerType: "SCHOOL", description: "School club term fee – 1 learner", learnerCount: 1, paidAmount: 2500, paidDate: "2026-01-20" },
   { id: "inv5", organizationId: "org2", learnerId: null, invoiceNumber: "INV-2026-005", term: "Term 1 2026", totalAmount: 2500, status: "sent", dueDate: "2026-01-15", source: "organization", sessionType: "ORGANISATION_SESSION", payerType: "ORGANISATION", description: "Organisation session fee" },
@@ -21,7 +18,7 @@ const financeAccountInvoices: Invoice[] = [
   { id: "inv11", learnerId: "l3", invoiceNumber: "INV-2026-011", term: "Term 1 2026", totalAmount: 2600, status: "paid", dueDate: "2026-02-28", source: "makerspace", sessionType: "MAKERSPACE", payerType: "PARENT", paidAmount: 2600, paidDate: "2026-02-10" },
 ];
 
-const financeAccountExpenses: Expense[] = [
+export const INITIAL_FINANCE_ACCOUNT_EXPENSES: Expense[] = [
   { id: "ex1", category: "rent", description: "Monthly rent — Ngong Road space", amount: 12000, date: "2026-01-01", paidTo: "Property Co", reference: "RENT-01" },
   { id: "ex2", category: "internet", description: "ISP — fibre", amount: 1500, date: "2026-01-05", paidTo: "Telkom", reference: "INV-8821" },
   { id: "ex3", category: "electricity", description: "Electricity — Jan", amount: 1800, date: "2026-01-10", paidTo: "City Power" },
@@ -45,12 +42,17 @@ const financeAccountExpenses: Expense[] = [
   { id: "ex20", category: "consumables", description: "Coffee, tea, sugar", amount: 380, date: "2026-02-18", paidTo: "Groceries Ltd" },
 ];
 
-/** Income data from the finance account. Use this for all income reports and dashboards. */
+/**
+ * @deprecated Use useFinanceAccount() from FinanceAccountContext instead.
+ * All finance data should come from the finance profile (context).
+ */
 export function getFinanceAccountInvoices(): Invoice[] {
-  return financeAccountInvoices;
+  return INITIAL_FINANCE_ACCOUNT_INVOICES;
 }
 
-/** Expense data from the finance account. Use this for all expense reports and dashboards. */
+/**
+ * @deprecated Use useFinanceAccount() from FinanceAccountContext instead.
+ */
 export function getFinanceAccountExpenses(): Expense[] {
-  return financeAccountExpenses;
+  return INITIAL_FINANCE_ACCOUNT_EXPENSES;
 }

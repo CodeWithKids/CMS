@@ -107,36 +107,38 @@ export default function ClassesPage() {
           <p className="text-sm mt-1">Select one or more programs above, or clear the filter.</p>
         </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Class Name</th>
-              <th>Program</th>
-              <th>Age Group</th>
-              <th>Location</th>
-              <th>Educator</th>
-              <th>Term</th>
-              <th className="w-[140px]">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredClasses.map((c) => (
-              <tr key={c.id}>
-                <td className="font-medium">{c.name}</td>
-                <td>{c.program}</td>
-                <td>{c.ageGroup}</td>
-                <td>{c.location}</td>
-                <td>{getEducatorName(c.educatorId)}</td>
-                <td>{getTerm(c.termId)?.name ?? c.termId}</td>
-                <td>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to={`/admin/classes/${c.id}/enrolments`}>Manage enrolments</Link>
-                  </Button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Class Name</th>
+                <th>Program</th>
+                <th>Age Group</th>
+                <th>Location</th>
+                <th>Educator</th>
+                <th>Term</th>
+                <th className="w-[140px]">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredClasses.map((c) => (
+                <tr key={c.id}>
+                  <td className="font-medium">{c.name}</td>
+                  <td>{c.program}</td>
+                  <td>{c.ageGroup}</td>
+                  <td>{c.location}</td>
+                  <td>{getEducatorName(c.educatorId)}</td>
+                  <td>{getTerm(c.termId)?.name ?? c.termId}</td>
+                  <td>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/admin/classes/${c.id}/enrolments`}>Manage enrolments</Link>
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

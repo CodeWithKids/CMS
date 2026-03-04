@@ -54,6 +54,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Users, Save, AlertTriangle, Award, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useEducators } from "@/hooks/useEducators";
+import { classesPatch, isApiEnabled } from "@/lib/api";
 import type { ClassEnrollmentStatus } from "@/types";
 import type { Learner, LearnerProgramType } from "@/types";
 
@@ -94,6 +96,7 @@ export default function ClassEnrollmentsPage() {
   const { getBySession: getAttendanceBySession } = useAttendance();
   const { getBySession: getBadgesBySession } = useBadgeAwards();
   const { toast } = useToast();
+  const apiEnabled = isApiEnabled();
 
   const cls = getClass(classId ?? "");
   const term = cls ? getTerm(cls.termId) : null;
@@ -110,6 +113,14 @@ export default function ClassEnrollmentsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionValue, setBulkActionValue] = useState("");
   const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
+  const [assigningEducator, setAssigningEducator] = useState(false);
+  const [selectedEducatorId, setSelectedEducatorId] = useState<string>(cls?.educatorId ?? "");
+
+  const { educators, isLoading: educatorsLoading } = useEducators({ role: "educator" });
+
+  useEffect(() => {
+    setSelectedEducatorId(cls?.educatorId ?? "");
+  }, [cls?.id, cls?.educatorId]);
 
   useEffect(() => {
     if (!cls || !term) return;
@@ -197,6 +208,45 @@ export default function ClassEnrollmentsPage() {
     });
     setSelectedIds(new Set());
     toast({ title: "Bulk action", description: "Enroll selected applied. Click Save to persist." });
+  };
+
+  const handleAssignEducator = async () => {
+    if (!cls) return;
+    if (!selectedEducatorId) {
+      toast({
+        title: "Select an educator",
+        description: "Choose an educator to assign to this class.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!apiEnabled) {
+      toast({
+        title: "API not connected",
+        description: "To persist educator assignments, set VITE_API_URL and ensure the API server is running.",
+      });
+      return;
+    }
+    setAssigningEducator(true);
+    try {
+      const updated = await classesPatch(cls.id, { educatorId: selectedEducatorId });
+      const name =
+        getEducatorName(updated.educatorId) ||
+        educators.find((e) => e.id === updated.educatorId)?.name ||
+        "the educator";
+      toast({
+        title: "Educator assigned",
+        description: `${name} is now assigned to this class.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Could not assign educator",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAssigningEducator(false);
+    }
   };
 
   const applyBulkCompleted = () => {
@@ -305,18 +355,49 @@ export default function ClassEnrollmentsPage() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            {cls.name}
-            {capacityLabel != null && (
-              <span className="text-sm font-normal text-muted-foreground">
-                {capacityLabel}
-              </span>
-            )}
-          </CardTitle>
-          <CardDescription>
-            {cls.program} · {cls.ageGroup} · {cls.location} · Term: {term.name} · Educator:{" "}
-            {getEducatorName(cls.educatorId)}
-          </CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                {cls.name}
+                {capacityLabel != null && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {capacityLabel}
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {cls.program} · {cls.ageGroup} · {cls.location} · Term: {term.name}
+              </CardDescription>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Assigned educator</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={selectedEducatorId}
+                  onValueChange={(v) => setSelectedEducatorId(v)}
+                  disabled={educatorsLoading}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder={getEducatorName(cls.educatorId) || "Select educator"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {educators.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  onClick={handleAssignEducator}
+                  disabled={assigningEducator || educatorsLoading}
+                >
+                  {assigningEducator ? "Assigning…" : "Save assignment"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
       </Card>
 

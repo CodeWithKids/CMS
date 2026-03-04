@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useMarketing } from "@/context/MarketingContext";
 import { Megaphone, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 import { Button } from "@/components/ui/button";
 
 export default function MarketingDashboardPage() {
@@ -16,6 +17,8 @@ export default function MarketingDashboardPage() {
           Plan and track marketing campaigns and strategies.
         </p>
       </div>
+
+      <RoleResponsibilitiesCard />
 
       <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
         <Card>
@@ -43,11 +46,13 @@ export default function MarketingDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Campaigns</p>
                   <p className="text-2xl font-bold">{campaigns.length}</p>
-                  <p className="text-sm text-muted-foreground">Add and manage marketing campaigns</p>
+                  <p className="text-sm text-muted-foreground">
+                    {campaigns.length === 0 ? "Create your first campaign to get started." : "Add and manage marketing campaigns."}
+                  </p>
                 </div>
               </div>
               <Button asChild>
-                <Link to="/marketing/campaigns">View & add campaigns</Link>
+                <Link to="/marketing/campaigns">{campaigns.length === 0 ? "Create campaign" : "View & add campaigns"}</Link>
               </Button>
             </div>
           </CardContent>

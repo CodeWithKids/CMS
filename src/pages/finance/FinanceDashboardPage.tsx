@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -12,11 +12,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useInvoices, usePendingAdjustments } from "@/context/FinanceContext";
-import { mockTerms } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
 import { formatCurrency } from "@/lib/financeUtils";
 import { INVOICE_STATUS_LABELS } from "@/types/finance";
 import type { FinanceInvoice } from "@/types/finance";
-import { LayoutDashboard, FileText, AlertCircle, Users, Package, TrendingUp, Receipt, Banknote } from "lucide-react";
+import { LayoutDashboard, FileText, AlertCircle, Users, Package, TrendingUp, Receipt, Banknote, Handshake } from "lucide-react";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -25,16 +26,22 @@ function inTermRange(termId: string, start: string, end: string): (inv: FinanceI
 }
 
 export default function FinanceDashboardPage() {
+  const { terms, currentTerm } = useTerms();
   const [termId, setTermId] = useState("t1");
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (currentTerm && terms.length && !terms.some((t) => t.id === termId)) setTermId(currentTerm.id);
+  }, [currentTerm, terms, termId]);
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
     return () => clearTimeout(t);
   }, []);
 
-  const term = useMemo(() => mockTerms.find((t) => t.id === termId), [termId]);
+  const term = useMemo(() => terms.find((t) => t.id === termId), [terms, termId]);
   const allInvoices = useInvoices({ termId });
   const pendingAdjustments = usePendingAdjustments();
 
@@ -100,19 +107,31 @@ export default function FinanceDashboardPage() {
             Key metrics, invoices, and quick links for the selected term.
           </p>
         </div>
-        <Select value={termId} onValueChange={setTermId}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Term" />
-          </SelectTrigger>
-          <SelectContent>
-            {mockTerms.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={termId} onValueChange={setTermId}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Term" />
+            </SelectTrigger>
+            <SelectContent>
+              {terms.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="default"
+            className="gap-2"
+            onClick={() => navigate("/finance/invoices")}
+          >
+            <FileText className="w-4 h-4" />
+            View all invoices
+          </Button>
+        </div>
       </div>
+
+      <RoleResponsibilitiesCard />
 
       {loadError && (
         <Alert variant="destructive">
@@ -198,7 +217,9 @@ export default function FinanceDashboardPage() {
         </CardHeader>
         <CardContent>
           {byStatus.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No invoices for this term.</p>
+            <p className="text-sm text-muted-foreground">
+              No invoices for this term yet. Invoices will appear here once learners are enrolled and billing is generated.
+            </p>
           ) : (
             <div className="flex flex-wrap gap-4">
               {byStatus.map(({ status, count }) => (
@@ -222,7 +243,7 @@ export default function FinanceDashboardPage() {
             <LayoutDashboard className="w-5 h-5" /> Finance home
           </CardTitle>
           <CardDescription>
-            Invoices, educator payments, session expenses, organisational expenses, and inventory. One place for all finance operations.
+            Invoices, educator payments, session expenses, organisational expenses, grants & funding, and inventory. One place for all finance operations.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -287,6 +308,16 @@ export default function FinanceDashboardPage() {
               <div>
                 <p className="font-medium">Organisation expenses</p>
                 <p className="text-xs text-muted-foreground">Rent, equipment, etc.</p>
+              </div>
+            </Link>
+            <Link
+              to="/partnerships/grants"
+              className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+            >
+              <Handshake className="w-8 h-8 text-primary" />
+              <div>
+                <p className="font-medium">Grants and funding</p>
+                <p className="text-xs text-muted-foreground">Partnership pipeline & donations (linked from Partnerships)</p>
               </div>
             </Link>
             <Link

@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { getInvoicesForOrganisation } from "@/mockData";
 import { FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -13,12 +18,18 @@ const statusStyles: Record<string, string> = {
 
 export default function OrganisationInvoicesPage() {
   const { organisation, organizationId, isOrgUser } = useOrganisationLearners();
-  const invoices = organizationId ? getInvoicesForOrganisation(organizationId) : [];
+  const { getInvoices } = useFinanceAccount();
+  const invoices = organizationId ? getInvoicesForOrganisation(getInvoices(), organizationId) : [];
+
+  const [loadError, setLoadError] = useState(false);
 
   if (!isOrgUser || !organisation) {
     return (
       <div className="page-container">
-        <p className="text-muted-foreground">Organisation not found. Please contact support.</p>
+        <div className="rounded-xl border bg-card p-8 max-w-md">
+          <p className="font-medium text-muted-foreground">Organisation not found</p>
+          <p className="text-sm text-muted-foreground mt-1">Please contact Code With Kids support.</p>
+        </div>
       </div>
     );
   }
@@ -27,8 +38,19 @@ export default function OrganisationInvoicesPage() {
     <div className="page-container">
       <h1 className="page-title">Invoices & receipts</h1>
       <p className="page-subtitle">
-        View invoices issued to {organisation.name} and download receipts for paid invoices
+        View invoices issued to {organisation.name}. Open an invoice to see details or download a receipt when paid.
       </p>
+
+      {loadError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load invoices.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setLoadError(false)}>Try again</Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {invoices.length === 0 ? (
         <Card>

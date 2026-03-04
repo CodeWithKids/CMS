@@ -23,13 +23,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useInvoices } from "@/context/FinanceContext";
-import { mockTerms } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
 import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
 import { INVOICE_STATUS_LABELS, PAYER_TYPE_LABELS } from "@/types/finance";
 import type { FinanceInvoice } from "@/types/finance";
-import { FileText } from "lucide-react";
+import { FileText, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const ALL_TERMS = "all";
 const ALL_STATUSES = "all";
@@ -58,9 +60,11 @@ export default function InvoiceListPage() {
   const [searchParams] = useSearchParams();
   const statusParam = searchParams.get("status");
   const statusFilter = statusParam ?? ALL_STATUSES;
+  const { terms: mockTerms } = useTerms();
 
   const [termFilter, setTermFilter] = useState(ALL_TERMS);
   const [payerTypeFilter, setPayerTypeFilter] = useState(ALL_PAYER_TYPES);
+  const [loadError, setLoadError] = useState(false);
 
   const termInvoices = useInvoices(
     termFilter !== ALL_TERMS ? { termId: termFilter } : undefined
@@ -79,19 +83,48 @@ export default function InvoiceListPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
-        <p className="text-muted-foreground">
-          Filter by term, programme, payer type, and status. Click a row for details.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
+          <p className="text-muted-foreground">
+            Filter by term, payer type, and status. Click a row to open the invoice detail.
+          </p>
+        </div>
+        {statusFilter === "overdue" && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300 px-3 py-1 text-xs font-medium">
+            <AlertCircle className="w-3.5 h-3.5" />
+            Viewing overdue invoices
+          </span>
+        )}
       </div>
+
+      {loadError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load invoices.{" "}
+            <Button
+              variant="link"
+              className="p-0 h-auto font-medium"
+              onClick={() => setLoadError(false)}
+            >
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" /> Invoice list
           </CardTitle>
-          <CardDescription>All invoices matching the selected filters.</CardDescription>
+          <CardDescription>
+            {filtered.length > 0
+              ? `Showing ${filtered.length} invoice${filtered.length === 1 ? "" : "s"} for the selected filters.`
+              : "No invoices for the current filters."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
@@ -145,9 +178,24 @@ export default function InvoiceListPage() {
           </div>
 
           {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8">
-              No invoices match the current filters.
-            </p>
+            <div className="py-8 text-sm text-muted-foreground space-y-2">
+              <p>No invoices match the current filters.</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTermFilter(ALL_TERMS);
+                  setPayerTypeFilter(ALL_PAYER_TYPES);
+                  const params = new URLSearchParams(searchParams);
+                  params.delete("status");
+                  const q = params.toString();
+                  navigate({ search: q ? `?${q}` : "" }, { replace: true });
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
           ) : (
             <Table>
               <TableHeader>

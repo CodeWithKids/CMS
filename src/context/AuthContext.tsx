@@ -1,10 +1,38 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import type { AppUser, UserRole } from "@/types";
 import { mockUsers } from "@/mockData";
+import {
+  isApiEnabled,
+  authLogin,
+  authMe,
+  authLogout,
+  setAccessToken,
+  clearAccessToken,
+  type LoginResponse,
+} from "@/lib/api";
+
+function apiUserToAppUser(u: LoginResponse["user"]): AppUser {
+  return {
+    id: u.id,
+    name: u.name,
+    role: u.role as AppUser["role"],
+    email: u.email ?? undefined,
+    status: (u.status as AppUser["status"]) ?? undefined,
+    organizationId: u.organizationId ?? undefined,
+    membershipStatus: (u.membershipStatus as AppUser["membershipStatus"]) ?? undefined,
+    avatarId: u.avatarId ?? undefined,
+  };
+}
 
 interface AuthContextType {
   currentUser: AppUser | null;
+  /** Demo/mock: log in by user id (no API). */
   login: (userId: string) => void;
+  /** API: log in with email and password; stores token and user. */
+  loginWithCredentials: (email: string, password: string) => Promise<
+    | { ok: true; user: AppUser }
+    | { ok: false; error: string }
+  >;
   logout: () => void;
   updateUser: (partial: Partial<Pick<AppUser, "avatarId" | "name" | "email">>) => void;
   isAuthenticated: boolean;
@@ -17,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem("cwk_user");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return JSON.parse(saved) as AppUser;
       } catch {
         return null;
       }
@@ -25,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
+  // Persist user to localStorage when it changes
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem("cwk_user", JSON.stringify(currentUser));
@@ -33,19 +62,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser]);
 
-  const login = (userId: string) => {
+  // When API is enabled and we have a token but no user (e.g. page refresh), restore session
+  useEffect(() => {
+    if (!isApiEnabled() || currentUser) return;
+    const token = localStorage.getItem("cwk_token");
+    if (!token) return;
+    authMe(token)
+      .then((user) => setCurrentUser(apiUserToAppUser(user)))
+      .catch(() => {
+        clearAccessToken();
+        localStorage.removeItem("cwk_user");
+      });
+  }, []);
+
+  const login = useCallback((userId: string) => {
     const user = mockUsers.find((u) => u.id === userId);
     if (user) setCurrentUser(user);
-  };
+  }, []);
 
-  const logout = () => setCurrentUser(null);
+  const loginWithCredentials = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await authLogin(email, password);
+      setAccessToken(res.accessToken);
+      const user = apiUserToAppUser(res.user);
+      setCurrentUser(user);
+      return { ok: true as const, user };
+    } catch (e: unknown) {
+      const message =
+        e && typeof e === "object" && "body" in e && e.body && typeof (e.body as { message?: string }).message === "string"
+          ? (e.body as { message: string }).message
+          : "Invalid email or password.";
+      return { ok: false as const, error: message };
+    }
+  }, []);
 
-  const updateUser = (partial: Partial<Pick<AppUser, "avatarId" | "name" | "email">>) => {
-    setCurrentUser((prev) => (prev ? { ...prev, ...partial } : null));
-  };
+  const logout = useCallback(() => {
+    if (isApiEnabled()) {
+      authLogout();
+      clearAccessToken();
+    }
+    setCurrentUser(null);
+  }, []);
+
+  const updateUser = useCallback((partial: Partial<Pick<AppUser, "avatarId" | "name" | "email">>) => {
+    setCurrentUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...partial };
+      if ("avatarId" in partial) {
+        const u = mockUsers.find((x) => x.id === prev.id);
+        if (u) (u as AppUser).avatarId = partial.avatarId;
+      }
+      return next;
+    });
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, updateUser, isAuthenticated: !!currentUser }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        login,
+        loginWithCredentials,
+        logout,
+        updateUser,
+        isAuthenticated: !!currentUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -57,7 +138,6 @@ export function useAuth() {
   return ctx;
 }
 
-// Helper: get role-based home path
 export function getRoleDashboard(role: UserRole): string {
   const map: Record<UserRole, string> = {
     admin: "/admin/dashboard",

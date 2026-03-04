@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCoachingInvites } from "@/context/CoachingInvitesContext";
 import { useSchedule } from "@/context/ScheduleContext";
@@ -123,8 +123,12 @@ export default function EducatorSchedulePage() {
     []
   );
   const educatorId = currentUser?.id ?? "";
+  const canShowTeamSchedule = currentUser?.role === "admin" || currentUser?.role === "educator";
+  useEffect(() => {
+    if (!canShowTeamSchedule && viewMode === VIEW_TEAM) setViewMode(VIEW_ME);
+  }, [canShowTeamSchedule, viewMode]);
   const isViewingSelf = viewMode === VIEW_ME;
-  const isViewingTeam = viewMode === VIEW_TEAM;
+  const isViewingTeam = viewMode === VIEW_TEAM && canShowTeamSchedule;
 
   const weekDates = useMemo(() => getWeekDates(new Date(weekStart)), [weekStart]);
 
@@ -246,6 +250,7 @@ export default function EducatorSchedulePage() {
       </p>
 
       <div className="flex flex-wrap items-center gap-4 mb-4">
+        {canShowTeamSchedule && (
         <div>
           <Label className="text-sm">View</Label>
           <Select value={viewMode} onValueChange={setViewMode}>
@@ -258,6 +263,7 @@ export default function EducatorSchedulePage() {
             </SelectContent>
           </Select>
         </div>
+        )}
         <div>
           <Label className="text-sm">Week starting</Label>
           <Input

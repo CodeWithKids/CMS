@@ -1,9 +1,12 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
-import { getFinanceAccountInvoices, getReceiptForInvoice } from "@/mockData";
-import { ArrowLeft } from "lucide-react";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
+import { getReceiptForInvoice } from "@/mockData";
+import { ArrowLeft, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ReceiptView } from "@/features/invoices/components/ReceiptView";
 import { Card, CardContent } from "@/components/ui/card";
+import { printInvoice, printReceipt } from "@/utils/printInvoice";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -25,9 +28,8 @@ export default function OrganisationInvoiceDetailPage() {
   const navigate = useNavigate();
   const { organisation, organizationId, isOrgUser } = useOrganisationLearners();
 
-  const invoice = id
-    ? getFinanceAccountInvoices().find((i) => i.id === id)
-    : undefined;
+  const { getInvoices } = useFinanceAccount();
+  const invoice = id ? getInvoices().find((i) => i.id === id) : undefined;
   const allowed =
     isOrgUser &&
     organisation &&
@@ -74,8 +76,41 @@ export default function OrganisationInvoiceDetailPage() {
         </button>
       </div>
 
-      <h1 className="page-title">Invoice {invoice.invoiceNumber}</h1>
-      <p className="page-subtitle">{organisation.name} · {invoice.term}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div>
+          <h1 className="page-title">Invoice {invoice.invoiceNumber}</h1>
+          <p className="page-subtitle">{organisation.name} · {invoice.term}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              printInvoice(
+                {
+                  invoiceNumber: invoice.invoiceNumber,
+                  term: invoice.term,
+                  totalAmount: invoice.totalAmount,
+                  status: invoice.status,
+                  dueDate: invoice.dueDate,
+                  paidAmount: invoice.paidAmount,
+                  paidDate: invoice.paidDate,
+                  description: invoice.description ?? undefined,
+                  source: invoice.source,
+                },
+                { subtitle: organisation.name }
+              )
+            }
+          >
+            <Download className="w-4 h-4 mr-1" /> Download invoice
+          </Button>
+          {receipt && (
+            <Button variant="outline" size="sm" onClick={() => printReceipt(receipt)}>
+              <Download className="w-4 h-4 mr-1" /> Download receipt
+            </Button>
+          )}
+        </div>
+      </div>
 
       <Card className="max-w-2xl">
         <CardContent className="pt-6 space-y-4">

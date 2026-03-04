@@ -214,7 +214,9 @@ export default function ClassDetailPage() {
                     <span className="text-xs text-muted-foreground">{reportStatus === "submitted" ? "Submitted" : "Pending"}</span>
                   </td>
                   <td>
-                    <span className="text-xs text-muted-foreground">{hasExpense ? "Logged" : "Pending"}</span>
+                    {(s.sessionType === "virtual" || s.sessionType === "makerspace")
+                      ? "—"
+                      : <span className="text-xs text-muted-foreground">{hasExpense ? "Logged" : "Pending"}</span>}
                   </td>
                   <td>
                     <Link to={`/educator/sessions/${s.id}/lesson-plan`} className="text-sm text-primary hover:underline font-medium mr-2">
@@ -226,9 +228,11 @@ export default function ClassDetailPage() {
                     <Link to={`/educator/sessions/${s.id}/report`} className="text-sm text-primary hover:underline font-medium mr-2">
                       Report
                     </Link>
-                    <Link to={`/educator/sessions/${s.id}/expenses`} className="text-sm text-primary hover:underline font-medium">
-                      Expenses
-                    </Link>
+                    {s.sessionType !== "virtual" && s.sessionType !== "makerspace" && (
+                      <Link to={`/educator/sessions/${s.id}/expenses`} className="text-sm text-primary hover:underline font-medium">
+                        Expenses
+                      </Link>
+                    )}
                   </td>
                 </tr>
               );

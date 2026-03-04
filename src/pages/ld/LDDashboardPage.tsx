@@ -7,11 +7,17 @@ import type { LearningTrack } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LayoutDashboard, BookOpen, Users, MessageSquare, AlertTriangle, FileText } from "lucide-react";
+import { useState } from "react";
+import { LayoutDashboard, BookOpen, Users, AlertTriangle, FileText } from "lucide-react";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 const educatorIds = mockStaff.filter((s) => s.role === "educator").map((s) => s.id);
 
 export default function LDDashboardPage() {
+  const [loadError, setLoadError] = useState(false);
   const { list: listReports } = useSessionReports();
   const { templates } = useLessonPlans();
   const { feedbacks } = useLearnerFeedback();
@@ -54,6 +60,19 @@ export default function LDDashboardPage() {
           Overview of learning quality and priorities. Curriculum, educator capability, and session quality.
         </p>
       </div>
+
+      <RoleResponsibilitiesCard />
+
+      {loadError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t load the dashboard.{" "}
+            <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setLoadError(false)}>Try again</Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

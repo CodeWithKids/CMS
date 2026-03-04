@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   useInvoice,
@@ -11,7 +11,7 @@ import {
 import { canRecordPayment, canRequestAdjustment } from "@/features/finance/lib/permissions";
 import { PaymentDialog } from "@/features/invoices/components/PaymentDialog";
 import { AdjustmentRequestDialog } from "@/features/invoices/components/AdjustmentRequestDialog";
-import { mockTerms } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
 import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
@@ -27,7 +27,10 @@ import type { FinanceInvoice } from "@/types/finance";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, DollarSign, List, CreditCard } from "lucide-react";
+import { ArrowLeft, FileText, DollarSign, List, CreditCard, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { logAppEvent } from "@/lib/analytics";
 
 function getPayerName(inv: FinanceInvoice): string {
   if (inv.payerType === "parent" && inv.learnerId) {
@@ -41,15 +44,23 @@ function getPayerName(inv: FinanceInvoice): string {
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
+  const { terms } = useTerms();
   const invoice = useInvoice(id);
   const payments = usePaymentsForInvoice(id);
   const adjustments = useAdjustmentsForInvoice(id);
   const creditNotes = useCreditNotesForInvoice(id);
-  const { recordPayment, createAdjustmentRequest } = useFinance();
+  const { recordPayment, createAdjustmentRequest, loadPaymentsForInvoice } = useFinance();
+
+  useEffect(() => {
+    if (id) loadPaymentsForInvoice(id);
+  }, [id, loadPaymentsForInvoice]);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const canRecord = canRecordPayment(currentUser);
   const canRequest = canRequestAdjustment(currentUser);
@@ -66,7 +77,7 @@ export default function InvoiceDetailPage() {
   }
 
   const payerName = getPayerName(invoice);
-  const termName = mockTerms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId;
+  const termName = terms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId;
 
   return (
     <div className="p-6 space-y-6">
@@ -84,6 +95,16 @@ export default function InvoiceDetailPage() {
       >
         <ArrowLeft className="w-4 h-4" /> Back to invoices
       </Link>
+
+      {hasError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not update invoice</AlertTitle>
+          <AlertDescription>
+            Something went wrong while recording a payment or adjustment. Please try again.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
@@ -248,50 +269,123 @@ export default function InvoiceDetailPage() {
 
       <PaymentDialog
         open={paymentOpen}
-        onOpenChange={setPaymentOpen}
+        onOpenChange={(open) => {
+          setPaymentOpen(open);
+        }}
         invoiceId={invoice.id}
         maxAmount={invoice.balance}
         currency={invoice.currency}
-        onRecord={(payload) => recordPayment(invoice.id, payload)}
+        onRecord={(payload) => {
+          setHasError(false);
+          try {
+            recordPayment(invoice.id, payload);
+            toast({
+              title: "Payment recorded",
+              description: `A payment of ${formatCurrency(payload.amount)} has been applied to this invoice.`,
+            });
+            logAppEvent("invoice_payment_recorded", {
+              invoiceId: invoice.id,
+              amount: payload.amount,
+              method: payload.method,
+              date: payload.date,
+            });
+            setPaymentOpen(false);
+          } catch (e) {
+            console.error(e);
+            setHasError(true);
+            toast({
+              title: "Could not record payment",
+              description: "Please try again. If this keeps happening, contact the CWK team.",
+              variant: "destructive",
+            });
+          }
+        }}
         recordedBy={currentUser?.id ?? ""}
       />
       <AdjustmentRequestDialog
         open={discountOpen}
-        onOpenChange={setDiscountOpen}
+        onOpenChange={(open) => {
+          setDiscountOpen(open);
+        }}
         type="discount"
         invoiceId={invoice.id}
         invoiceNetAmount={invoice.netAmount}
-        onCreate={(payload) =>
-          createAdjustmentRequest({
-            ...payload,
-            type: "discount",
-            invoiceId: payload.invoiceId,
-            reason: payload.reason,
-            discountScope: payload.discountScope,
-            discountPercent: payload.discountPercent,
-            discountAmount: payload.discountAmount,
-            requestedBy: payload.requestedBy,
-          })
-        }
+        onCreate={(payload) => {
+          setHasError(false);
+          try {
+            createAdjustmentRequest({
+              ...payload,
+              type: "discount",
+              invoiceId: payload.invoiceId,
+              reason: payload.reason,
+              discountScope: payload.discountScope,
+              discountPercent: payload.discountPercent,
+              discountAmount: payload.discountAmount,
+              requestedBy: payload.requestedBy,
+            });
+            toast({
+              title: "Discount request submitted",
+              description: "Your request has been logged for review.",
+            });
+            logAppEvent("invoice_discount_requested", {
+              invoiceId: invoice.id,
+              discountAmount: payload.discountAmount,
+              discountPercent: payload.discountPercent,
+              scope: payload.discountScope,
+            });
+            setDiscountOpen(false);
+          } catch (e) {
+            console.error(e);
+            setHasError(true);
+            toast({
+              title: "Could not submit discount request",
+              description: "Please try again. If this keeps happening, contact the CWK team.",
+              variant: "destructive",
+            });
+          }
+        }}
         requestedBy={currentUser?.id ?? ""}
       />
       <AdjustmentRequestDialog
         open={refundOpen}
-        onOpenChange={setRefundOpen}
+        onOpenChange={(open) => {
+          setRefundOpen(open);
+        }}
         type="refund"
         invoiceId={invoice.id}
         invoiceNetAmount={invoice.netAmount}
-        onCreate={(payload) =>
-          createAdjustmentRequest({
-            ...payload,
-            type: "refund",
-            invoiceId: payload.invoiceId,
-            reason: payload.reason,
-            refundAmount: payload.refundAmount,
-            refundApplication: payload.refundApplication,
-            requestedBy: payload.requestedBy,
-          })
-        }
+        onCreate={(payload) => {
+          setHasError(false);
+          try {
+            createAdjustmentRequest({
+              ...payload,
+              type: "refund",
+              invoiceId: payload.invoiceId,
+              reason: payload.reason,
+              refundAmount: payload.refundAmount,
+              refundApplication: payload.refundApplication,
+              requestedBy: payload.requestedBy,
+            });
+            toast({
+              title: "Refund / credit request submitted",
+              description: "Your request has been logged for review.",
+            });
+            logAppEvent("invoice_refund_requested", {
+              invoiceId: invoice.id,
+              refundAmount: payload.refundAmount,
+              application: payload.refundApplication,
+            });
+            setRefundOpen(false);
+          } catch (e) {
+            console.error(e);
+            setHasError(true);
+            toast({
+              title: "Could not submit refund request",
+              description: "Please try again. If this keeps happening, contact the CWK team.",
+              variant: "destructive",
+            });
+          }
+        }}
         requestedBy={currentUser?.id ?? ""}
       />
     </div>

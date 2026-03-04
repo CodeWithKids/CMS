@@ -5,8 +5,10 @@ import {
   Users, BookOpen, LayoutDashboard, Calendar, FileText, Clock,
   GraduationCap, MessageSquare, LogOut, Menu, X,
   UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, CalendarDays, Megaphone,
+  LayoutGrid, FlaskConical,
 } from "lucide-react";
 import type { UserRole } from "@/types";
+import { canViewAiMarketing } from "@/features/aiMarketing/permissions";
 import { educatorNavItems, educatorNavIconMap } from "@/features/layout/educatorNav";
 import { ldManagerNavItems, ldManagerNavIconMap } from "@/features/ld-manager/nav";
 
@@ -16,6 +18,7 @@ type NavEntry =
 
 const adminNav: NavEntry[] = [
   { type: "link", label: "Dashboard", path: "/admin/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+  { type: "link", label: "Schedule", path: "/schedule", icon: <Calendar className="w-5 h-5" /> },
   { type: "section", label: "HR" },
   { type: "link", label: "Staff directory", path: "/admin/hr/staff", icon: <UserCircle className="w-5 h-5" /> },
   { type: "link", label: "Team profiles", path: "/admin/educator-profiles", icon: <UserCircle className="w-5 h-5" /> },
@@ -25,6 +28,7 @@ const adminNav: NavEntry[] = [
   { type: "link", label: "Expenses", path: "/admin/finance/expenses", icon: <Receipt className="w-5 h-5" /> },
   { type: "section", label: "System setup" },
   { type: "link", label: "Account approvals", path: "/admin/account-approvals", icon: <UserPlus className="w-5 h-5" /> },
+  { type: "link", label: "Create team member", path: "/admin/create-team-member", icon: <Users className="w-5 h-5" /> },
   { type: "link", label: "Settings", path: "/admin/settings", icon: <Settings className="w-5 h-5" /> },
   { type: "link", label: "Learners", path: "/admin/learners", icon: <Users className="w-5 h-5" /> },
   { type: "link", label: "Classes", path: "/admin/classes", icon: <BookOpen className="w-5 h-5" /> },
@@ -36,6 +40,7 @@ const adminNav: NavEntry[] = [
 
 const financeNav: NavEntry[] = [
   { type: "link", label: "Dashboard", path: "/finance/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+  { type: "link", label: "Schedule", path: "/schedule", icon: <Calendar className="w-5 h-5" /> },
   { type: "link", label: "Invoices", path: "/finance/invoices", icon: <FileText className="w-5 h-5" /> },
   { type: "link", label: "Adjustments", path: "/finance/adjustments", icon: <TrendingUp className="w-5 h-5" /> },
   { type: "link", label: "Educators", path: "/finance/educators", icon: <Users className="w-5 h-5" /> },
@@ -88,12 +93,16 @@ const navByRole: Record<UserRole, NavEntry[]> = {
   ],
   partnerships: [
     { type: "link", label: "Dashboard", path: "/partnerships/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { type: "link", label: "Schedule", path: "/schedule", icon: <Calendar className="w-5 h-5" /> },
     { type: "link", label: "Active partnerships", path: "/partnerships", icon: <Users className="w-5 h-5" /> },
+    { type: "link", label: "Prospects", path: "/partnerships/prospects", icon: <UserPlus className="w-5 h-5" /> },
+    { type: "link", label: "Grants & funding", path: "/partnerships/grants", icon: <Wallet className="w-5 h-5" /> },
     { type: "link", label: "Campaigns linked to partnerships", path: "/partnerships/campaigns", icon: <Megaphone className="w-5 h-5" /> },
     { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
   ],
   marketing: [
     { type: "link", label: "Overview", path: "/marketing/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { type: "link", label: "Schedule", path: "/schedule", icon: <Calendar className="w-5 h-5" /> },
     { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
     { type: "link", label: "Campaigns", path: "/marketing/campaigns", icon: <Megaphone className="w-5 h-5" /> },
     { type: "link", label: "Brand Kit", path: "/marketing/brand-kit", icon: <BookOpen className="w-5 h-5" /> },
@@ -101,11 +110,23 @@ const navByRole: Record<UserRole, NavEntry[]> = {
   ],
   social_media: [
     { type: "link", label: "Dashboard", path: "/social-media/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { type: "link", label: "Schedule", path: "/schedule", icon: <Calendar className="w-5 h-5" /> },
     { type: "link", label: "Content & posts", path: "/social-media/content", icon: <Megaphone className="w-5 h-5" /> },
+    { type: "link", label: "Analytics", path: "/social-media/analytics", icon: <BarChart2 className="w-5 h-5" /> },
+    { type: "link", label: "Brand Kit", path: "/marketing/brand-kit", icon: <BookOpen className="w-5 h-5" /> },
     { type: "link", label: "Events", path: "/events", icon: <CalendarDays className="w-5 h-5" /> },
+    { type: "link", label: "Profile", path: "/social-media/profile", icon: <UserCircle className="w-5 h-5" /> },
   ],
   ld_manager: ldManagerNav,
 };
+
+const aiMarketingNav: NavEntry[] = [
+  { type: "section", label: "AI Marketing" },
+  { type: "link", label: "Overview", path: "/ai-marketing/overview", icon: <LayoutDashboard className="w-5 h-5" /> },
+  { type: "link", label: "Canvas", path: "/ai-marketing/canvas", icon: <LayoutGrid className="w-5 h-5" /> },
+  { type: "link", label: "Experiments", path: "/ai-marketing/experiments", icon: <FlaskConical className="w-5 h-5" /> },
+  { type: "link", label: "Products", path: "/ai-marketing/products", icon: <Package className="w-5 h-5" /> },
+];
 
 export default function AppLayout() {
   const { currentUser, logout } = useAuth();
@@ -114,7 +135,10 @@ export default function AppLayout() {
 
   if (!currentUser) return null;
 
-  const navItems = navByRole[currentUser.role] ?? [];
+  const baseNav = navByRole[currentUser.role] ?? [];
+  const navItems = canViewAiMarketing(currentUser.role)
+    ? [...baseNav, ...aiMarketingNav]
+    : baseNav;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -126,7 +150,7 @@ export default function AppLayout() {
           </button>
           <Link to={getRoleDashboard(currentUser.role)} className="flex items-center gap-2">
             <img
-              src="/cwk-logo.png"
+              src="/favicon.png"
               alt="Code With Kids"
               className="h-8 w-auto object-contain"
             />

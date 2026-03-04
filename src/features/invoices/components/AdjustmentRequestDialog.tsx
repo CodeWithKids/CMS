@@ -115,11 +115,31 @@ export function AdjustmentRequestDialog({
   const discountAmountNum = Number(discountAmount) || 0;
   const discountPercentNum = Number(discountPercent) || 0;
   const refundAmountNum = Number(refundAmount) || 0;
-  const discountValid =
-    type !== "discount" ||
-    (reason.trim().length > 0 && (discountAmountNum > 0 || (discountPercentNum > 0 && discountPercentNum <= 100)));
-  const refundValid =
-    type !== "refund" || (reason.trim().length > 0 && refundAmountNum > 0 && refundAmountNum <= invoiceNetAmount);
+  let discountError: string | null = null;
+  let refundError: string | null = null;
+
+  if (type === "discount") {
+    if (!reason.trim()) {
+      discountError = "Reason is required.";
+    } else if (discountAmountNum <= 0 && (discountPercent === "" || discountPercentNum <= 0)) {
+      discountError = "Enter a discount amount or percentage.";
+    } else if (discountPercent !== "" && (discountPercentNum <= 0 || discountPercentNum > 100)) {
+      discountError = "Discount % must be between 0 and 100.";
+    }
+  }
+
+  if (type === "refund") {
+    if (!reason.trim()) {
+      refundError = "Reason is required.";
+    } else if (refundAmount === "" || refundAmountNum <= 0) {
+      refundError = "Amount must be greater than 0.";
+    } else if (refundAmountNum > invoiceNetAmount) {
+      refundError = "Amount cannot exceed the net invoice amount.";
+    }
+  }
+
+  const discountValid = type !== "discount" || !discountError;
+  const refundValid = type !== "refund" || !refundError;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,6 +186,12 @@ export function AdjustmentRequestDialog({
               className="mt-1"
               rows={2}
             />
+            {type === "discount" && discountError && !discountError.startsWith("Amount") && (
+              <p className="mt-1 text-xs text-destructive">{discountError}</p>
+            )}
+            {type === "refund" && refundError && !refundError.startsWith("Amount") && (
+              <p className="mt-1 text-xs text-destructive">{refundError}</p>
+            )}
           </div>
 
           {type === "discount" && (
@@ -195,6 +221,9 @@ export function AdjustmentRequestDialog({
                     onChange={(e) => setDiscountAmount(e.target.value)}
                     className="mt-1"
                   />
+                  {discountError && discountError.startsWith("Amount") && (
+                    <p className="mt-1 text-xs text-destructive">{discountError}</p>
+                  )}
                 </div>
                 <div>
                   <Label>Discount % (optional)</Label>
@@ -206,6 +235,9 @@ export function AdjustmentRequestDialog({
                     onChange={(e) => setDiscountPercent(e.target.value)}
                     className="mt-1"
                   />
+                  {discountError && discountError.includes("Discount %") && (
+                    <p className="mt-1 text-xs text-destructive">{discountError}</p>
+                  )}
                 </div>
               </div>
             </>
@@ -223,6 +255,9 @@ export function AdjustmentRequestDialog({
                   onChange={(e) => setRefundAmount(e.target.value)}
                   className="mt-1"
                 />
+                {refundError && (
+                  <p className="mt-1 text-xs text-destructive">{refundError}</p>
+                )}
               </div>
               <div>
                 <Label>Apply as</Label>

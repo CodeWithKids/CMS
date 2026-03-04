@@ -11,6 +11,8 @@ import { mockClasses, getClass, getCurrentTerm } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { LEARNING_TRACK_LABELS, SESSION_TYPE_LABELS } from "@/types";
 import type { LearningTrack, SessionType } from "@/types";
+import { useQuery } from "@tanstack/react-query";
+import { classesGetAll, isApiEnabled, type ClassApi } from "@/lib/api";
 import { EducatorSessionCard } from "@/features/educator/components/EducatorSessionCard";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Clock, BookOpen, History, AlertCircle, Wallet, Laptop, Award, StickyNote, ListTodo } from "lucide-react";
 import { useMyTasks } from "@/features/tasks/context/TasksContext";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -59,17 +62,26 @@ export default function EducatorDashboard() {
 
   const weekStart = useMemo(() => getWeekStart(new Date()), []);
 
-  const myClasses = useMemo(
-    () =>
-      mockClasses.filter(
-        (c) =>
-          c.educatorId === educatorId ||
-          getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" }).some(
-            (s) => s.classId === c.id && (s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId))
-          )
-      ),
-    [educatorId, getSessionsForEducatorByRole]
-  );
+  const apiEnabled = isApiEnabled();
+  const { data: apiClasses = [] } = useQuery({
+    queryKey: ["educator", "classes", educatorId],
+    queryFn: () => classesGetAll({ educatorId }),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const myClasses: ClassApi[] | typeof mockClasses = useMemo(() => {
+    if (apiEnabled) return apiClasses;
+    return mockClasses.filter(
+      (c) =>
+        c.educatorId === educatorId ||
+        getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" }).some(
+          (s) =>
+            s.classId === c.id &&
+            (s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId))
+        )
+    );
+  }, [apiEnabled, apiClasses, educatorId, getSessionsForEducatorByRole]);
 
   const termRange = useMemo(() => {
     const term = getCurrentTerm();
@@ -186,6 +198,10 @@ export default function EducatorDashboard() {
       <h1 className="page-title">Educator Dashboard</h1>
       <p className="page-subtitle">Welcome back, {currentUser?.name}</p>
       <p className="text-sm text-muted-foreground mb-4">Your classes and devices are below.</p>
+
+      <div className="mb-4">
+        <RoleResponsibilitiesCard />
+      </div>
 
       {loadError && (
         <Alert variant="destructive" className="mb-4">
@@ -341,6 +357,7 @@ export default function EducatorDashboard() {
                   attendanceStatus={getAttendanceBySession(s.id).length > 0 ? "done" : "pending"}
                   reportStatus={(getReportBySession(s.id)?.status as "draft" | "submitted") ?? "pending"}
                   expensesStatus={getExpenseBySessionAndEducator(s.id, educatorId) ? "logged" : "pending"}
+                  showExpenses={s.sessionType !== "virtual" && s.sessionType !== "makerspace"}
                   hasDeviceCheckedOut={myDevices.length > 0}
                 />
               ))}
@@ -365,6 +382,7 @@ export default function EducatorDashboard() {
                   attendanceStatus={getAttendanceBySession(s.id).length > 0 ? "done" : "pending"}
                   reportStatus={(getReportBySession(s.id)?.status as "draft" | "submitted") ?? "pending"}
                   expensesStatus={getExpenseBySessionAndEducator(s.id, educatorId) ? "logged" : "pending"}
+                  showExpenses={s.sessionType !== "virtual" && s.sessionType !== "makerspace"}
                   hasDeviceCheckedOut={myDevices.length > 0}
                 />
               ))}
@@ -455,6 +473,7 @@ export default function EducatorDashboard() {
                 attendanceStatus={getAttendanceBySession(s.id).length > 0 ? "done" : "pending"}
                 reportStatus={(getReportBySession(s.id)?.status as "draft" | "submitted") ?? "pending"}
                 expensesStatus={getExpenseBySessionAndEducator(s.id, educatorId) ? "logged" : "pending"}
+                showExpenses={s.sessionType !== "virtual" && s.sessionType !== "makerspace"}
                 hasDeviceCheckedOut={false}
               />
             ))}

@@ -5,7 +5,7 @@ import { useFinance } from "@/context/FinanceContext";
 import { canApproveAdjustment } from "@/features/finance/lib/permissions";
 import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
-import { mockTerms } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
 import { formatCurrency } from "@/lib/financeUtils";
 import {
   ADJUSTMENT_TYPE_LABELS,
@@ -42,6 +42,7 @@ function getPayerName(inv: { payerType: string; payerId: string; learnerId?: str
 export default function AdjustmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
+  const { terms } = useTerms();
   const { getInvoice, updateAdjustmentStatus, adjustmentRequests } = useFinance();
 
   const [rejectNote, setRejectNote] = useState("");
@@ -104,7 +105,7 @@ export default function AdjustmentDetailPage() {
               <p className="text-sm font-medium text-muted-foreground mb-2">Invoice summary</p>
               <p className="text-sm">
                 Invoice {invoice.id} · Payer: {getPayerName(invoice)} · Term:{" "}
-                {mockTerms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId}
+                {terms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId}
               </p>
               <p className="text-sm mt-1">
                 Gross: {formatCurrency(invoice.grossAmount)} · Net: {formatCurrency(invoice.netAmount)} · Paid:{" "}

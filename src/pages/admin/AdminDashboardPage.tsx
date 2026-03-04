@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -29,10 +30,10 @@ import {
   type LearnerPaymentSummary,
 } from "@/lib/financeUtils";
 import { getAdminOverviewSummary } from "@/lib/adminOverview";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import {
   mockUsers,
   mockLearners,
-  getFinanceAccountInvoices,
   mockOrganizations,
   mockSessions,
   mockSessionReports,
@@ -40,6 +41,8 @@ import {
   getOrganization,
 } from "@/mockData";
 import type { AppUser } from "@/types";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
+import { isApiEnabled, adminPendingSignupsGet } from "@/lib/api";
 
 function StatCard({
   title,
@@ -87,6 +90,14 @@ const PARTNER_TYPE_LABELS: Record<string, string> = {
 export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const { getInvoices } = useFinanceAccount();
+  const invoices = getInvoices();
+  const apiEnabled = isApiEnabled();
+  const { data: pendingSignups = [] } = useQuery({
+    queryKey: ["admin", "pending-signups"],
+    queryFn: adminPendingSignupsGet,
+    enabled: apiEnabled,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
@@ -94,16 +105,18 @@ export default function AdminDashboardPage() {
   }, []);
 
   const peopleStats = getPeopleStats(mockUsers, mockLearners);
-  const financeStats = getFinanceStats(getFinanceAccountInvoices(), mockLearners);
+  const financeStats = getFinanceStats(invoices, mockLearners);
   const pendingApprovals = pendingUsers();
+  const pendingSignupsCount = apiEnabled ? pendingSignups.length : 0;
+  const totalPendingApprovals = pendingApprovals.length + pendingSignupsCount;
   const learnersWithPending = getLearnersWithPendingPayments(
     mockLearners,
-    getFinanceAccountInvoices(),
+    invoices,
     getOrganization
   );
   const organizationsWithPending = getOrganizationsWithPendingPayments(
     mockLearners,
-    getFinanceAccountInvoices(),
+    invoices,
     getOrganization
   );
 
@@ -173,30 +186,33 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
+      <RoleResponsibilitiesCard />
+
       {/* Pending actions summary */}
-      {(sessionReportsMissingCount > 0 || pendingApprovals.length > 0) && (
+      {(sessionReportsMissingCount > 0 || totalPendingApprovals > 0) && (
         <section>
           <h2 className="text-lg font-semibold mb-3">Pending actions</h2>
           <div className="flex flex-wrap gap-3">
             {sessionReportsMissingCount > 0 && (
-              <Link
-                to="/admin/session-reports"
-                className="inline-flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
-              >
-                <span className="text-muted-foreground">Session reports missing:</span>
-                <span className="text-primary">{sessionReportsMissingCount}</span>
-                <span className="text-muted-foreground">→ View</span>
-              </Link>
+              <Button asChild>
+                <Link
+                  to="/admin/session-reports"
+                  className="inline-flex items-center gap-2"
+                >
+                  Review session reports
+                  <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs font-medium">
+                    {sessionReportsMissingCount} missing
+                  </span>
+                </Link>
+              </Button>
             )}
-            {pendingApprovals.length > 0 && (
-              <Link
-                to="/admin/account-approvals"
-                className="inline-flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
-              >
-                <span className="text-muted-foreground">Account approvals:</span>
-                <span className="text-primary">{pendingApprovals.length}</span>
-                <span className="text-muted-foreground">→ View</span>
-              </Link>
+            {totalPendingApprovals > 0 && (
+              <Button asChild variant="outline">
+                <Link to="/admin/account-approvals" className="inline-flex items-center gap-2">
+                  Account approvals
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{totalPendingApprovals}</span>
+                </Link>
+              </Button>
             )}
           </div>
         </section>

@@ -199,9 +199,9 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Transport & report links */}
+      {/* Transport & report links (no expenses for virtual or makerspace sessions) */}
       <div className="flex flex-wrap gap-2">
-        {expense && (
+        {expense && session.sessionType !== "virtual" && session.sessionType !== "makerspace" && (
           <Card className="border-dashed flex-1 min-w-[200px]">
             <CardContent className="py-3 flex items-center gap-2">
               <Receipt className="w-4 h-4 text-muted-foreground" />

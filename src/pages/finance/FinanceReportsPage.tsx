@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useInvoices, useFinance } from "@/context/FinanceContext";
 import { useSessions } from "@/context/SessionsContext";
-import { mockTerms, getEducatorName } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
+import { getEducatorName } from "@/mockData";
 import { getOrganization } from "@/mockData";
 import { getLearner } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
@@ -27,7 +28,8 @@ import { BarChart2 } from "lucide-react";
 type ReportTab = "income_term" | "income_programme" | "adjustments" | "educator_cost";
 
 export default function FinanceReportsPage() {
-  const [termId, setTermId] = useState(mockTerms[0]?.id ?? "t1");
+  const { terms } = useTerms();
+  const [termId, setTermId] = useState(terms[0]?.id ?? "t1");
   const [reportType, setReportType] = useState<ReportTab>("income_term");
 
   const allInvoices = useInvoices({ termId });
@@ -98,7 +100,7 @@ export default function FinanceReportsPage() {
     return summaries.sort((a, b) => b.totalHours - a.totalHours);
   }, [sessions, termId]);
 
-  const termName = mockTerms.find((t) => t.id === termId)?.name ?? termId;
+  const termName = terms.find((t) => t.id === termId)?.name ?? termId;
 
   return (
     <div className="p-6 space-y-6">
@@ -115,7 +117,7 @@ export default function FinanceReportsPage() {
             <SelectValue placeholder="Term" />
           </SelectTrigger>
           <SelectContent>
-            {mockTerms.map((t) => (
+            {terms.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
               </SelectItem>

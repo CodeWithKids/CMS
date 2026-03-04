@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { getFinanceAccountExpenses } from "@/mockData";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { Receipt } from "lucide-react";
 import { EXPENSE_CATEGORY_LABELS, MONTHLY_EXPENSE_CATEGORIES } from "@/types";
 import type { ExpenseCategoryType } from "@/types";
@@ -28,17 +28,19 @@ function formatDate(iso: string): string {
 const ALL_CATEGORIES = "all";
 
 export default function FinanceExpensesPage() {
+  const { getExpenses } = useFinanceAccount();
+  const expenses = getExpenses();
   const [dateFrom, setDateFrom] = useState("2026-01-01");
   const [dateTo, setDateTo] = useState("2026-12-31");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES);
 
   const filtered = useMemo(() => {
-    return getFinanceAccountExpenses().filter((ex) => {
+    return expenses.filter((ex) => {
       if (ex.date < dateFrom || ex.date > dateTo) return false;
       if (categoryFilter !== ALL_CATEGORIES && ex.category !== categoryFilter) return false;
       return true;
     });
-  }, [dateFrom, dateTo, categoryFilter]);
+  }, [expenses, dateFrom, dateTo, categoryFilter]);
 
   const totalExpenses = useMemo(
     () => filtered.reduce((sum, ex) => sum + ex.amount, 0),
@@ -84,9 +86,9 @@ export default function FinanceExpensesPage() {
   }, [filtered]);
 
   const categories = useMemo(() => {
-    const set = new Set(getFinanceAccountExpenses().map((e) => e.category));
+    const set = new Set(expenses.map((e) => e.category));
     return Array.from(set).sort();
-  }, []);
+  }, [expenses]);
 
   return (
     <div className="p-6 space-y-6">

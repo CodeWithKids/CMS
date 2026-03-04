@@ -13,7 +13,12 @@ CWK-CMS is an **operations and learning hub** for a kids' coding program. It let
 - **Students** see their timetable, access learning platforms, and submit feedback.
 - **Parents** see their children's next sessions, attendance, and invoices.
 
-The current codebase is a **React frontend** that uses **mock data** only. It is intended to be connected to a real backend (API) later.
+The frontend can run with **mock data** only, or connect to the **CWK Hub API** (see `server/`). To use the API: set `VITE_API_URL=http://localhost:3001` in a `.env` file in the project root (copy from `.env.example`), then run the API from `server/` (PostgreSQL required). Login will use email/password and finance data (invoices, payments) will come from the backend.
+
+### Signup and access
+
+- **Self-signup (external):** Organisations, schools, Miradi, and parents can create their own accounts via the login-page links (Organisation, School, Miradi, Parent). The first user for an org/school/Miradi is their admin; they can log in once they set a password.
+- **Team members (internal):** Educators, finance, partnerships, marketing, L&D, and admin accounts are **not** open for public signup. An admin creates or invites them from **Admin → Account approvals → Create team member**, sets a temporary password, and shares it securely. This keeps internal access controlled and auditable.
 
 ### Branding
 
@@ -131,7 +136,38 @@ CWK-CMS/
 
 ---
 
-## How to run the frontend
+## Run locally (full flow with API)
+
+To run the app with the real backend (login, finance, terms, etc.):
+
+1. **Start PostgreSQL** and ensure the `cwk_hub` database exists (see `server/README.md`).
+2. **Start the API** (from project root):
+   ```bash
+   cd server
+   npm install
+   npx prisma generate
+   npx prisma migrate deploy
+   npx prisma db seed
+   npm run dev
+   ```
+   The API runs at **http://localhost:3001**.
+3. **Point the frontend to the API**: in the **project root**, create a `.env` file (or copy from `.env.example`) with:
+   ```
+   VITE_API_URL=http://localhost:3001
+   ```
+4. **Start the frontend** (from project root):
+   ```bash
+   npm install
+   npm run dev
+   ```
+5. Open the app (e.g. **http://localhost:8080**), go to **Login**, and sign in with a seed user, e.g.:
+   - **Email:** `lisa@codewithkids.afrika`  
+   - **Password:** `password`
+6. Then: **Finance → Invoices** → open an invoice → **Record payment** to verify the full flow.
+
+---
+
+## How to run the frontend (mock only)
 
 **Prerequisites:** Node.js and npm (or equivalent).
 
@@ -145,7 +181,8 @@ npm run dev
 
 Then open the URL shown in the terminal (typically **http://localhost:8080**).
 
-- Log in via the login page by selecting a user (or you are "logged in" as the user stored in `localStorage`).
+- Without `VITE_API_URL` set: log in via the login page by selecting a user (or you are "logged in" as the user stored in `localStorage`).
+- With `VITE_API_URL` set: use email/password (e.g. `lisa@codewithkids.afrika` / `password`).
 - Use the role switcher in the UI to switch to educator, student, parent, or finance and see the corresponding sidebar and pages.
 
 **Other scripts:**

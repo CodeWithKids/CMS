@@ -1,0 +1,198 @@
+// CWK Hub API – PostgreSQL schema
+// Run: npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id
+  name             String
+  role             String
+  email            String?  @unique
+  contactPhone     String?
+  status           String?  @default("active")
+  organizationId   String?
+  membershipStatus String?
+  avatarId         String?
+  passwordHash     String?  // bcrypt hash; null = no login
+  createdAt        DateTime @default(now())
+
+  @@map("users")
+}
+
+model Term {
+  id        String   @id
+  name      String
+  startDate String
+  endDate   String
+  isCurrent Boolean  @default(false)
+
+  @@map("terms")
+}
+
+model Learner {
+  id              String   @id
+  firstName       String
+  lastName        String
+  dateOfBirth     String
+  school          String
+  enrolmentType   String
+  programType     String
+  membershipStatus String?
+  userId          String?
+  parentName      String?
+  parentPhone     String?
+  parentEmail     String?
+  organizationId  String?
+  status         String   @default("active")
+  gender         String?
+  joinedAt        String?
+
+  @@map("learners")
+}
+
+model Class {
+  id          String   @id
+  name        String
+  program     String
+  ageGroup    String
+  location    String
+  educatorId  String
+  termId      String
+  learnerIds  String[]
+  capacity    Int?
+
+  @@map("classes")
+}
+
+model Session {
+  id                   String   @id
+  classId              String
+  date                 String
+  startTime            String
+  endTime              String
+  topic                String
+  sessionType          String
+  durationHours        Float
+  learningTrack        String
+  termId               String
+  leadEducatorId       String
+  assistantEducatorIds String[]
+
+  attendance AttendanceRecord[]
+
+  @@map("sessions")
+}
+
+model SessionReport {
+  id                     String   @id
+  sessionId              String   @unique
+  status                 String   // draft | submitted
+  leadEducatorId         String
+  assistantEducatorIds   String[]
+  date                   String
+  duration               String
+  sessionType            String
+  schoolOrOrganizationName String
+  totalLearners          Int
+  learningTrack          String
+  durationHours          Float
+  femaleCount            Int
+  maleCount              Int
+  highlights             String[]
+  objectivesMet          String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("session_reports")
+}
+
+model AttendanceRecord {
+  id         String   @id
+  sessionId  String
+  learnerId  String
+  status     String   // present | absent | late
+  stars      Int?
+  notes      String?
+  markedAt   DateTime?
+  markedBy   String?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, learnerId])
+  @@map("attendance_records")
+}
+
+model Organisation {
+  id            String  @id
+  name          String
+  type          String
+  contactPerson String
+  contactEmail  String?
+  contactPhone  String?
+  location      String
+
+  @@map("organisations")
+}
+
+model PendingSignup {
+  id         String   @id
+  signupType String   // school | organisation | miradi | parent
+  payload    Json     // form data + passwordHash
+  status     String   @default("pending") // pending | approved | rejected
+  createdAt  DateTime @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+
+  @@map("pending_signups")
+}
+
+model FinanceInvoice {
+  id             String   @id
+  payerType      String
+  payerId        String
+  learnerId      String?
+  organisationId String?
+  termId         String
+  programmeId    String?
+  trackId        String?
+  grossAmount    Float
+  discountAmount Float    @default(0)
+  netAmount      Float
+  amountPaid     Float    @default(0)
+  balance        Float
+  currency       String
+  dueDate        String
+  issueDate      String
+  status         String
+  notes          String?
+  createdAt      DateTime
+  createdBy      String
+  updatedAt      DateTime?
+  updatedBy      String?
+
+  payments Payment[]
+
+  @@map("finance_invoices")
+}
+
+model Payment {
+  id          String   @id
+  invoiceId   String
+  amount     Float
+  method     String
+  reference  String?
+  date        String
+  recordedBy  String
+  createdAt   DateTime
+
+  invoice FinanceInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}

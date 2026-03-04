@@ -5,9 +5,14 @@ export interface SocialPost {
   id: string;
   platform: string; // e.g. Facebook, Instagram
   title: string;
-  status: "draft" | "scheduled" | "published";
+  status: "draft" | "pending_review" | "approved" | "scheduled" | "published";
   scheduledDate?: string; // ISO date
   publishedDate?: string;
+  /** Link to Marketing campaign for alignment. */
+  linkedCampaignId?: string;
+  /** Set when status is approved; e.g. marketing lead name. */
+  approvedBy?: string;
+  approvedAt?: string; // ISO date
   notes?: string;
   createdAt: string;
 }

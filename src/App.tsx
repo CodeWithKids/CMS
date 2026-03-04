@@ -16,8 +16,12 @@ import { LessonPlansProvider } from "@/context/LessonPlansContext";
 import { SessionsProvider } from "@/context/SessionsContext";
 import { EducatorNotesProvider } from "@/context/EducatorNotesContext";
 import { FinanceProvider } from "@/context/FinanceContext";
+import { FinanceAccountProvider } from "@/context/FinanceAccountContext";
 import { LearnerFeedbackProvider } from "@/context/LearnerFeedbackContext";
 import { PartnershipsProvider } from "@/context/PartnershipsContext";
+import { ProspectsProvider } from "@/features/partnerships/stores/prospectsStore";
+import { GrantsProvider } from "@/features/partnerships/stores/grantsStore";
+import { ReceivedDonationsProvider } from "@/features/partnerships/stores/receivedDonationsStore";
 import { MarketingProvider } from "@/context/MarketingContext";
 import { SocialMediaProvider } from "@/context/SocialMediaContext";
 import { CoachingNotesProvider } from "@/features/ld-manager/context/CoachingNotesContext";
@@ -25,6 +29,7 @@ import { TasksProvider } from "@/features/tasks/context/TasksContext";
 import { EventRegistrationsProvider } from "@/context/EventRegistrationsContext";
 import { CoachingInvitesProvider } from "@/context/CoachingInvitesContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
+import { CanvasStateProvider } from "@/features/aiMarketing/CanvasStateContext";
 
 import LoginPage from "@/pages/auth/LoginPage";
 import AppLayout from "@/components/layout/AppLayout";
@@ -46,6 +51,7 @@ const EducatorProfilesListPage = lazy(() => import("@/pages/admin/EducatorProfil
 const EducatorProfileDetailPage = lazy(() => import("@/pages/admin/EducatorProfileDetailPage"));
 const ExpensesPage = lazy(() => import("@/pages/admin/ExpensesPage"));
 const AccountApprovalsPage = lazy(() => import("@/pages/admin/AccountApprovalsPage"));
+const CreateTeamMemberPage = lazy(() => import("@/pages/admin/CreateTeamMemberPage"));
 
 const FinanceDashboardPage = lazy(() => import("@/pages/finance/FinanceDashboardPage"));
 const InvoiceListPage = lazy(() => import("@/pages/finance/InvoiceListPage"));
@@ -91,7 +97,10 @@ const InventoryListPage = lazy(() => import("@/pages/inventory/InventoryListPage
 const InventoryDetailPage = lazy(() => import("@/pages/inventory/InventoryDetailPage"));
 const InventoryFormPage = lazy(() => import("@/pages/inventory/InventoryFormPage"));
 
+const SignupChoicePage = lazy(() => import("@/pages/auth/SignupChoicePage"));
+const ForgotPasswordPage = lazy(() => import("@/pages/auth/ForgotPasswordPage"));
 const OrganisationSignUpPage = lazy(() => import("@/pages/organisation/OrganisationSignUpPage"));
+const ParentSignUpPage = lazy(() => import("@/pages/parent/ParentSignUpPage"));
 const OrganisationDashboardPage = lazy(() => import("@/pages/organisation/OrganisationDashboardPage"));
 const OrganisationLearnersPage = lazy(() => import("@/pages/organisation/OrganisationLearnersPage"));
 const OrganisationLearnerDetailPage = lazy(() => import("@/pages/organisation/OrganisationLearnerDetailPage"));
@@ -100,15 +109,27 @@ const OrganisationInvoiceDetailPage = lazy(() => import("@/pages/organisation/Or
 const OrganisationEventsPage = lazy(() => import("@/pages/organisation/OrganisationEventsPage"));
 const TeamEventsPage = lazy(() => import("@/pages/team/TeamEventsPage"));
 
-const PartnershipsDashboardPage = lazy(() => import("@/pages/partnerships/PartnershipsDashboardPage"));
+const PartnershipsDashboardPage = lazy(() => import("@/features/partnerships/DashboardPage"));
 const PartnershipsListPage = lazy(() => import("@/pages/partnerships/PartnershipsListPage"));
 const PartnershipsCampaignsPage = lazy(() => import("@/pages/partnerships/PartnershipsCampaignsPage"));
+const PartnershipProspectsPage = lazy(() => import("@/features/partnerships/ProspectsPage"));
+const PartnershipGrantsPage = lazy(() => import("@/features/partnerships/GrantsPage"));
 
 const MarketingDashboardPage = lazy(() => import("@/pages/marketing/MarketingDashboardPage"));
 const MarketingCampaignsPage = lazy(() => import("@/pages/marketing/MarketingCampaignsPage"));
+const MarketingBrandKitPage = lazy(() => import("@/pages/marketing/MarketingBrandKitPage"));
+const MarketingProfilePage = lazy(() => import("@/pages/marketing/MarketingProfilePage"));
+
+const AiMarketingOverviewPage = lazy(() => import("@/features/aiMarketing/AiMarketingOverviewPage"));
+const AiMarketingCanvasPage = lazy(() => import("@/features/aiMarketing/AiMarketingCanvasPage"));
+const AiMarketingExperimentsPage = lazy(() => import("@/features/aiMarketing/AiMarketingExperimentsPage"));
+const AiMarketingProductsPage = lazy(() => import("@/features/aiMarketing/AiMarketingProductsPage"));
+const RetentionAnalyticsPage = lazy(() => import("@/pages/analytics/RetentionAnalyticsPage"));
 
 const SocialMediaDashboardPage = lazy(() => import("@/pages/social-media/SocialMediaDashboardPage"));
 const SocialMediaContentPage = lazy(() => import("@/pages/social-media/SocialMediaContentPage"));
+const SocialMediaProfilePage = lazy(() => import("@/pages/social-media/SocialMediaProfilePage"));
+const SocialMediaAnalyticsPage = lazy(() => import("@/pages/social-media/SocialMediaAnalyticsPage"));
 
 const LDDashboardPage = lazy(() => import("@/pages/ld/LDDashboardPage"));
 const LDTracksPage = lazy(() => import("@/pages/ld/LDTracksPage"));
@@ -143,20 +164,40 @@ const App = () => (
         <SessionReportsProvider>
         <InventoryProvider>
         <FinanceProvider>
+        <FinanceAccountProvider>
+        <ReceivedDonationsProvider>
         <LearnerFeedbackProvider>
         <PartnershipsProvider>
+        <ProspectsProvider>
+        <GrantsProvider>
         <MarketingProvider>
         <SocialMediaProvider>
         <CoachingNotesProvider>
         <TasksProvider>
         <NotificationsProvider>
         <EventRegistrationsProvider>
+        <CanvasStateProvider>
         <BrowserRouter>
           <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/signup" element={<SignupChoicePage />} />
             <Route path="/signup/organisation" element={<OrganisationSignUpPage />} />
+            <Route path="/signup/school" element={<OrganisationSignUpPage />} />
+            <Route path="/signup/miradi" element={<OrganisationSignUpPage />} />
+            <Route path="/signup/parent" element={<ParentSignUpPage />} />
+
+            {/* Shared Events route — all team roles with Events in nav */}
+            <Route element={<ProtectedRoute allowedRoles={["admin", "finance", "educator", "partnerships", "marketing", "social_media", "ld_manager"]}><AppLayout /></ProtectedRoute>}>
+              <Route path="/events" element={<TeamEventsPage />} />
+            </Route>
+
+            {/* Shared Schedule route — all team roles see their calendar */}
+            <Route element={<ProtectedRoute allowedRoles={["admin", "finance", "educator", "partnerships", "marketing", "social_media", "ld_manager"]}><AppLayout /></ProtectedRoute>}>
+              <Route path="/schedule" element={<EducatorSchedulePage />} />
+            </Route>
 
             {/* Protected routes with layout */}
             <Route element={<ProtectedRoute allowedRoles={["admin", "finance"]}><AppLayout /></ProtectedRoute>}>
@@ -185,6 +226,7 @@ const App = () => (
               <Route path="/admin/educator-hours" element={<Navigate to="/admin/educator-profiles" replace />} />
               <Route path="/admin/finance/expenses" element={<ExpensesPage />} />
               <Route path="/admin/account-approvals" element={<AccountApprovalsPage />} />
+              <Route path="/admin/create-team-member" element={<CreateTeamMemberPage />} />
               <Route path="/admin/settings" element={<SettingsPage />} />
               <Route path="/admin/learners" element={<LearnersPage />} />
               <Route path="/admin/learners/:id" element={<LearnerDetailPage />} />
@@ -193,7 +235,6 @@ const App = () => (
               <Route path="/admin/session-reports" element={<SessionReportsPage />} />
               <Route path="/admin/session-reports/:id" element={<SessionReportDetailPage />} />
               <Route path="/admin/schedules" element={<AdminSchedulesPage />} />
-              <Route path="/events" element={<TeamEventsPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["admin", "educator"]}><AppLayout /></ProtectedRoute>}>
@@ -205,8 +246,8 @@ const App = () => (
 
             <Route element={<ProtectedRoute allowedRoles={["educator"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/educator/dashboard" element={<EducatorDashboard />} />
-              <Route path="/educator/schedule" element={<EducatorSchedulePage />} />
-              <Route path="/educator/team-schedule" element={<Navigate to="/educator/schedule" replace />} />
+              <Route path="/educator/schedule" element={<Navigate to="/schedule" replace />} />
+              <Route path="/educator/team-schedule" element={<Navigate to="/schedule" replace />} />
               <Route path="/educator/coaching-invites" element={<EducatorCoachingInvitesPage />} />
               <Route path="/educator/learner-feedback" element={<EducatorLearnerFeedbackPage />} />
               <Route path="/educator/profile" element={<EducatorProfilePage />} />
@@ -217,7 +258,6 @@ const App = () => (
               <Route path="/educator/sessions/:id/attendance" element={<AttendancePage />} />
               <Route path="/educator/sessions/:id/expenses" element={<SessionExpensePage />} />
               <Route path="/educator/sessions/:id/report" element={<SessionReportPage />} />
-              <Route path="/events" element={<TeamEventsPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["student"]}><AppLayout /></ProtectedRoute>}>
@@ -245,23 +285,42 @@ const App = () => (
               <Route path="/organisation/events" element={<OrganisationEventsPage />} />
             </Route>
 
+            {/* Grants & funding: shared with finance so they can see partnership pipeline and received donations */}
+            <Route element={<ProtectedRoute allowedRoles={["partnerships", "finance"]}><AppLayout /></ProtectedRoute>}>
+              <Route path="/partnerships/grants" element={<PartnershipGrantsPage />} />
+            </Route>
             <Route element={<ProtectedRoute allowedRoles={["partnerships"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/partnerships/dashboard" element={<PartnershipsDashboardPage />} />
-              <Route path="/partnerships/campaigns" element={<PartnershipsCampaignsPage />} />
               <Route path="/partnerships" element={<PartnershipsListPage />} />
-              <Route path="/events" element={<TeamEventsPage />} />
+              <Route path="/partnerships/prospects" element={<PartnershipProspectsPage />} />
+              <Route path="/partnerships/campaigns" element={<PartnershipsCampaignsPage />} />
             </Route>
 
+            {/* Brand Kit: shared with social_media for brand visibility */}
+            <Route element={<ProtectedRoute allowedRoles={["marketing", "social_media"]}><AppLayout /></ProtectedRoute>}>
+              <Route path="/marketing/brand-kit" element={<MarketingBrandKitPage />} />
+            </Route>
             <Route element={<ProtectedRoute allowedRoles={["marketing"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/marketing/dashboard" element={<MarketingDashboardPage />} />
               <Route path="/marketing/campaigns" element={<MarketingCampaignsPage />} />
-              <Route path="/events" element={<TeamEventsPage />} />
+              <Route path="/marketing/profile" element={<MarketingProfilePage />} />
+            </Route>
+
+            {/* AI Marketing: canViewAiMarketing (admin, marketing, partnerships, ld_manager, finance); edit per page */}
+            <Route element={<ProtectedRoute allowedRoles={["admin", "marketing", "partnerships", "ld_manager", "finance"]}><AppLayout /></ProtectedRoute>}>
+              <Route path="/ai-marketing" element={<Navigate to="/ai-marketing/overview" replace />} />
+              <Route path="/ai-marketing/overview" element={<AiMarketingOverviewPage />} />
+              <Route path="/ai-marketing/canvas" element={<AiMarketingCanvasPage />} />
+              <Route path="/ai-marketing/experiments" element={<AiMarketingExperimentsPage />} />
+              <Route path="/ai-marketing/products" element={<AiMarketingProductsPage />} />
+              <Route path="/analytics/retention" element={<RetentionAnalyticsPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["social_media"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/social-media/dashboard" element={<SocialMediaDashboardPage />} />
               <Route path="/social-media/content" element={<SocialMediaContentPage />} />
-              <Route path="/events" element={<TeamEventsPage />} />
+              <Route path="/social-media/profile" element={<SocialMediaProfilePage />} />
+              <Route path="/social-media/analytics" element={<SocialMediaAnalyticsPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["ld_manager", "admin"]}><AppLayout /></ProtectedRoute>}>
@@ -275,21 +334,25 @@ const App = () => (
               <Route path="/ld/session-reports/:id" element={<LDSessionReportDetailPage />} />
               <Route path="/ld/reports" element={<LDReportsPage />} />
               <Route path="/ld/profile" element={<LDProfilePage />} />
-              <Route path="/events" element={<TeamEventsPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
         </BrowserRouter>
+        </CanvasStateProvider>
         </EventRegistrationsProvider>
         </NotificationsProvider>
         </TasksProvider>
         </CoachingNotesProvider>
         </SocialMediaProvider>
         </MarketingProvider>
+        </GrantsProvider>
+        </ProspectsProvider>
         </PartnershipsProvider>
         </LearnerFeedbackProvider>
+        </ReceivedDonationsProvider>
+        </FinanceAccountProvider>
         </FinanceProvider>
         </InventoryProvider>
         </SessionReportsProvider>

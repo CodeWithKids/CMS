@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { getClass } from "@/mockData";
+import { PRESET_AVATARS, getPresetAvatar } from "@/data/presetAvatars";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { useSessions } from "@/context/SessionsContext";
 import { getEducatorBadgesForEducator } from "@/mockData/educator";
 import { filterSessionsByPeriod, type PeriodFilter } from "@/utils/period";
@@ -24,7 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { UserCircle, Clock, BookOpen, Award } from "lucide-react";
+import { UserCircle, Clock, BookOpen, Award, Check } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "this_term", label: "This term" },
@@ -33,10 +37,12 @@ const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
 ];
 
 export default function EducatorProfilePage() {
-  const { currentUser } = useAuth();
+  const { currentUser, updateUser } = useAuth();
+  const { toast } = useToast();
   const { getSessionsForEducatorByRole } = useSessions();
   const educatorId = currentUser?.id ?? "";
   const [period, setPeriod] = useState<PeriodFilter>("this_term");
+  const currentAvatar = currentUser?.avatarId ? getPresetAvatar(currentUser.avatarId) : null;
 
   const allSessions = useMemo(
     () => getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" }),
@@ -87,6 +93,14 @@ export default function EducatorProfilePage() {
     return [...computedBadges, ...staticBadges.filter((s) => !s.trackId || !byTrack.has(s.trackId))];
   }, [computedBadges, staticBadges]);
 
+  const handleSelectAvatar = (avatarId: string) => {
+    updateUser({ avatarId });
+    toast({
+      title: "Avatar updated",
+      description: "Your profile avatar has been saved. It will appear on Team profiles.",
+    });
+  };
+
   if (currentUser?.role !== "educator") {
     return (
       <div className="page-container">
@@ -110,14 +124,69 @@ export default function EducatorProfilePage() {
           <CardTitle>Basic info</CardTitle>
           <CardDescription>Your account and roles</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="font-medium">{currentUser.name}</p>
-          <p className="text-sm text-muted-foreground">{currentUser.email ?? "—"}</p>
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-sm font-medium">Educator</span>
-            {coachSessions.length > 0 && (
-              <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-sm">Coach</span>
+        <CardContent className="flex flex-col sm:flex-row items-start gap-4">
+          <Avatar className="h-16 w-16 shrink-0 rounded-xl border-2 border-muted">
+            {currentAvatar ? (
+              <AvatarImage src={currentAvatar.imageUrl} alt={currentAvatar.description} className="object-cover" />
+            ) : null}
+            <AvatarFallback className="rounded-xl bg-primary/10 text-primary text-lg">
+              {currentUser.name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="space-y-2 min-w-0">
+            <p className="font-medium">{currentUser.name}</p>
+            <p className="text-sm text-muted-foreground">{currentUser.email ?? "—"}</p>
+            {currentAvatar && (
+              <p className="text-xs text-muted-foreground">{currentAvatar.description}</p>
             )}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-sm font-medium">Educator</span>
+              {coachSessions.length > 0 && (
+                <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-sm">Coach</span>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Choose your avatar */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Choose your avatar</CardTitle>
+          <CardDescription>
+            Select one of the approved preset avatars. Your choice appears on your profile and on Team profiles (admin view). You can change it anytime.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+            {PRESET_AVATARS.map((avatar) => {
+              const isSelected = currentUser.avatarId === avatar.id;
+              return (
+                <button
+                  key={avatar.id}
+                  type="button"
+                  onClick={() => handleSelectAvatar(avatar.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-colors",
+                    "hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isSelected ? "border-primary bg-primary/5" : "border-transparent bg-muted/30"
+                  )}
+                  aria-pressed={isSelected}
+                  aria-label={`Select avatar: ${avatar.description}`}
+                >
+                  <img
+                    src={avatar.imageUrl}
+                    alt={avatar.description}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  {isSelected && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                      <Check className="w-3 h-3" /> Selected
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

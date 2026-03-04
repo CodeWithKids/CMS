@@ -38,13 +38,13 @@ export {
 
 // Login mock: 7 team (admin, educator, finance, social_media, partnerships, ld_manager, marketing) + 5 other (school, organisation, parent, member learner, miradi)
 export const mockUsers: AppUser[] = [
-  { id: "u1", name: "Sarah Admin (Super admin)", role: "admin", email: "sarah@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
-  { id: "u2", name: "Vivian Cheboi (Educator)", role: "educator", email: "vivian@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
-  { id: "u3", name: "Lisa Finance (Finance)", role: "finance", email: "lisa@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
-  { id: "u13", name: "Ivy Mwende (Social media)", role: "social_media", email: "ivy@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
-  { id: "u11", name: "Tonny Ndare (Partnerships)", role: "partnerships", email: "tonny@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
-  { id: "u16", name: "Renice Owino (L&D Manager)", role: "ld_manager", email: "renice.ld@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
-  { id: "u12", name: "Serah Karimi (Marketing)", role: "marketing", email: "serah@codewithkids.co.za", status: "active", createdAt: "2026-01-01" },
+  { id: "u1", name: "Sarah Admin (Super admin)", role: "admin", email: "admin@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
+  { id: "u2", name: "Vivian Cheboi (Educator)", role: "educator", email: "vivian@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
+  { id: "u3", name: "Lisa Finance (Finance)", role: "finance", email: "lisa@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
+  { id: "u13", name: "Ivy Mwende (Social media)", role: "social_media", email: "ivy@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
+  { id: "u11", name: "Tonny Ndare (Partnerships)", role: "partnerships", email: "tonny@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
+  { id: "u16", name: "Renice Owino (L&D Manager)", role: "ld_manager", email: "renice.ld@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
+  { id: "u12", name: "Serah Karimi (Marketing)", role: "marketing", email: "serah@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
   { id: "u4", name: "Patricia Wanja (Member learner)", role: "student", email: "patricia.wanja@mail.com", status: "active", createdAt: "2026-01-01", avatarId: "avatar-1" },
   { id: "u5", name: "Lucy Njeri (Parent)", role: "parent", email: "lucy.njeri@mail.com", status: "active", createdAt: "2026-01-01", membershipStatus: "active" },
   { id: "u10", name: "Greenfield Primary (School)", role: "organisation", email: "office@greenfield.edu", status: "active", createdAt: "2026-01-01", organizationId: "org1" },
@@ -130,11 +130,8 @@ export const mockCoachingInvites: CoachingInvite[] = [
 /** In-memory attendance records (can start empty; app uses AttendanceContext for live state). */
 export const mockAttendance: AttendanceRecord[] = [];
 
-// Income and expenses: single source of truth from finance account (transparency & accuracy)
-import { getFinanceAccountInvoices, getFinanceAccountExpenses } from "./financeAccount";
+// Finance account: use FinanceAccountContext (useFinanceAccount) for live data. Re-export for backwards compatibility.
 export { getFinanceAccountInvoices, getFinanceAccountExpenses } from "./financeAccount";
-export const mockInvoices = getFinanceAccountInvoices();
-export const mockExpenses = getFinanceAccountExpenses();
 
 export const mockEvents: EventEntity[] = [
   { id: "e1", title: "STEM Fair 2026", date: "2026-03-15", time: "10:00", description: "Annual showcase of student projects", target: "students" },
@@ -321,15 +318,14 @@ export const getSessionsForStudent = (learnerId: string): Session[] => {
   return mockSessions.filter((s) => classIds.includes(s.classId));
 };
 
-/** Invoices for a parent: only per-learner invoices (org-level school_club invoices are not shown to parents). */
-export const getInvoicesForParent = (learnerIds: string[]): Invoice[] =>
-  mockInvoices.filter((inv) => inv.learnerId != null && learnerIds.includes(inv.learnerId));
+/** Invoices for a parent: only per-learner invoices. Pass invoices from useFinanceAccount().getInvoices(). */
+export function getInvoicesForParent(invoices: Invoice[], learnerIds: string[]): Invoice[] {
+  return invoices.filter((inv) => inv.learnerId != null && learnerIds.includes(inv.learnerId));
+}
 
-/** Invoices for an organisation (school, org, Miradi): only invoices billed to this organisation. */
-export function getInvoicesForOrganisation(organizationId: string): Invoice[] {
-  return getFinanceAccountInvoices().filter(
-    (inv) => inv.organizationId != null && inv.organizationId === organizationId
-  );
+/** Invoices for an organisation. Pass invoices from useFinanceAccount().getInvoices(). */
+export function getInvoicesForOrganisation(invoices: Invoice[], organizationId: string): Invoice[] {
+  return invoices.filter((inv) => inv.organizationId != null && inv.organizationId === organizationId);
 }
 
 /** Receipt generated when invoice is paid. Returns null if invoice is not paid. */
@@ -362,7 +358,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u1",
     name: "Sarah Admin",
-    email: "sarah@codewithkids.co.za",
+    email: "admin@codewithkids.afrika",
     role: "admin",
     phone: "+27 81 111 1111",
     employmentStatus: "active",
@@ -379,7 +375,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u2",
     name: "Vivian Cheboi",
-    email: "vivian@codewithkids.co.za",
+    email: "vivian@codewithkids.afrika",
     role: "educator",
     phone: "+254 7XX XXX XXX",
     employmentStatus: "active",
@@ -398,7 +394,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u3",
     name: "Lisa Finance",
-    email: "lisa@codewithkids.co.za",
+    email: "lisa@codewithkids.afrika",
     role: "finance",
     phone: "+27 83 333 3333",
     employmentStatus: "active",
@@ -413,7 +409,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u11",
     name: "Tonny Ndare",
-    email: "tonny@codewithkids.co.za",
+    email: "tonny@codewithkids.afrika",
     role: "admin",
     phone: "+254 7XX XXX XXX",
     employmentStatus: "active",
@@ -430,7 +426,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u12",
     name: "Serah Karimi",
-    email: "serah@codewithkids.co.za",
+    email: "serah@codewithkids.afrika",
     role: "admin",
     phone: "+254 7XX XXX XXX",
     employmentStatus: "active",
@@ -447,7 +443,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u13",
     name: "Ivy Mwende",
-    email: "ivy@codewithkids.co.za",
+    email: "ivy@codewithkids.afrika",
     role: "admin",
     phone: "+254 7XX XXX XXX",
     employmentStatus: "active",
@@ -464,7 +460,7 @@ export const mockStaff: StaffMember[] = [
   {
     id: "u16",
     name: "Renice Owino",
-    email: "renice.ld@codewithkids.co.za",
+    email: "renice.ld@codewithkids.afrika",
     role: "ld_manager",
     phone: "+254 7XX XXX XXX",
     employmentStatus: "active",

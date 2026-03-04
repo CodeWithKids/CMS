@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,6 +30,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SESSION_TYPE_LABELS } from "@/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { logAppEvent } from "@/lib/analytics";
 
 const SCHOOL_ORGANIZATION_OPTIONS = [
   "Code With Kids - Makerspace",
@@ -49,13 +53,27 @@ const SCHOOL_ORGANIZATION_OPTIONS = [
 ];
 import { ArrowLeft, Receipt, UserPlus } from "lucide-react";
 
-const formSchema = z.object({
-  schoolName: z.string().min(1, "School or organisation name is required"),
-  transportTo: z.coerce.number().min(0, "Must be ≥ 0"),
-  transportFrom: z.coerce.number().min(0, "Must be ≥ 0"),
-  otherAmount: z.coerce.number().min(0, "Must be ≥ 0").optional(),
-  notes: z.string().optional(),
-});
+const formSchema = z
+  .object({
+    schoolName: z.string().min(1, "School or organisation name is required"),
+    transportTo: z.coerce.number().min(0, "Must be ≥ 0"),
+    transportFrom: z.coerce.number().min(0, "Must be ≥ 0"),
+    otherAmount: z.coerce.number().min(0, "Must be ≥ 0").optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const total =
+      (Number.isFinite(data.transportTo) ? data.transportTo : 0) +
+      (Number.isFinite(data.transportFrom) ? data.transportFrom : 0) +
+      (Number.isFinite(data.otherAmount ?? 0) ? data.otherAmount ?? 0 : 0);
+    if (total <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter at least one expense amount greater than 0.",
+        path: ["transportTo"],
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -74,6 +92,10 @@ export default function SessionExpensePage() {
   const { getExpenseBySessionAndEducator, addExpense, updateExpense } = useSessionExpenses();
   const { getSessionById } = useSessions();
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const session = getSessionById(sessionId ?? "");
   const cls = session ? getClass(session.classId) : undefined;
@@ -85,6 +107,7 @@ export default function SessionExpensePage() {
     : undefined;
 
   const isMakerspace = session?.sessionType === "makerspace";
+  const noExpensesForSession = session?.sessionType === "virtual" || session?.sessionType === "makerspace";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -122,40 +145,85 @@ export default function SessionExpensePage() {
     );
   }
 
+  if (noExpensesForSession) {
+    return (
+      <div className="p-6 space-y-4">
+        <p className="text-muted-foreground">
+          Session expenses are not used for virtual or makerspace sessions. There is nothing to log here.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/educator/dashboard">Back to dashboard</Link>
+        </Button>
+      </div>
+    );
+  }
+
   const canEdit = !isCoachReadOnly && (!existing || existing.status === "requested");
 
   function onSubmit(values: FormValues) {
-    const transportTo = isMakerspace ? 0 : Number(values.transportTo);
-    const transportFrom = isMakerspace ? 0 : Number(values.transportFrom);
-    const total =
-      transportTo + transportFrom + (Number(values.otherAmount) || 0);
+    setHasError(false);
+    setIsSubmitting(true);
+    try {
+      const transportTo = isMakerspace ? 0 : Number(values.transportTo);
+      const transportFrom = isMakerspace ? 0 : Number(values.transportFrom);
+      const total =
+        transportTo + transportFrom + (Number(values.otherAmount) || 0);
 
-    if (existing) {
-      if (existing.status === "requested") {
-        updateExpense(existing.id, {
+      if (existing) {
+        if (existing.status === "requested") {
+          updateExpense(existing.id, {
+            schoolName: values.schoolName,
+            transportTo,
+            transportFrom,
+            otherAmount: Number(values.otherAmount) || 0,
+            totalRequested: total,
+            notes: values.notes,
+          });
+        }
+      } else {
+        addExpense({
+          educatorId,
+          sessionId: session.id,
           schoolName: values.schoolName,
           transportTo,
           transportFrom,
           otherAmount: Number(values.otherAmount) || 0,
           totalRequested: total,
+          status: "requested",
+          requestedAt: new Date().toISOString(),
           notes: values.notes,
         });
       }
-    } else {
-      addExpense({
-        educatorId,
+
+      logAppEvent("session_expense_submitted", {
         sessionId: session.id,
-        schoolName: values.schoolName,
-        transportTo,
-        transportFrom,
-        otherAmount: Number(values.otherAmount) || 0,
+        educatorId,
+        hasExisting: !!existing,
         totalRequested: total,
-        status: "requested",
-        requestedAt: new Date().toISOString(),
-        notes: values.notes,
       });
+
+      toast({
+        title: existing ? "Expense request updated" : "Expense request submitted",
+        description: "Your session expenses have been saved and will be reviewed by finance.",
+      });
+
+      form.reset(values);
+
+      // Nudge educators back to the class once they are done.
+      if (!existing) {
+        navigate(cls ? `/educator/classes/${cls.id}` : "/educator/dashboard");
+      }
+    } catch (e) {
+      console.error(e);
+      setHasError(true);
+      toast({
+        title: "Could not save expenses",
+        description: "Please try again. If this keeps happening, contact the CWK team.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    form.reset(values);
   }
 
   return (
@@ -214,6 +282,16 @@ export default function SessionExpensePage() {
         <div className="p-3 rounded-lg border bg-muted/50 text-sm text-muted-foreground">
           Only the facilitator can edit expenses for this session. You can view the summary above.
         </div>
+      )}
+
+      {hasError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>
+            We couldn&apos;t save your expense request. Please check your details and submit again.
+          </AlertDescription>
+        </Alert>
       )}
 
       {canEdit ? (
@@ -325,7 +403,7 @@ export default function SessionExpensePage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit">
+                <Button type="submit" disabled={isSubmitting}>
                   {existing ? "Update request" : "Submit request"}
                 </Button>
               </form>

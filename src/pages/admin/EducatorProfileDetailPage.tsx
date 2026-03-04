@@ -5,6 +5,7 @@ import {
   getSessionsForTerm,
   mockSessions,
   mockStaff,
+  mockUsers,
 } from "@/mockData";
 import { getEducatorBadgesForEducator } from "@/mockData/educator";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
@@ -12,7 +13,7 @@ import { useInventory } from "@/context/InventoryContext";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PRESET_AVATARS } from "@/data/presetAvatars";
+import { PRESET_AVATARS, getPresetAvatar } from "@/data/presetAvatars";
 import { ArrowLeft, Award, Clock, Calendar, Package, UserCircle } from "lucide-react";
 
 function getEducatorAvatarUrl(index: number): string {
@@ -55,6 +56,9 @@ export default function EducatorProfileDetailPage() {
 
   const educators = mockStaff.filter((s) => s.role === "educator");
   const educatorIndex = educators.findIndex((s) => s.id === educatorId);
+  const userAvatarId = mockUsers.find((u) => u.id === educatorId)?.avatarId;
+  const chosenAvatar = userAvatarId ? getPresetAvatar(userAvatarId) : null;
+  const avatarUrl = chosenAvatar?.imageUrl ?? getEducatorAvatarUrl(educatorIndex >= 0 ? educatorIndex : 0);
 
   if (!staff || staff.role !== "educator") {
     return (
@@ -66,8 +70,6 @@ export default function EducatorProfileDetailPage() {
       </div>
     );
   }
-
-  const avatarUrl = getEducatorAvatarUrl(educatorIndex >= 0 ? educatorIndex : 0);
 
   return (
     <div className="p-6 space-y-6">

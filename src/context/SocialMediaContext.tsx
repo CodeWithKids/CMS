@@ -11,13 +11,16 @@ import type { SocialPost } from "@/types";
 interface SocialMediaContextType {
   posts: SocialPost[];
   addPost: (p: Omit<SocialPost, "id" | "createdAt">) => void;
+  updatePost: (id: string, p: Partial<Omit<SocialPost, "id" | "createdAt">>) => void;
+  deletePost: (id: string) => void;
+  getPost: (id: string) => SocialPost | undefined;
 }
 
 const SocialMediaContext = createContext<SocialMediaContextType | undefined>(undefined);
 
 const INITIAL_POSTS: SocialPost[] = [
-  { id: "sm1", platform: "Facebook", title: "STEM Fair 2026 announcement", status: "published", publishedDate: "2026-02-01", createdAt: "2026-01-28" },
-  { id: "sm2", platform: "Instagram", title: "Learner showcase – Scratch projects", status: "scheduled", scheduledDate: "2026-03-10", createdAt: "2026-02-05" },
+  { id: "sm1", platform: "Facebook", title: "STEM Fair 2026 announcement", status: "published", publishedDate: "2026-02-01", linkedCampaignId: "mc1", createdAt: "2026-01-28" },
+  { id: "sm2", platform: "Instagram", title: "Learner showcase – Scratch projects", status: "scheduled", scheduledDate: "2026-03-10", linkedCampaignId: "mc3", createdAt: "2026-02-05" },
   { id: "sm3", platform: "Facebook", title: "Term 2 sign-up reminder", status: "draft", createdAt: "2026-02-10" },
 ];
 
@@ -40,7 +43,25 @@ export function SocialMediaProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ posts, addPost }), [posts, addPost]);
+  const updatePost = useCallback((id: string, patch: Partial<Omit<SocialPost, "id" | "createdAt">>) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
+    );
+  }, []);
+
+  const deletePost = useCallback((id: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const getPost = useCallback(
+    (id: string) => posts.find((p) => p.id === id),
+    [posts]
+  );
+
+  const value = useMemo(
+    () => ({ posts, addPost, updatePost, deletePost, getPost }),
+    [posts, addPost, updatePost, deletePost, getPost]
+  );
 
   return (
     <SocialMediaContext.Provider value={value}>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getFinanceAccountInvoices, getFinanceAccountExpenses } from "@/mockData";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { getMonthlyFinanceSummaryForYear, getYearTotals } from "@/utils/financeAggregation";
 import { formatCurrency } from "@/lib/financeUtils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,15 +42,18 @@ function getAvailableYears(invoices: { dueDate?: string; paidDate?: string }[], 
 }
 
 export default function YearOverviewPage() {
-  const availableYears = useMemo(() => getAvailableYears(getFinanceAccountInvoices(), getFinanceAccountExpenses()), []);
+  const { getInvoices, getExpenses } = useFinanceAccount();
+  const invoices = getInvoices();
+  const expenses = getExpenses();
+  const availableYears = useMemo(() => getAvailableYears(invoices, expenses), [invoices, expenses]);
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(() =>
     availableYears.includes(currentYear) ? currentYear : (availableYears[0] ?? currentYear)
   );
 
   const monthlySummary = useMemo(
-    () => getMonthlyFinanceSummaryForYear(year, getFinanceAccountInvoices(), getFinanceAccountExpenses()),
-    [year]
+    () => getMonthlyFinanceSummaryForYear(year, invoices, expenses),
+    [year, invoices, expenses]
   );
 
   const yearTotals = useMemo(() => getYearTotals(monthlySummary), [monthlySummary]);

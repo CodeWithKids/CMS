@@ -28,8 +28,11 @@ interface EducatorSessionCardProps {
   lessonPlanStatus: LessonPlanStatus;
   attendanceStatus: AttendanceStatus;
   reportStatus: ReportStatus;
-  expensesStatus: ExpensesStatus;
+  /** When false (e.g. virtual/makerspace), expense badge and Expenses button are hidden. */
+  expensesStatus?: ExpensesStatus | null;
   hasDeviceCheckedOut: boolean;
+  /** If false, expense option is not shown (virtual and makerspace sessions have no expenses). Default true. */
+  showExpenses?: boolean;
 }
 
 const LESSON_PLAN_LABELS: Record<LessonPlanStatus, string> = {
@@ -44,8 +47,9 @@ export function EducatorSessionCard({
   lessonPlanStatus,
   attendanceStatus,
   reportStatus,
-  expensesStatus,
+  expensesStatus = "pending",
   hasDeviceCheckedOut,
+  showExpenses = true,
 }: EducatorSessionCardProps) {
   const cls = getClass(session.classId);
   const role = getSessionRoleForUser(session, currentUser);
@@ -102,9 +106,11 @@ export function EducatorSessionCard({
           <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] ${reportStatus === "submitted" ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-muted"}`}>
             Report: {reportStatus === "submitted" ? "Submitted" : "Pending"}
           </span>
-          <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] ${expensesStatus === "logged" ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-muted"}`}>
-            Expenses: {expensesStatus === "logged" ? "Logged" : "Pending"}
-          </span>
+          {showExpenses && (
+            <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] ${expensesStatus === "logged" ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-muted"}`}>
+              Expenses: {expensesStatus === "logged" ? "Logged" : "Pending"}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap gap-2 shrink-0">
@@ -123,11 +129,13 @@ export function EducatorSessionCard({
             <FileText className="w-4 h-4 mr-1" /> Report
           </Button>
         </Link>
-        <Link to={`/educator/sessions/${session.id}/expenses`}>
-          <Button size="sm" variant="outline" className="touch-manipulation">
-            <Receipt className="w-4 h-4 mr-1" /> Expenses
-          </Button>
-        </Link>
+        {showExpenses && (
+          <Link to={`/educator/sessions/${session.id}/expenses`}>
+            <Button size="sm" variant="outline" className="touch-manipulation">
+              <Receipt className="w-4 h-4 mr-1" /> Expenses
+            </Button>
+          </Link>
+        )}
       </div>
 
       <Dialog open={notesOpen} onOpenChange={setNotesOpen}>

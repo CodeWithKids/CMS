@@ -6,11 +6,13 @@ import {
   BarChart2,
   UserCircle,
   ListTodo,
+  Calendar,
   CalendarDays,
 } from "lucide-react";
 
 export const ldManagerNavItems = [
   { label: "Dashboard", to: "/ld/dashboard", iconKey: "dashboard" as const },
+  { label: "Schedule", to: "/schedule", iconKey: "schedule" as const },
   { label: "Tasks", to: "/ld/tasks", iconKey: "tasks" as const },
   { label: "Events", to: "/events", iconKey: "events" as const },
   { label: "Tracks & curriculum", to: "/ld/tracks", iconKey: "tracks" as const },
@@ -23,6 +25,7 @@ export const ldManagerNavItems = [
 
 export const ldManagerNavIconMap = {
   dashboard: LayoutDashboard,
+  schedule: Calendar,
   tasks: ListTodo,
   events: CalendarDays,
   tracks: BookOpen,

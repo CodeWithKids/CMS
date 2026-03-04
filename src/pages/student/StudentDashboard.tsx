@@ -6,6 +6,7 @@ import { getTodaySessionsForStudent, getClass, mockEvents, getLearnerByUserId } 
 import { Clock, Calendar, ExternalLink, User, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 
 const platformLinks = [
   { name: "Scratch", url: "https://scratch.mit.edu", color: "bg-amber-500" },
@@ -38,6 +39,10 @@ export default function StudentDashboard() {
     <div className="page-container">
       <h1 className="page-title">Student Dashboard</h1>
       <p className="page-subtitle">Welcome back, {currentUser?.name}! 🚀</p>
+
+      <div className="mb-6">
+        <RoleResponsibilitiesCard />
+      </div>
 
       {needsAvatar && (
         <div className="mb-6 p-4 rounded-xl border bg-primary/5 border-primary/20 flex items-center justify-between gap-4 flex-wrap">
@@ -90,10 +95,15 @@ export default function StudentDashboard() {
         {/* Today's Sessions */}
         <div className="bg-card rounded-xl border p-5 md:col-span-2 lg:col-span-1">
           <h2 className="font-semibold flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-accent" /> Today's Sessions
+            <Clock className="w-5 h-5 text-accent" /> Today&apos;s Sessions
           </h2>
           {todaySessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions today. Enjoy your day! 🎉</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">No sessions today. Enjoy your day!</p>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/student/timetable">View timetable</Link>
+              </Button>
+            </div>
           ) : (
             <div className="space-y-3">
               {todaySessions.map((s) => {
@@ -106,6 +116,9 @@ export default function StudentDashboard() {
                   </div>
                 );
               })}
+              <Button asChild variant="outline" size="sm">
+                <Link to="/student/timetable">View full timetable</Link>
+              </Button>
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   type ReactNode,
 } from "react";
 import type {
@@ -21,6 +22,13 @@ import {
   mockCreditNotes,
   DEFAULT_FINANCE_CURRENCY,
 } from "@/features/finance/data/mockFinance";
+import {
+  isApiEnabled,
+  getAccessToken,
+  financeGetInvoices,
+  financeGetPayments,
+  financeRecordPayment as apiRecordPayment,
+} from "@/lib/api";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -72,6 +80,8 @@ interface FinanceContextType {
   updateInvoiceStatus: (invoiceId: string, status: FinanceInvoice["status"]) => void;
 
   getPaymentsForInvoice: (invoiceId: string) => Payment[];
+  /** When using API: call to load payments for an invoice (e.g. from invoice detail page). */
+  loadPaymentsForInvoice: (invoiceId: string) => Promise<void>;
   getAdjustmentsForInvoice: (invoiceId: string) => AdjustmentRequest[];
   getPendingAdjustments: () => AdjustmentRequest[];
   getCreditNotesForInvoice: (invoiceId: string) => CreditNote[];
@@ -79,11 +89,68 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
+function apiInvoiceToFinanceInvoice(inv: import("@/lib/api").FinanceInvoiceApi): FinanceInvoice {
+  return {
+    id: inv.id,
+    payerType: inv.payerType as FinanceInvoice["payerType"],
+    payerId: inv.payerId,
+    learnerId: inv.learnerId,
+    organisationId: inv.organisationId,
+    termId: inv.termId,
+    programmeId: inv.programmeId,
+    trackId: inv.trackId,
+    grossAmount: inv.grossAmount,
+    discountAmount: inv.discountAmount,
+    netAmount: inv.netAmount,
+    amountPaid: inv.amountPaid,
+    balance: inv.balance,
+    currency: inv.currency,
+    dueDate: inv.dueDate,
+    issueDate: inv.issueDate,
+    status: inv.status as FinanceInvoice["status"],
+    notes: inv.notes,
+    createdAt: inv.createdAt,
+    createdBy: inv.createdBy,
+    updatedAt: inv.updatedAt ?? undefined,
+    updatedBy: inv.updatedBy ?? undefined,
+  };
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [invoices, setInvoices] = useState<FinanceInvoice[]>(() => [...mockFinanceInvoices]);
   const [payments, setPayments] = useState<Payment[]>(() => [...mockFinancePayments]);
+  const [paymentsByInvoice, setPaymentsByInvoice] = useState<Record<string, Payment[]>>({});
   const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>(() => [...mockAdjustmentRequests]);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => [...mockCreditNotes]);
+
+  const useApi = isApiEnabled() && !!getAccessToken();
+
+  useEffect(() => {
+    if (!useApi) return;
+    financeGetInvoices()
+      .then((list) => setInvoices(list.map(apiInvoiceToFinanceInvoice)))
+      .catch(() => {});
+  }, [useApi]);
+
+  const loadPaymentsForInvoice = useCallback(async (invoiceId: string) => {
+    if (!isApiEnabled()) return;
+    try {
+      const list = await financeGetPayments(invoiceId);
+      const asPayments: Payment[] = list.map((p) => ({
+        id: p.id,
+        invoiceId: p.invoiceId,
+        amount: p.amount,
+        method: p.method as Payment["method"],
+        reference: p.reference ?? undefined,
+        date: p.date,
+        recordedBy: p.recordedBy,
+        createdAt: p.createdAt,
+      }));
+      setPaymentsByInvoice((prev) => ({ ...prev, [invoiceId]: asPayments }));
+    } catch {
+      // keep existing or empty
+    }
+  }, []);
 
   const getInvoice = useCallback(
     (id: string) => {
@@ -107,9 +174,46 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const recordPayment = useCallback(
-    (invoiceId: string, payload: { amount: number; method: Payment["method"]; reference?: string; date: string; recordedBy: string }) => {
+    async (invoiceId: string, payload: { amount: number; method: Payment["method"]; reference?: string; date: string; recordedBy: string }) => {
       const inv = invoices.find((i) => i.id === invoiceId);
       if (!inv) return;
+      if (useApi) {
+        try {
+          const created = await apiRecordPayment(invoiceId, payload);
+          const newPayment: Payment = {
+            id: created.id,
+            invoiceId: created.invoiceId,
+            amount: created.amount,
+            method: created.method as Payment["method"],
+            reference: created.reference ?? undefined,
+            date: created.date,
+            recordedBy: created.recordedBy,
+            createdAt: created.createdAt,
+          };
+          setPaymentsByInvoice((prev) => ({
+            ...prev,
+            [invoiceId]: [...(prev[invoiceId] ?? []), newPayment],
+          }));
+          const newPaid = inv.amountPaid + payload.amount;
+          const newBalance = Math.max(0, inv.netAmount - newPaid);
+          setInvoices((prev) =>
+            prev.map((i) =>
+              i.id === invoiceId
+                ? {
+                    ...i,
+                    amountPaid: newPaid,
+                    balance: newBalance,
+                    status: (newBalance <= 0 ? "paid" : "partially_paid") as FinanceInvoice["status"],
+                    updatedAt: new Date().toISOString(),
+                  }
+                : i
+            )
+          );
+        } catch {
+          // caller can show toast
+        }
+        return;
+      }
       const newPayment: Payment = {
         id: nextPaymentId(payments),
         invoiceId,
@@ -137,7 +241,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         )
       );
     },
-    [invoices, payments]
+    [invoices, payments, useApi]
   );
 
   const createAdjustmentRequest = useCallback(
@@ -250,8 +354,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getPaymentsForInvoice = useCallback(
-    (invoiceId: string) => payments.filter((p) => p.invoiceId === invoiceId).sort((a, b) => b.date.localeCompare(a.date)),
-    [payments]
+    (invoiceId: string) => {
+      if (useApi) return (paymentsByInvoice[invoiceId] ?? []).sort((a, b) => (b.createdAt ?? b.date).localeCompare(a.createdAt ?? a.date));
+      return payments.filter((p) => p.invoiceId === invoiceId).sort((a, b) => b.date.localeCompare(a.date));
+    },
+    [payments, paymentsByInvoice, useApi]
   );
 
   const getAdjustmentsForInvoice = useCallback(
@@ -284,6 +391,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       createInvoice,
       updateInvoiceStatus,
       getPaymentsForInvoice,
+      loadPaymentsForInvoice,
       getAdjustmentsForInvoice,
       getPendingAdjustments,
       getCreditNotesForInvoice,
@@ -301,6 +409,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       createInvoice,
       updateInvoiceStatus,
       getPaymentsForInvoice,
+      loadPaymentsForInvoice,
       getAdjustmentsForInvoice,
       getPendingAdjustments,
       getCreditNotesForInvoice,

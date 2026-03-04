@@ -76,53 +76,55 @@ export default function LearnersPage() {
         </Select>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>School</th>
-            <th>Enrolment</th>
-            <th>Contact (parent / org)</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((l) => {
-            const org = l.enrolmentType === "partner_org" && l.organizationId ? getOrganization(l.organizationId) : null;
-            const contact = l.enrolmentType === "member"
-              ? `${l.parentName ?? "—"} · ${l.parentPhone ?? "—"} · ${l.parentEmail ?? "—"}`
-              : org ? `${org.name} (${org.contactPerson})` : "—";
-            return (
-              <tr key={l.id}>
-                <td className="font-medium">{l.firstName} {l.lastName}</td>
-                <td>{l.school}</td>
-                <td>
-                  <Badge variant="outline">{l.enrolmentType === "member" ? "Member" : "Partner org"}</Badge>
-                </td>
-                <td className="text-sm text-muted-foreground max-w-[220px] truncate" title={contact}>{contact}</td>
-                <td>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                    l.status === "active"
-                      ? "bg-success/10 text-success"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {l.status}
-                  </span>
-                </td>
-                <td>
-                  <Link
-                    to={`/admin/learners/${l.id}`}
-                    className="text-sm text-primary hover:underline font-medium"
-                  >
-                    View
-                  </Link>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>School</th>
+              <th>Enrolment</th>
+              <th>Contact (parent / org)</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((l) => {
+              const org = l.enrolmentType === "partner_org" && l.organizationId ? getOrganization(l.organizationId) : null;
+              const contact = l.enrolmentType === "member"
+                ? `${l.parentName ?? "—"} · ${l.parentPhone ?? "—"} · ${l.parentEmail ?? "—"}`
+                : org ? `${org.name} (${org.contactPerson})` : "—";
+              return (
+                <tr key={l.id}>
+                  <td className="font-medium">{l.firstName} {l.lastName}</td>
+                  <td>{l.school}</td>
+                  <td>
+                    <Badge variant="outline">{l.enrolmentType === "member" ? "Member" : "Partner org"}</Badge>
+                  </td>
+                  <td className="text-sm text-muted-foreground max-w-[220px] truncate" title={contact}>{contact}</td>
+                  <td>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                      l.status === "active"
+                        ? "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {l.status}
+                    </span>
+                  </td>
+                  <td>
+                    <Link
+                      to={`/admin/learners/${l.id}`}
+                      className="text-sm text-primary hover:underline font-medium"
+                    >
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       {filtered.length === 0 && (
         <p className="text-sm text-muted-foreground py-6">
           {search.trim() || enrolmentFilter !== "all"

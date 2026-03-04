@@ -1,9 +1,11 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { parentChildMap, getFinanceAccountInvoices, getLearner, getReceiptForInvoice } from "@/mockData";
-import { ArrowLeft, CreditCard } from "lucide-react";
+import { useFinanceAccount } from "@/context/FinanceAccountContext";
+import { parentChildMap, getLearner, getReceiptForInvoice } from "@/mockData";
+import { ArrowLeft, CreditCard, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ReceiptView } from "@/features/invoices/components/ReceiptView";
-import type { Invoice } from "@/types";
+import { printInvoice, printReceipt } from "@/utils/printInvoice";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -27,7 +29,8 @@ export default function ParentInvoiceDetailPage() {
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
 
-  const invoice = id ? getFinanceAccountInvoices().find((i) => i.id === id) : undefined;
+  const { getInvoices } = useFinanceAccount();
+  const invoice = id ? getInvoices().find((i) => i.id === id) : undefined;
   const allowed =
     invoice?.learnerId != null && childIds.includes(invoice.learnerId);
   const learner = invoice?.learnerId != null ? getLearner(invoice.learnerId) : null;
@@ -35,10 +38,13 @@ export default function ParentInvoiceDetailPage() {
   if (!id || !invoice || !allowed) {
     return (
       <div className="page-container">
-        <p className="text-muted-foreground">Invoice not found or you don’t have access to it.</p>
-        <Link to="/parent/invoices" className="text-primary hover:underline mt-2 inline-block">
-          Back to Invoices
-        </Link>
+        <div className="rounded-xl border bg-card p-8 max-w-md">
+          <p className="font-medium text-muted-foreground">Invoice not found</p>
+          <p className="text-sm text-muted-foreground mt-1">This invoice does not exist or you do not have access. Go back to your invoices.</p>
+          <Button asChild variant="outline" className="mt-4">
+            <Link to="/parent/invoices">Back to invoices</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -52,19 +58,62 @@ export default function ParentInvoiceDetailPage() {
   return (
     <div className="page-container">
       <div className="mb-4 flex items-center gap-2">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => navigate("/parent/invoices")}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Invoices
-        </button>
+          <ArrowLeft className="w-4 h-4 mr-1" /> Back to invoices
+        </Button>
       </div>
 
-      <h1 className="page-title">Invoice {invoice.invoiceNumber}</h1>
-      <p className="page-subtitle">
-        {learner ? `${learner.firstName} ${learner.lastName}` : "—"} · {invoice.term}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div>
+          <h1 className="page-title">Invoice {invoice.invoiceNumber}</h1>
+          <p className="page-subtitle">
+            {learner ? `${learner.firstName} ${learner.lastName}` : "—"} · {invoice.term}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              printInvoice(
+                {
+                  invoiceNumber: invoice.invoiceNumber,
+                  term: invoice.term,
+                  totalAmount: invoice.totalAmount,
+                  status: invoice.status,
+                  dueDate: invoice.dueDate,
+                  paidAmount: invoice.paidAmount,
+                  paidDate: invoice.paidDate,
+                  description: invoice.description ?? undefined,
+                  source: invoice.source,
+                },
+                { subtitle: learner ? `${learner.firstName} ${learner.lastName}` : undefined }
+              )
+            }
+          >
+            <Download className="w-4 h-4 mr-1" /> Download invoice
+          </Button>
+          {invoice.status === "paid" && (() => {
+            const payerLabel = learner ? `${learner.firstName} ${learner.lastName}` : null;
+            const receipt = getReceiptForInvoice(invoice, payerLabel);
+            return receipt ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => printReceipt(receipt)}
+              >
+                <Download className="w-4 h-4 mr-1" /> Download receipt
+              </Button>
+            ) : null;
+          })()}
+        </div>
+      </div>
 
       <div className="rounded-xl border bg-card p-5 space-y-4 max-w-2xl">
         <div className="grid gap-2 sm:grid-cols-2">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePartnerships } from "@/context/PartnershipsContext";
 import type { Partnership, PartnershipProgramType } from "@/types";
 import { PARTNERSHIP_PROGRAM_TYPES } from "@/types";
@@ -30,6 +30,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import {
+  isApiEnabled,
+  partnersGetOrganisations,
+  partnersGetParents,
+  type OrganisationPartnerApi,
+  type ParentPartnerApi,
+} from "@/lib/api";
 import { Plus } from "lucide-react";
 
 const statusVariant: Record<Partnership["status"], "default" | "secondary" | "outline"> = {
@@ -39,7 +47,7 @@ const statusVariant: Record<Partnership["status"], "default" | "secondary" | "ou
 };
 
 export default function PartnershipsListPage() {
-  const { partnerships, addPartnership } = usePartnerships();
+  const { partnerships: ctxPartnerships, addPartnership } = usePartnerships();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
@@ -52,6 +60,52 @@ export default function PartnershipsListPage() {
     status: "active" as Partnership["status"],
     notes: "",
   });
+
+  const apiEnabled = isApiEnabled();
+
+  const { data: orgPartners = [], isLoading: orgsLoading } = useQuery<OrganisationPartnerApi[]>({
+    queryKey: ["partners", "organisations"],
+    queryFn: partnersGetOrganisations,
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: parentPartners = [], isLoading: parentsLoading } = useQuery<ParentPartnerApi[]>({
+    queryKey: ["partners", "parents"],
+    queryFn: partnersGetParents,
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const partnerships: Partnership[] = useMemo(() => {
+    if (!apiEnabled) return ctxPartnerships;
+
+    const fromOrgs: Partnership[] = orgPartners.map((o) => ({
+      id: o.id,
+      name: o.name,
+      type: o.type || "Organisation",
+      programType: undefined,
+      contactPerson: o.contactPerson,
+      contactEmail: o.contactEmail || undefined,
+      contactPhone: o.contactPhone || undefined,
+      status: "active",
+      createdAt: o.createdAt,
+    }));
+
+    const fromParents: Partnership[] = parentPartners.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: "Parent",
+      programType: undefined,
+      contactPerson: p.name,
+      contactEmail: p.email || undefined,
+      contactPhone: p.contactPhone || undefined,
+      status: p.status as Partnership["status"],
+      createdAt: p.createdAt,
+    }));
+
+    return [...fromOrgs, ...fromParents];
+  }, [apiEnabled, ctxPartnerships, orgPartners, parentPartners]);
 
   const handleAdd = () => {
     if (!form.name.trim()) {
@@ -87,10 +141,12 @@ export default function PartnershipsListPage() {
             Add and manage all active partnerships. Only Partnership & Communications can edit this list.
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add partnership
-        </Button>
+        {!apiEnabled && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add partnership
+          </Button>
+        )}
       </div>
 
       <div className="rounded-md border">
