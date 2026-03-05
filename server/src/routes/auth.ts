@@ -35,9 +35,9 @@ router.post("/login", async (req: Request, res: Response) => {
     name: user.name,
     role: user.role as UserRole,
     email: user.email ?? undefined,
-    status: user.status ?? undefined,
+    status: (user.status as AppUser["status"]) ?? undefined,
     organizationId: user.organizationId ?? undefined,
-    membershipStatus: user.membershipStatus ?? undefined,
+    membershipStatus: (user.membershipStatus as AppUser["membershipStatus"]) ?? undefined,
     avatarId: user.avatarId ?? undefined,
   };
 
