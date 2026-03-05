@@ -8,8 +8,10 @@ const router = Router();
 
 /** POST /v1/auth/login */
 router.post("/login", async (req: Request, res: Response) => {
-  const { email, password } = req.body ?? {};
-  if (!email || typeof email !== "string" || !password) {
+  const rawEmail = req.body?.email;
+  const password = typeof req.body?.password === "string" ? req.body.password.trim() : "";
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+  if (!email || !password) {
     sendError(res, 400, "VALIDATION_ERROR", "Email and password are required.");
     return;
   }

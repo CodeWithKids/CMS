@@ -12,9 +12,12 @@ import { canRecordPayment, canRequestAdjustment } from "@/features/finance/lib/p
 import { PaymentDialog } from "@/features/invoices/components/PaymentDialog";
 import { AdjustmentRequestDialog } from "@/features/invoices/components/AdjustmentRequestDialog";
 import { useTerms } from "@/hooks/useTerms";
+import { useOrganisation } from "@/hooks/useOrganisation";
 import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
+import { useQuery } from "@tanstack/react-query";
+import { isApiEnabled, learnersGetById } from "@/lib/api";
 import {
   INVOICE_STATUS_LABELS,
   PAYER_TYPE_LABELS,
@@ -32,15 +35,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { logAppEvent } from "@/lib/analytics";
 
-function getPayerName(inv: FinanceInvoice): string {
-  if (inv.payerType === "parent" && inv.learnerId) {
-    const learner = getLearner(inv.learnerId);
-    return learner ? `${learner.firstName} ${learner.lastName}` : inv.learnerId;
-  }
-  const org = getOrganization(inv.payerId);
-  return org?.name ?? inv.payerId;
-}
-
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
@@ -50,6 +44,28 @@ export default function InvoiceDetailPage() {
   const adjustments = useAdjustmentsForInvoice(id);
   const creditNotes = useCreditNotesForInvoice(id);
   const { recordPayment, createAdjustmentRequest, loadPaymentsForInvoice } = useFinance();
+  const apiEnabled = isApiEnabled();
+  const { organisation: orgFromApi } = useOrganisation(
+    invoice?.payerType === "organisation" ? invoice.payerId : null
+  );
+  const { data: learnerFromApi } = useQuery({
+    queryKey: ["learner", invoice?.learnerId],
+    queryFn: () => learnersGetById(invoice!.learnerId!),
+    enabled: apiEnabled && !!invoice?.learnerId && invoice?.payerType === "parent",
+  });
+  const payerName =
+    !invoice
+      ? ""
+      : invoice.payerType === "parent" && invoice.learnerId
+        ? apiEnabled && learnerFromApi
+          ? `${learnerFromApi.firstName} ${learnerFromApi.lastName}`
+          : (() => {
+              const learner = getLearner(invoice.learnerId);
+              return learner ? `${learner.firstName} ${learner.lastName}` : invoice.learnerId;
+            })()
+        : apiEnabled && orgFromApi
+          ? orgFromApi.name
+          : getOrganization(invoice.payerId)?.name ?? invoice.payerId;
 
   useEffect(() => {
     if (id) loadPaymentsForInvoice(id);
@@ -76,7 +92,6 @@ export default function InvoiceDetailPage() {
     );
   }
 
-  const payerName = getPayerName(invoice);
   const termName = terms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId;
 
   return (

@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   getClass,
   getTerm,
-  mockTerms,
   getLearner,
   getEducatorName,
   DEFAULT_TERM_ID,
@@ -15,6 +14,16 @@ import { useAttendance } from "@/context/AttendanceContext";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
 import { useLessonPlans } from "@/context/LessonPlansContext";
+import { useTerms } from "@/hooks/useTerms";
+import { useEducators } from "@/hooks/useEducators";
+import { useQuery } from "@tanstack/react-query";
+import {
+  isApiEnabled,
+  classesGetById,
+  sessionsGetAll,
+} from "@/lib/api";
+import type { ClassEntity, Session, SessionType } from "@/types";
+import { useLearners } from "@/hooks/useLearners";
 import { getSessionRoleForUser, canEditSession } from "@/features/educator/lib/auth";
 import { AddCoachDialog } from "@/features/educator/components/AddCoachDialog";
 import { LEARNING_TRACK_LABELS } from "@/types";
@@ -31,19 +40,100 @@ export default function ClassDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const { getSessionsForClass } = useSessions();
+  const apiEnabled = isApiEnabled();
+  const { terms, currentTerm } = useTerms();
+  const { educators } = useEducators();
+  const { learners: allLearners } = useLearners();
   const [termId, setTermId] = useState(DEFAULT_TERM_ID);
   const [coachDialogSession, setCoachDialogSession] = useState<string | null>(null);
-  const cls = getClass(id ?? "");
-  const sessions = getSessionsForClass(id ?? "");
-  const { getBySession } = useAttendance();
+
+  const { data: apiClass } = useQuery({
+    queryKey: ["class", id],
+    queryFn: () => classesGetById(id!),
+    enabled: apiEnabled && !!id,
+  });
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["sessions", id, termId],
+    queryFn: () => sessionsGetAll({ classId: id!, termId }),
+    enabled: apiEnabled && !!id && !!termId,
+  });
+
+  const cls: ClassEntity | undefined = useMemo(() => {
+    if (apiEnabled && apiClass) {
+      return {
+        id: apiClass.id,
+        name: apiClass.name,
+        program: apiClass.program,
+        ageGroup: apiClass.ageGroup,
+        location: apiClass.location,
+        educatorId: apiClass.educatorId ?? "",
+        termId: apiClass.termId,
+        learnerIds: apiClass.learnerIds ?? [],
+        capacity: apiClass.capacity ?? undefined,
+      };
+    }
+    return getClass(id ?? "") ?? undefined;
+  }, [apiEnabled, apiClass, id]);
+
+  const sessions = useMemo((): Session[] => {
+    if (apiEnabled && id && apiSessions.length >= 0) {
+      return apiSessions.map((s) => ({
+        id: s.id,
+        classId: s.classId,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        topic: s.topic,
+        sessionType: s.sessionType as SessionType,
+        duration: "1_hour" as const,
+        learningTrack: s.learningTrack as import("@/types").LearningTrack,
+        termId: s.termId,
+        leadEducatorId: s.leadEducatorId,
+        assistantEducatorIds: s.assistantEducatorIds ?? [],
+        durationHours: s.durationHours ?? 1,
+      }));
+    }
+    return getSessionsForClass(id ?? "");
+  }, [apiEnabled, id, apiSessions, getSessionsForClass]);
+
   const { getEnrollmentsForClass } = useEnrollments();
+  const enrollmentsThisTerm = useMemo(() => {
+    if (!cls) return [];
+    if (apiEnabled && cls.learnerIds) {
+      return cls.learnerIds.map((learnerId) => ({
+        id: `e-${cls.id}-${learnerId}-${termId}`,
+        classId: cls.id,
+        learnerId,
+        termId,
+        status: "active" as const,
+      }));
+    }
+    return getEnrollmentsForClass(cls.id, termId);
+  }, [apiEnabled, cls, termId, getEnrollmentsForClass]);
+
+  const activeLearnerIdsThisTerm = enrollmentsThisTerm.filter((e) => e.status === "active").map((e) => e.learnerId);
+  const learnerMap = useMemo(() => {
+    const map = new Map<string, import("@/types").Learner>();
+    if (apiEnabled && cls) {
+      allLearners.filter((l) => cls.learnerIds?.includes(l.id)).forEach((l) => map.set(l.id, l));
+      return map;
+    }
+    return null;
+  }, [apiEnabled, cls, allLearners]);
+  const getLearnerForRow = (learnerId: string) => (learnerMap ? learnerMap.get(learnerId) : getLearner(learnerId));
+  const educatorNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    educators.forEach((e) => map.set(e.id, e.name));
+    return map;
+  }, [educators]);
+  const getEducatorNameForRow = (educatorId: string) => educatorNameMap.get(educatorId) ?? getEducatorName(educatorId);
+
+  const { getBySession } = useAttendance();
   const { getBySession: getReportBySession } = useSessionReports();
   const { getExpenseBySessionAndEducator } = useSessionExpenses();
   const { getInstanceForSession } = useLessonPlans();
   const educatorId = currentUser?.id ?? "";
-  const term = getTerm(termId);
-  const enrollmentsThisTerm = cls ? getEnrollmentsForClass(cls.id, termId) : [];
-  const activeLearnerIdsThisTerm = enrollmentsThisTerm.filter((e) => e.status === "active").map((e) => e.learnerId);
+  const term = apiEnabled ? terms.find((t) => t.id === termId) : getTerm(termId);
   const totalLearners = activeLearnerIdsThisTerm.length;
   const sessionStats = sessions.map((s) => {
     const records = getBySession(s.id);
@@ -87,7 +177,7 @@ export default function ClassDetailPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {mockTerms.map((t) => (
+              {(terms.length ? terms : [{ id: DEFAULT_TERM_ID, name: "Term 1" }]).map((t) => (
                 <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
               ))}
             </SelectContent>
@@ -101,7 +191,7 @@ export default function ClassDetailPage() {
             <li className="px-3 py-2 text-sm text-muted-foreground">No enrolments for this term.</li>
           ) : (
             enrollmentsThisTerm.map((e) => {
-              const learner = getLearner(e.learnerId);
+              const learner = getLearnerForRow(e.learnerId);
               const name = learner ? `${learner.firstName} ${learner.lastName}` : e.learnerId;
               return (
                 <li key={e.id} className="px-3 py-2 flex items-center justify-between text-sm">
@@ -189,7 +279,7 @@ export default function ClassDetailPage() {
                     <div className="flex flex-wrap items-center gap-1">
                       {coachIds.map((cid) => (
                         <span key={cid} className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">
-                          {getEducatorName(cid)}
+                          {getEducatorNameForRow(cid)}
                         </span>
                       ))}
                       {canEdit && (

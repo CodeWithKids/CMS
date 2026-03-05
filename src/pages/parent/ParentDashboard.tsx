@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { isApiEnabled, attendanceGet } from "@/lib/api";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -124,19 +126,40 @@ function AttendanceSummaryLine({
   learnerId: string;
   getByLearner: (learnerId: string) => { sessionId: string; status: string }[];
 }) {
+  const sessions = useMemo(
+    () => getSessionsForStudent(learnerId).filter((s) => s.date <= today),
+    [learnerId]
+  );
+  const apiEnabled = isApiEnabled();
+  const { data: apiRecords = [], isLoading } = useQuery({
+    queryKey: ["parent", "attendance", learnerId, sessions.map((s) => s.id).join(",")],
+    queryFn: async () => {
+      const all = await Promise.all(
+        sessions.map((s) => attendanceGet(s.id))
+      );
+      return all.flat().filter((r) => r.learnerId === learnerId);
+    },
+    enabled: apiEnabled && sessions.length > 0,
+  });
+
   const { total, attended } = useMemo(() => {
-    const records = getByLearner(learnerId);
-    const sessions = getSessionsForStudent(learnerId).filter((s) => s.date <= today);
+    const records = apiEnabled ? apiRecords : getByLearner(learnerId);
     const sessionIds = new Set(sessions.map((s) => s.id));
     const totalSessions = sessionIds.size;
     const attendedCount = records.filter(
-      (r) => sessionIds.has(r.sessionId) && (r.status === "present" || r.status === "late")
+      (r) =>
+        sessionIds.has(r.sessionId) &&
+        (r.status === "present" || r.status === "late")
     ).length;
     return { total: totalSessions, attended: attendedCount };
-  }, [learnerId, getByLearner]);
+  }, [apiEnabled, apiRecords, getByLearner, learnerId, sessions]);
 
   if (total === 0) {
-    return <p className="text-sm font-medium text-muted-foreground">No sessions yet.</p>;
+    return (
+      <p className="text-sm font-medium text-muted-foreground">
+        {isLoading && apiEnabled ? "Loading attendance…" : "No sessions yet."}
+      </p>
+    );
   }
   const pct = Math.round((attended / total) * 100);
   return (

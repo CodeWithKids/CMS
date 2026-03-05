@@ -1,5 +1,8 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { mockStaff } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
+import { isApiEnabled } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -31,13 +34,30 @@ function getTitle(staffId: string): string {
 }
 
 export default function EducatorProfilesListPage() {
-  const adminStaff = mockStaff.filter((s) => ADMIN_IDS.includes(s.id));
-  const financeStaff = mockStaff.filter((s) => FINANCE_IDS.includes(s.id));
-  const educatorStaff = mockStaff.filter((s) => EDUCATOR_IDS.includes(s.id));
+  const apiEnabled = isApiEnabled();
+  const { educators } = useEducators();
+
+  const { adminStaff, financeStaff, educatorStaff } = useMemo(() => {
+    if (apiEnabled) {
+      const admin = educators.filter((e) => e.role === "admin");
+      const finance = educators.filter((e) => e.role === "finance");
+      const educator = educators.filter((e) => e.role === "educator" || e.role === "ld_manager");
+      return {
+        adminStaff: admin.map((e) => ({ id: e.id, name: e.name, role: e.role, email: e.email })),
+        financeStaff: finance.map((e) => ({ id: e.id, name: e.name, role: e.role, email: e.email })),
+        educatorStaff: educator.map((e) => ({ id: e.id, name: e.name, role: e.role, email: e.email })),
+      };
+    }
+    return {
+      adminStaff: mockStaff.filter((s) => ADMIN_IDS.includes(s.id)),
+      financeStaff: mockStaff.filter((s) => FINANCE_IDS.includes(s.id)),
+      educatorStaff: mockStaff.filter((s) => EDUCATOR_IDS.includes(s.id)),
+    };
+  }, [apiEnabled, educators]);
 
   const renderSection = (
     sectionTitle: string,
-    members: typeof mockStaff,
+    members: { id: string; name: string; role: string; email?: string | null }[],
     getDetailPath: (id: string) => string
   ) => {
     if (members.length === 0) return null;

@@ -16,9 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { mockEducatorPayments, getEducatorName } from "@/mockData";
-import { Wallet } from "lucide-react";
+import { Wallet, WifiOff } from "lucide-react";
 import type { EducatorPaymentType } from "@/types";
+import { useEducators } from "@/hooks/useEducators";
+import { useQuery } from "@tanstack/react-query";
+import { isApiEnabled, financeEducatorPaymentsGetAll, type EducatorPaymentApi } from "@/lib/api";
 
 const paymentTypeLabels: Record<EducatorPaymentType, string> = {
   stipend: "Stipend",
@@ -43,18 +45,35 @@ export default function FinanceEducatorPaymentsPage() {
   const [periodFilter, setPeriodFilter] = useState<string>(ALL_PERIODS);
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
 
+  const apiEnabled = isApiEnabled();
+  const { educators } = useEducators();
+  const { data: payments = [], isLoading } = useQuery<EducatorPaymentApi[]>({
+    queryKey: ["finance", "educator-payments"],
+    queryFn: () => financeEducatorPaymentsGetAll(),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const educatorNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    educators.forEach((e) => map.set(e.id, e.name));
+    return map;
+  }, [educators]);
+
+  const getEducatorName = (id: string) => educatorNameMap.get(id) ?? id;
+
   const periods = useMemo(() => {
-    const set = new Set(mockEducatorPayments.map((p) => p.period));
+    const set = new Set(payments.map((p) => p.period));
     return Array.from(set).sort();
-  }, []);
+  }, [payments]);
 
   const filtered = useMemo(() => {
-    return mockEducatorPayments.filter((p) => {
+    return payments.filter((p) => {
       if (periodFilter !== ALL_PERIODS && p.period !== periodFilter) return false;
       if (statusFilter !== ALL_STATUSES && p.status !== statusFilter) return false;
       return true;
     });
-  }, [periodFilter, statusFilter]);
+  }, [payments, periodFilter, statusFilter]);
 
   return (
     <div className="p-6 space-y-6">
@@ -65,6 +84,22 @@ export default function FinanceEducatorPaymentsPage() {
         </p>
       </div>
 
+      {!apiEnabled && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <WifiOff className="w-4 h-4" /> Using demo data
+            </CardTitle>
+            <CardDescription>
+              Connect to the API to load real educator payments. Set{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">VITE_API_URL=http://localhost:3001</code>{" "}
+              in a root <code className="rounded bg-muted px-1 py-0.5 text-xs">.env</code> file and ensure the finance
+              API exposes <code className="rounded bg-muted px-1 py-0.5 text-xs">/v1/finance/educator-payments</code>.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -73,6 +108,9 @@ export default function FinanceEducatorPaymentsPage() {
           <CardDescription>Read-only. Finance manages entries elsewhere.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isLoading && apiEnabled && (
+            <p className="text-sm text-muted-foreground">Loading educator payments…</p>
+          )}
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Period:</span>

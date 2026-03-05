@@ -1,7 +1,9 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { getPaymentsForEducator } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
+import { isApiEnabled, financeEducatorPaymentsGetAll, type EducatorPaymentApi } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -38,12 +40,34 @@ function formatDate(iso: string | undefined): string {
 
 export default function EducatorEarningsPage() {
   const { currentUser } = useAuth();
+  const apiEnabled = isApiEnabled();
+
+  const { data: apiPayments = [] } = useQuery({
+    queryKey: ["educator", "earnings", currentUser?.id],
+    queryFn: () =>
+      financeEducatorPaymentsGetAll({
+        educatorId: currentUser?.id,
+      }),
+    enabled: apiEnabled && !!currentUser?.id && currentUser?.role === "educator",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const payments = useMemo(() => {
-    if (!currentUser?.id) return [];
-    if (currentUser.role !== "educator") return [];
+    if (!currentUser?.id || currentUser.role !== "educator") return [];
+    if (apiEnabled) {
+      return (apiPayments as EducatorPaymentApi[]).map((p) => ({
+        id: p.id,
+        educatorId: p.educatorId,
+        period: p.period,
+        type: p.type as EducatorPaymentType,
+        amount: p.amount,
+        status: p.status as EducatorPaymentStatus,
+        datePaid: p.datePaid ?? undefined,
+        notes: p.notes ?? undefined,
+      }));
+    }
     return getPaymentsForEducator(currentUser.id);
-  }, [currentUser?.id, currentUser?.role]);
+  }, [apiEnabled, apiPayments, currentUser?.id, currentUser?.role]);
 
   const totals = useMemo(() => {
     const thisYear = new Date().getFullYear();

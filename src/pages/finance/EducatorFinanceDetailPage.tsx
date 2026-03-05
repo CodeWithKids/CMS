@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useSessions } from "@/context/SessionsContext";
+import { useQuery } from "@tanstack/react-query";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
 import { mockTerms, getEducatorName, getClass } from "@/mockData";
+import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
+import type { Session, SessionType, LearningTrack } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -22,18 +24,46 @@ export default function EducatorFinanceDetailPage() {
   const { id: educatorId } = useParams<{ id: string }>();
   const [termId, setTermId] = useState(mockTerms[0]?.id ?? "t1");
 
-  const { getSessionsForEducatorByRole } = useSessions();
   const { expenses: allExpenses } = useSessionExpenses();
+
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["finance", "educator-detail", "sessions", educatorId, termId],
+    queryFn: () =>
+      sessionsGetAll({
+        educatorId: educatorId ?? undefined,
+      }),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const sessionsInTerm = useMemo(() => {
     if (!educatorId) return [];
     const term = mockTerms.find((t) => t.id === termId);
     if (!term) return [];
-    return getSessionsForEducatorByRole(educatorId, {
-      from: term.startDate,
-      to: term.endDate,
-    });
-  }, [educatorId, termId, getSessionsForEducatorByRole]);
+    if (apiEnabled) {
+      return (apiSessions as SessionApi[])
+        .filter((s) => s.termId === term.id)
+        .map(
+          (s): Session => ({
+            id: s.id,
+            classId: s.classId,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            topic: s.topic,
+            sessionType: s.sessionType as SessionType,
+            duration: "1_hour",
+            learningTrack: s.learningTrack as LearningTrack,
+            termId: s.termId,
+            leadEducatorId: s.leadEducatorId,
+            assistantEducatorIds: s.assistantEducatorIds ?? [],
+            durationHours: s.durationHours ?? 1,
+          })
+        );
+    }
+    return []; // when API is off, SessionExpensesContext still uses mock sessions for demo
+  }, [educatorId, termId, apiEnabled, apiSessions]);
 
   const hours = useMemo(() => {
     let facilitating = 0;

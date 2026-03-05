@@ -1,8 +1,17 @@
 import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
+import { useEducators } from "@/hooks/useEducators";
+import {
+  isApiEnabled,
+  sessionReportsGetById,
+  sessionsGetById,
+  classesGetById,
+  attendanceGet,
+} from "@/lib/api";
 import { getSession, getClass, getEducatorName } from "@/mockData";
 import {
   buildSessionReportSummary,
@@ -145,22 +154,118 @@ function MissingReportView({
 
 export default function SessionReportDetailPage() {
   const { id: reportId } = useParams<{ id: string }>();
+  const apiEnabled = isApiEnabled();
   const { getReportById } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
   const { getBySession: getBadgeAwardsBySession } = useBadgeAwards();
+  const { educators } = useEducators();
 
   const isMissing = reportId?.startsWith("missing-") ?? false;
   const sessionIdFromMissing = isMissing ? reportId!.replace("missing-", "") : null;
 
-  const report = reportId && !isMissing ? getReportById(reportId) : undefined;
-  const sessionFromReport = report ? getSession(report.sessionId) : null;
+  const reportIdForApi = reportId && !isMissing ? reportId : null;
+  const sessionIdForApi = sessionIdFromMissing ?? (reportIdForApi ? undefined : null);
+
+  const { data: apiReport, isLoading: apiReportLoading } = useQuery({
+    queryKey: ["session-report", reportIdForApi],
+    queryFn: () => sessionReportsGetById(reportIdForApi!),
+    enabled: apiEnabled && !!reportIdForApi,
+  });
+  const effectiveSessionId = apiReport?.sessionId ?? sessionIdForApi;
+  const { data: apiSession, isLoading: apiSessionLoading } = useQuery({
+    queryKey: ["session", effectiveSessionId],
+    queryFn: () => sessionsGetById(effectiveSessionId!),
+    enabled: apiEnabled && !!effectiveSessionId,
+  });
+  const { data: apiClass } = useQuery({
+    queryKey: ["class", apiSession?.classId],
+    queryFn: () => classesGetById(apiSession!.classId),
+    enabled: apiEnabled && !!apiSession?.classId,
+  });
+  const { data: apiAttendance = [] } = useQuery({
+    queryKey: ["attendance", effectiveSessionId],
+    queryFn: () => attendanceGet(effectiveSessionId!),
+    enabled: apiEnabled && !!effectiveSessionId,
+  });
+
+  const educatorNameMap = useMemo(() => new Map(educators.map((e) => [e.id, e.name])), [educators]);
+  const getEducatorNameForRow = (id: string) => educatorNameMap.get(id) ?? getEducatorName(id);
+
+  const report = apiEnabled && apiReport
+    ? ({
+        id: apiReport.id,
+        sessionId: apiReport.sessionId,
+        status: apiReport.status as "draft" | "submitted",
+        leadEducatorId: apiReport.leadEducatorId,
+        assistantEducatorIds: apiReport.assistantEducatorIds ?? [],
+        date: apiReport.date,
+        duration: "1_hour" as const,
+        sessionType: apiReport.sessionType as import("@/types").SessionType,
+        schoolOrOrganizationName: apiReport.schoolOrOrganizationName ?? "",
+        totalLearners: apiReport.totalLearners ?? 0,
+        learningTrack: apiReport.learningTrack as import("@/types").LearningTrack,
+        durationHours: apiReport.durationHours ?? 1,
+        femaleCount: apiReport.femaleCount ?? 0,
+        maleCount: apiReport.maleCount ?? 0,
+        highlights: apiReport.highlights ?? [],
+        objectivesMet: (apiReport.objectivesMet ?? "yes") as import("@/types").ObjectivesMet,
+        engagementLevel: undefined,
+        ranAsPlanned: true,
+        technicalChallenges: false,
+        incidentOccurred: false,
+        incidentFollowUp: undefined,
+        coachFeedback: [],
+      } as import("@/types").SessionReport)
+    : (reportId && !isMissing ? getReportById(reportId) : undefined);
+
+  const sessionFromReport = apiEnabled && apiSession
+    ? ({ ...apiSession, assistantEducatorIds: apiSession.assistantEducatorIds ?? [] } as import("@/types").Session)
+    : (report ? getSession(report.sessionId) : null);
   const sessionFromMissing =
-    sessionIdFromMissing ? getSession(sessionIdFromMissing) : null;
+    apiEnabled && isMissing && apiSession
+      ? ({ ...apiSession, assistantEducatorIds: apiSession.assistantEducatorIds ?? [] } as import("@/types").Session)
+      : (sessionIdFromMissing ? getSession(sessionIdFromMissing) : null);
   const session = sessionFromReport ?? sessionFromMissing;
-  const cls = session ? getClass(session.classId) : null;
+  const cls = apiEnabled && apiClass
+    ? { name: apiClass.name }
+    : (session ? getClass(session.classId) : null);
+
+  const attendanceForSession = apiEnabled && effectiveSessionId
+    ? apiAttendance
+    : getAttendanceBySession(effectiveSessionId ?? "");
+
+  const presentCount = useMemo(
+    () => attendanceForSession.filter((r: { status: string }) => r.status === "present" || r.status === "late").length,
+    [attendanceForSession]
+  );
+  const starsCount = useMemo(
+    () => attendanceForSession.reduce((sum: number, r: { stars?: number }) => sum + (r.stars ?? 0), 0),
+    [attendanceForSession]
+  );
 
   const detailView = useMemo(() => {
     if (!report || !session) return null;
+    if (apiEnabled && apiReport) {
+      return {
+        id: apiReport.id,
+        sessionId: apiReport.sessionId,
+        sessionDate: apiReport.date,
+        sessionType: toSessionReportSessionTypeAdmin(apiReport.sessionType as import("@/types").SessionType),
+        organisationName: apiReport.schoolOrOrganizationName ?? "—",
+        className: apiClass?.name ?? "—",
+        leadEducatorName: getEducatorNameForRow(apiReport.leadEducatorId),
+        presentCount,
+        totalLearners: apiReport.totalLearners ?? 0,
+        engagementRating: null as number | null,
+        status: (apiReport.status === "submitted" ? "SUBMITTED" : "MISSING") as import("@/types").SessionReportStatusAdmin,
+        notes: apiReport.highlights?.length ? apiReport.highlights.join("\n\n") : null,
+        challenges: null,
+        starsGiven: starsCount,
+        badgesSummary: undefined as Record<string, number> | undefined,
+        incidents: null,
+        followUpActions: null,
+      };
+    }
     const present = presentCountForSession(report.sessionId, getAttendanceBySession);
     const stars = starsForSession(report.sessionId, getAttendanceBySession);
     const summary = buildSessionReportSummary(
@@ -177,20 +282,50 @@ export default function SessionReportDetailPage() {
       stars
     );
   }, [
+    apiEnabled,
+    apiReport,
+    apiClass,
     report,
     session,
+    presentCount,
+    starsCount,
+    getEducatorNameForRow,
     getAttendanceBySession,
     getBadgeAwardsBySession,
   ]);
 
+  if (apiEnabled && isMissing && apiSessionLoading) {
+    return (
+      <div className="page-container">
+        <p className="text-muted-foreground">Loading session…</p>
+        <Button asChild variant="outline" size="sm" className="mt-4">
+          <Link to="/admin/session-reports">Back to session reports</Link>
+        </Button>
+      </div>
+    );
+  }
+
   if (isMissing && sessionFromMissing) {
+    const getAttendanceBySessionForMissing = (id: string) =>
+      id === (sessionFromMissing as { id?: string })?.id ? attendanceForSession : [];
     return (
       <MissingReportView
-        sessionFromMissing={sessionFromMissing}
+        sessionFromMissing={sessionFromMissing as Session}
         cls={cls}
-        getAttendanceBySession={getAttendanceBySession}
-        getEducatorName={getEducatorName}
+        getAttendanceBySession={getAttendanceBySessionForMissing}
+        getEducatorName={getEducatorNameForRow}
       />
+    );
+  }
+
+  if (apiEnabled && reportIdForApi && apiReportLoading) {
+    return (
+      <div className="page-container">
+        <p className="text-muted-foreground">Loading report…</p>
+        <Button asChild variant="outline" size="sm" className="mt-4">
+          <Link to="/admin/session-reports">Back to session reports</Link>
+        </Button>
+      </div>
     );
   }
 

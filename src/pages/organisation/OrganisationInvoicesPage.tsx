@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useMemo } from "react";
 import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
+import { useInvoices } from "@/context/FinanceContext";
+import { isApiEnabled } from "@/lib/api";
 import { getInvoicesForOrganisation } from "@/mockData";
 import { FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,12 +17,31 @@ const statusStyles: Record<string, string> = {
   sent: "bg-info/10 text-info",
   partially_paid: "bg-warning/10 text-warning",
   paid: "bg-success/10 text-success",
+  overdue: "bg-destructive/10 text-destructive",
 };
 
 export default function OrganisationInvoicesPage() {
   const { organisation, organizationId, isOrgUser } = useOrganisationLearners();
   const { getInvoices } = useFinanceAccount();
-  const invoices = organizationId ? getInvoicesForOrganisation(getInvoices(), organizationId) : [];
+  const financeInvoices = useInvoices({ payerType: "organisation" });
+  const apiEnabled = isApiEnabled();
+
+  const legacyInvoices = organizationId
+    ? getInvoicesForOrganisation(getInvoices(), organizationId)
+    : [];
+
+  const apiInvoices = useMemo(
+    () =>
+      financeInvoices.filter(
+        (inv) =>
+          inv.organisationId != null &&
+          organizationId != null &&
+          inv.organisationId === organizationId
+      ),
+    [financeInvoices, organizationId]
+  );
+
+  const invoices = apiEnabled ? apiInvoices : legacyInvoices;
 
   const [loadError, setLoadError] = useState(false);
 

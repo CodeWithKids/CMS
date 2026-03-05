@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useLessonPlans } from "@/context/LessonPlansContext";
 import { mockSessions } from "@/mockData";
+import { isApiEnabled, sessionsGetAll } from "@/lib/api";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { LearningTrack } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +15,39 @@ const TRACK_IDS: LearningTrack[] = ["game_design", "python", "robotics", "comput
 
 export default function LDTracksPage() {
   const { templates } = useLessonPlans();
-  const trackStats = TRACK_IDS.map((trackId) => {
-    const templateCount = templates.filter((t) => t.learningTrackId === trackId).length;
-    const classIds = [...new Set(mockSessions.filter((s) => s.learningTrack === trackId).map((s) => s.classId))];
-    return { trackId, name: LEARNING_TRACK_LABELS[trackId] ?? trackId, templateCount, activeClassesCount: classIds.length };
-  }).filter((t) => t.templateCount > 0 || t.activeClassesCount > 0);
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["ld", "tracks", "sessions"],
+    queryFn: () => sessionsGetAll({}),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const sessions = useMemo(
+    () => (apiEnabled ? apiSessions : mockSessions),
+    [apiEnabled, apiSessions]
+  );
+
+  const trackStats = useMemo(
+    () =>
+      TRACK_IDS.map((trackId) => {
+        const templateCount = templates.filter((t) => t.learningTrackId === trackId).length;
+        const classIds = [
+          ...new Set(
+            sessions
+              .filter((s) => s.learningTrack === trackId)
+              .map((s) => s.classId)
+          ),
+        ];
+        return {
+          trackId,
+          name: LEARNING_TRACK_LABELS[trackId] ?? trackId,
+          templateCount,
+          activeClassesCount: classIds.length,
+        };
+      }).filter((t) => t.templateCount > 0 || t.activeClassesCount > 0),
+    [templates, sessions]
+  );
 
   return (
     <div className="p-6 space-y-6">

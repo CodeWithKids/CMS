@@ -67,14 +67,13 @@ export const mockLearners: Learner[] = [
   { id: "l6", firstName: "Sofia", lastName: "Garcia", dateOfBirth: "2014-05-18", school: "Riverside Academy", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org3", status: "active", gender: "female", joinedAt: "2026-01-18" },
 ];
 
-/** Canonical program names for classes (match SESSION_TYPE_LABELS). Daraja Tech falls under organisation sessions. */
+/** Type of class / session category. Used for class program and filters. Add more as needed. */
 export const PROGRAM_NAMES = [
   "Makerspace Session",
   "School STEM Club",
   "Virtual Session",
   "Home Sessions",
   "Organization Session",
-  "Daraja Tech program",
   "Miradi Session (Compassion Churches)",
 ] as const;
 

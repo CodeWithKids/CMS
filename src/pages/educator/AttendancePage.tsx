@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
@@ -33,6 +33,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { isApiEnabled, attendanceGet, attendancePut } from "@/lib/api";
 
 const MAX_STARS = 3;
 const BADGE_NOTE_MAX = 140;
@@ -57,6 +59,12 @@ export default function AttendancePage() {
   const { currentUser } = useAuth();
   const { getBySession, setRecord, markAllPresent } = useAttendance();
   const { getByLearnerAndSession, addAward } = useBadgeAwards();
+  const apiEnabled = isApiEnabled();
+  const { data: apiAttendance = [] } = useQuery({
+    queryKey: ["attendance", sessionId],
+    queryFn: () => attendanceGet(sessionId!),
+    enabled: apiEnabled && !!sessionId,
+  });
   const { getExpenseBySessionAndEducator } = useSessionExpenses();
   const { toast } = useToast();
   const [learnerIdForBadge, setLearnerIdForBadge] = useState<string | null>(null);
@@ -66,6 +74,20 @@ export default function AttendancePage() {
   const { getSessionById } = useSessions();
   const session = getSessionById(sessionId ?? "");
   const cls = session ? getClass(session.classId) : null;
+  useEffect(() => {
+    if (!apiEnabled || !sessionId || apiAttendance.length === 0) return;
+    apiAttendance.forEach((row) => {
+      setRecord({
+        learnerId: row.learnerId,
+        sessionId: row.sessionId,
+        status: row.status as AttendanceStatus,
+        stars: row.stars ?? undefined,
+        notes: row.notes ?? undefined,
+        markedAt: row.markedAt ?? undefined,
+        markedBy: row.markedBy ?? undefined,
+      });
+    });
+  }, [apiEnabled, sessionId, apiAttendance, setRecord]);
   const educatorId = currentUser?.id ?? "";
   const role = getSessionRoleForUser(session, currentUser);
   const isCoachReadOnly = role === "coach";
@@ -101,16 +123,36 @@ export default function AttendancePage() {
     }
   };
 
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = async () => {
     if (!session || !cls) return;
     const now = new Date().toISOString();
     cls.learnerIds.forEach((learnerId) => {
-      const rec = getRecord(learnerId);
       setRecord({
         ...mergeRecord(learnerId, {}),
         markedAt: now,
       });
     });
+    if (apiEnabled && sessionId) {
+      try {
+        const payload = cls.learnerIds.map((learnerId) => {
+          const rec = getRecord(learnerId) ?? mergeRecord(learnerId, {});
+          return {
+            learnerId,
+            status: rec.status,
+            stars: rec.stars ?? 0,
+            notes: rec.notes ?? undefined,
+          };
+        });
+        await attendancePut(sessionId, payload);
+      } catch {
+        toast({
+          title: "Could not save to server",
+          description: "Attendance was saved locally but syncing to the API failed.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     toast({ title: "Attendance saved", description: "Session attendance has been saved successfully." });
   };
 

@@ -1,8 +1,9 @@
+import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   getStaffMember,
   getCurrentTerm,
-  getSessionsForTerm,
   mockSessions,
   mockStaff,
   mockUsers,
@@ -10,6 +11,8 @@ import {
 import { getEducatorBadgesForEducator } from "@/mockData/educator";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { useInventory } from "@/context/InventoryContext";
+import { isApiEnabled, sessionsGetAll, educatorBadgesGetAll, type SessionApi, type EducatorBadgeApi } from "@/lib/api";
+import type { Session, SessionType, LearningTrack } from "@/types";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,12 +32,54 @@ export default function EducatorProfileDetailPage() {
 
   const currentTerm = getCurrentTerm();
   const termId = currentTerm?.id ?? "t1";
-  const allSessions = mockSessions.filter(
-    (s) => s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId)
+
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["admin", "educator-profile", "sessions", educatorId],
+    queryFn: () => sessionsGetAll({ educatorId }),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: apiBadges = [] } = useQuery({
+    queryKey: ["admin", "educator-profile", "badges", educatorId],
+    queryFn: () => educatorBadgesGetAll(educatorId),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const allSessions: Session[] = useMemo(
+    () =>
+      apiEnabled
+        ? (apiSessions as SessionApi[]).map(
+            (s): Session => ({
+              id: s.id,
+              classId: s.classId,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              topic: s.topic,
+              sessionType: s.sessionType as SessionType,
+              duration: "1_hour",
+              learningTrack: s.learningTrack as LearningTrack,
+              termId: s.termId,
+              leadEducatorId: s.leadEducatorId,
+              assistantEducatorIds: s.assistantEducatorIds ?? [],
+              durationHours: s.durationHours ?? 1,
+            })
+          )
+        : mockSessions.filter(
+            (s) =>
+              s.leadEducatorId === educatorId ||
+              (s.assistantEducatorIds ?? []).includes(educatorId)
+          ),
+    [apiEnabled, apiSessions, educatorId]
   );
-  const sessionsThisTerm = getSessionsForTerm(termId).filter(
-    (s) =>
-      s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId)
+
+  const sessionsThisTerm = useMemo(
+    () =>
+      allSessions.filter((s) => s.termId === termId),
+    [allSessions, termId]
   );
   const facilitatingHours = sessionsThisTerm
     .filter((s) => s.leadEducatorId === educatorId)
@@ -44,7 +89,20 @@ export default function EducatorProfileDetailPage() {
     .reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
   const totalHours = facilitatingHours + coachingHours;
 
-  const staticBadges = getEducatorBadgesForEducator(educatorId);
+  const staticBadges = useMemo(() => {
+    if (apiEnabled) {
+      return (apiBadges as EducatorBadgeApi[]).map((b) => ({
+        id: b.id,
+        educatorId: b.educatorId,
+        trackId: b.trackId ?? undefined,
+        name: b.badgeId,
+        description: "",
+        earnedAt: b.earnedAt,
+      }));
+    }
+    return getEducatorBadgesForEducator(educatorId);
+  }, [apiEnabled, apiBadges, educatorId]);
+
   const computedBadges = computeEducatorBadges(educatorId, allSessions);
   const byTrack = new Set(computedBadges.map((b) => b.trackId).filter(Boolean));
   const badges = [

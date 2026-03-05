@@ -1,6 +1,10 @@
+import { useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
+import { useInvoice } from "@/context/FinanceContext";
+import { isApiEnabled } from "@/lib/api";
+import type { Receipt } from "@/types";
 import { getReceiptForInvoice } from "@/mockData";
 import { ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +17,7 @@ const statusStyles: Record<string, string> = {
   sent: "bg-info/10 text-info",
   partially_paid: "bg-warning/10 text-warning",
   paid: "bg-success/10 text-success",
+  overdue: "bg-destructive/10 text-destructive",
 };
 
 function formatDate(iso: string): string {
@@ -29,12 +34,24 @@ export default function OrganisationInvoiceDetailPage() {
   const { organisation, organizationId, isOrgUser } = useOrganisationLearners();
 
   const { getInvoices } = useFinanceAccount();
-  const invoice = id ? getInvoices().find((i) => i.id === id) : undefined;
-  const allowed =
-    isOrgUser &&
-    organisation &&
-    invoice?.organizationId != null &&
-    invoice.organizationId === organizationId;
+  const legacyInvoice = id ? getInvoices().find((i) => i.id === id) : undefined;
+
+  const apiEnabled = isApiEnabled();
+  const apiInvoice = useInvoice(id);
+
+  const invoice = apiEnabled ? apiInvoice : legacyInvoice;
+
+  const allowed = useMemo(() => {
+    if (!invoice) return false;
+    const orgId =
+      (invoice as any).organizationId ?? (invoice as any).organisationId;
+    return (
+      isOrgUser &&
+      !!organisation &&
+      orgId != null &&
+      orgId === organizationId
+    );
+  }, [invoice, isOrgUser, organisation, organizationId]);
 
   if (!isOrgUser || !organisation) {
     return (
@@ -56,13 +73,46 @@ export default function OrganisationInvoiceDetailPage() {
   }
 
   const pending =
-    invoice.status !== "paid" && invoice.status !== "draft"
-      ? (invoice.totalAmount ?? 0) - (invoice.paidAmount ?? 0)
-      : 0;
-  const receipt =
-    invoice.status === "paid"
-      ? getReceiptForInvoice(invoice, organisation.name)
-      : null;
+    apiEnabled
+      ? invoice.balance
+      : invoice.status !== "paid" && invoice.status !== "draft"
+        ? (invoice.totalAmount ?? 0) - (invoice.paidAmount ?? 0)
+        : 0;
+
+  const receipt: Receipt | null = useMemo(() => {
+    if (invoice.status !== "paid") return null;
+    if (!apiEnabled) {
+      return getReceiptForInvoice(invoice as any, organisation.name);
+    }
+    const amountPaid =
+      typeof (invoice as any).amountPaid === "number"
+        ? (invoice as any).amountPaid
+        : (invoice as any).paidAmount ?? (invoice as any).totalAmount;
+    const paidDate =
+      (invoice as any).issueDate ??
+      (invoice as any).dueDate ??
+      new Date().toISOString();
+    const invoiceNumber =
+      (invoice as any).invoiceNumber ?? invoice.id;
+    return {
+      id: `receipt-${invoice.id}`,
+      invoiceId: invoice.id,
+      invoiceNumber,
+      receiptNumber: `RCPT-${invoiceNumber}`,
+      paidDate,
+      amountPaid,
+      description:
+        (invoice as any).notes ??
+        (invoice as any).description ??
+        `${(invoice as any).term ?? (invoice as any).termId ?? ""} – ${
+          (invoice as any).source ??
+          (invoice as any).payerType ??
+          "Invoice"
+        }`,
+      payerLabel: organisation.name,
+      createdAt: paidDate,
+    };
+  }, [apiEnabled, invoice, organisation.name]);
 
   return (
     <div className="page-container">
@@ -87,17 +137,48 @@ export default function OrganisationInvoiceDetailPage() {
             size="sm"
             onClick={() =>
               printInvoice(
-                {
-                  invoiceNumber: invoice.invoiceNumber,
-                  term: invoice.term,
-                  totalAmount: invoice.totalAmount,
-                  status: invoice.status,
-                  dueDate: invoice.dueDate,
-                  paidAmount: invoice.paidAmount,
-                  paidDate: invoice.paidDate,
-                  description: invoice.description ?? undefined,
-                  source: invoice.source,
-                },
+                apiEnabled
+                  ? {
+                      invoiceNumber:
+                        (invoice as any).invoiceNumber ?? invoice.id,
+                      term:
+                        (invoice as any).term ??
+                        (invoice as any).termId ??
+                        "",
+                      totalAmount:
+                        (invoice as any).totalAmount ??
+                        (invoice as any).netAmount ??
+                        0,
+                      status: invoice.status,
+                      dueDate: invoice.dueDate,
+                      paidAmount:
+                        (invoice as any).paidAmount ??
+                        (invoice as any).amountPaid ??
+                        0,
+                      paidDate:
+                        (invoice as any).paidDate ??
+                        (invoice as any).issueDate ??
+                        (invoice as any).dueDate,
+                      description:
+                        (invoice as any).description ??
+                        (invoice as any).notes ??
+                        undefined,
+                      source:
+                        (invoice as any).source ??
+                        (invoice as any).payerType,
+                    }
+                  : {
+                      invoiceNumber: (invoice as any).invoiceNumber,
+                      term: (invoice as any).term,
+                      totalAmount: (invoice as any).totalAmount,
+                      status: invoice.status,
+                      dueDate: (invoice as any).dueDate,
+                      paidAmount: (invoice as any).paidAmount,
+                      paidDate: (invoice as any).paidDate,
+                      description:
+                        (invoice as any).description ?? undefined,
+                      source: (invoice as any).source,
+                    },
                 { subtitle: organisation.name }
               )
             }
@@ -105,7 +186,11 @@ export default function OrganisationInvoiceDetailPage() {
             <Download className="w-4 h-4 mr-1" /> Download invoice
           </Button>
           {receipt && (
-            <Button variant="outline" size="sm" onClick={() => printReceipt(receipt)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => printReceipt(receipt)}
+            >
               <Download className="w-4 h-4 mr-1" /> Download receipt
             </Button>
           )}
@@ -131,11 +216,27 @@ export default function OrganisationInvoiceDetailPage() {
 
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Amount</p>
-            <p className="text-xl font-semibold">Ksh {invoice.totalAmount.toLocaleString()}</p>
-            {invoice.paidAmount != null && invoice.paidAmount > 0 && (
+          <p className="text-xl font-semibold">
+            Ksh{" "}
+            {(
+              (invoice as any).totalAmount ??
+              (invoice as any).netAmount ??
+              0
+            ).toLocaleString()}
+          </p>
+          {((invoice as any).paidAmount ??
+            (invoice as any).amountPaid) != null &&
+            ((invoice as any).paidAmount ??
+              (invoice as any).amountPaid) >
+              0 && (
               <p className="text-sm text-muted-foreground mt-1">
-                Paid: Ksh {invoice.paidAmount.toLocaleString()}
-                {invoice.paidDate && ` on ${formatDate(invoice.paidDate)}`}
+              Paid: Ksh{" "}
+              {(
+                (invoice as any).paidAmount ??
+                (invoice as any).amountPaid
+              ).toLocaleString()}
+              {(invoice as any).paidDate &&
+                ` on ${formatDate((invoice as any).paidDate)}`}
               </p>
             )}
             {pending > 0 && (

@@ -4,10 +4,12 @@ import {
   useCallback,
   useMemo,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 import type { CoachingNote } from "@/types";
 import { mockCoachingNotes } from "@/mockData/educator";
+import { isApiEnabled, coachingNotesGetAll, coachingNotesCreate } from "@/lib/api";
 
 interface CoachingNotesContextType {
   notes: CoachingNote[];
@@ -27,6 +29,26 @@ function nextId(notes: CoachingNote[]): string {
 
 export function CoachingNotesProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<CoachingNote[]>(() => [...mockCoachingNotes]);
+  const apiEnabled = isApiEnabled();
+
+  useEffect(() => {
+    if (!apiEnabled) return;
+    coachingNotesGetAll()
+      .then((list) => {
+        setNotes(
+          list.map((n) => ({
+            id: n.id,
+            educatorId: n.educatorId,
+            authorId: n.authorId,
+            date: n.date,
+            text: n.text,
+            trackRef: n.trackRef ?? undefined,
+            sessionId: n.sessionId ?? undefined,
+          }))
+        );
+      })
+      .catch(() => {});
+  }, [apiEnabled]);
 
   const getNotesForEducator = useCallback(
     (educatorId: string) => notes.filter((n) => n.educatorId === educatorId).sort((a, b) => b.date.localeCompare(a.date)),
@@ -34,8 +56,34 @@ export function CoachingNotesProvider({ children }: { children: ReactNode }) {
   );
 
   const addNote = useCallback((note: Omit<CoachingNote, "id">) => {
+    if (apiEnabled) {
+      coachingNotesCreate({
+        educatorId: note.educatorId,
+        authorId: note.authorId,
+        date: note.date,
+        text: note.text,
+        trackRef: note.trackRef ?? null,
+        sessionId: note.sessionId ?? null,
+      })
+        .then((created) => {
+          setNotes((prev) => [
+            ...prev,
+            {
+              id: created.id,
+              educatorId: created.educatorId,
+              authorId: created.authorId,
+              date: created.date,
+              text: created.text,
+              trackRef: created.trackRef ?? undefined,
+              sessionId: created.sessionId ?? undefined,
+            },
+          ]);
+        })
+        .catch(() => {});
+      return;
+    }
     setNotes((prev) => [...prev, { ...note, id: nextId(prev) }]);
-  }, []);
+  }, [apiEnabled]);
 
   const value = useMemo(
     () => ({ notes, getNotesForEducator, addNote }),

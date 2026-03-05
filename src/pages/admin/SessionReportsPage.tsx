@@ -5,6 +5,8 @@ import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useTasks } from "@/features/tasks/context/TasksContext";
 import { useNotifications } from "@/context/NotificationsContext";
+import { useSessionReportsList } from "@/hooks/useSessionReportsList";
+import { isApiEnabled } from "@/lib/api";
 import { getSession, getClass, getEducatorName } from "@/mockData";
 import { mockSessions } from "@/mockData";
 import {
@@ -78,8 +80,13 @@ function presentCountForSession(
 export default function SessionReportsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const apiEnabled = isApiEnabled();
   const { list, getBySession } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
+  const { summaries: apiSummaries, isLoading: apiSummariesLoading } = useSessionReportsList({
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  });
 
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -105,6 +112,7 @@ export default function SessionReportsPage() {
   }, []);
 
   const summariesFromReports = useMemo(() => {
+    if (apiEnabled) return [];
     const filtered = list({
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
@@ -119,9 +127,10 @@ export default function SessionReportsPage() {
         present
       );
     });
-  }, [list, dateFrom, dateTo, getAttendanceBySession]);
+  }, [apiEnabled, list, dateFrom, dateTo, getAttendanceBySession]);
 
   const missingSummaries = useMemo(() => {
+    if (apiEnabled) return [];
     const sessionsWithoutSubmitted = mockSessions.filter(
       (s) => getBySession(s.id)?.status !== "submitted"
     );
@@ -136,16 +145,17 @@ export default function SessionReportsPage() {
         return buildMissingSessionSummary(s, getClass, getEducatorName, present);
       });
     return out;
-  }, [getBySession, dateFrom, dateTo, getAttendanceBySession]);
+  }, [apiEnabled, getBySession, dateFrom, dateTo, getAttendanceBySession]);
 
   const allSummaries = useMemo(() => {
+    if (apiEnabled) return apiSummaries;
     const combined = [...summariesFromReports];
     const existingSessionIds = new Set(summariesFromReports.map((s) => s.sessionId));
     for (const m of missingSummaries) {
       if (!existingSessionIds.has(m.sessionId)) combined.push(m);
     }
     return combined.sort((a, b) => (b.sessionDate > a.sessionDate ? 1 : -1));
-  }, [summariesFromReports, missingSummaries]);
+  }, [apiEnabled, apiSummaries, dateFrom, dateTo, summariesFromReports, missingSummaries]);
 
   const organisationOptions = useMemo(() => {
     const set = new Set(allSummaries.map((s) => s.organisationName).filter(Boolean));
@@ -222,7 +232,7 @@ export default function SessionReportsPage() {
     setReminderDialog(null);
   };
 
-  if (isLoading) {
+  if (isLoading || (apiEnabled && apiSummariesLoading)) {
     return (
       <div className="page-container">
         <Skeleton className="h-9 w-64 mb-2" />

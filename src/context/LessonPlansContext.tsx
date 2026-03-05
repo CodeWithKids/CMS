@@ -4,10 +4,12 @@ import {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   type ReactNode,
 } from "react";
 import type { LessonPlanTemplate, LessonPlanInstance, LessonPlanInstanceStatus } from "@/types";
 import { mockLessonPlanTemplates, mockLessonPlanInstances } from "@/mockData";
+import { isApiEnabled, lessonPlanTemplatesGetAll, lessonPlanInstancesGetAll, lessonPlanInstanceCreate, lessonPlanInstanceUpdate } from "@/lib/api";
 
 interface LessonPlansContextType {
   templates: LessonPlanTemplate[];
@@ -49,7 +51,43 @@ function copyTemplateToInstance(sessionId: string, template: LessonPlanTemplate)
 
 export function LessonPlansProvider({ children }: { children: ReactNode }) {
   const [instances, setInstances] = useState<LessonPlanInstance[]>(() => [...mockLessonPlanInstances]);
-  const templates = mockLessonPlanTemplates;
+  const [templates, setTemplates] = useState<LessonPlanTemplate[]>(() => [...mockLessonPlanTemplates]);
+  const apiEnabled = isApiEnabled();
+
+  useEffect(() => {
+    if (!apiEnabled) return;
+    lessonPlanTemplatesGetAll()
+      .then((list) => {
+        setTemplates(
+          list.map((t) => {
+            const payload = (t.payload || {}) as LessonPlanTemplate;
+            return {
+              ...(payload as LessonPlanTemplate),
+              id: t.id,
+              learningTrackId: payload.learningTrackId ?? (t.learningTrackId as LessonPlanTemplate["learningTrackId"]),
+              title: payload.title ?? t.title,
+            };
+          })
+        );
+      })
+      .catch(() => {});
+    lessonPlanInstancesGetAll()
+      .then((list) => {
+        setInstances(
+          list.map((i) => {
+            const payload = (i.payload || {}) as LessonPlanInstance;
+            return {
+              ...(payload as LessonPlanInstance),
+              id: i.id,
+              sessionId: i.sessionId,
+              templateId: i.templateId ?? null,
+              status: (i.status as LessonPlanInstanceStatus) ?? (payload.status as LessonPlanInstanceStatus),
+            };
+          })
+        );
+      })
+      .catch(() => {});
+  }, [apiEnabled]);
 
   const getTemplatesForTrack = useCallback(
     (learningTrackId: string) => templates.filter((t) => t.learningTrackId === learningTrackId),
@@ -77,26 +115,48 @@ export function LessonPlansProvider({ children }: { children: ReactNode }) {
       createdBy: undefined,
       updatedBy: undefined,
     };
+    if (apiEnabled) {
+      lessonPlanInstanceCreate({
+        id,
+        sessionId,
+        templateId,
+        status: newInstance.status,
+        payload: newInstance,
+      }).catch(() => {});
+    }
     setInstances((prev) => [...prev, newInstance]);
     return newInstance;
-  }, [instances, templates]);
+  }, [apiEnabled, instances, templates]);
 
   const updateInstance = useCallback((sessionId: string, update: Partial<LessonPlanInstance>) => {
     const now = new Date().toISOString().split("T")[0];
+    let targetId: string | undefined;
     setInstances((prev) =>
       prev.map((i) =>
         i.sessionId === sessionId
-          ? { ...i, ...update, updatedAt: now }
+          ? ((targetId = i.id), { ...i, ...update, updatedAt: now })
           : i
       )
     );
-  }, []);
+    if (apiEnabled && targetId) {
+      lessonPlanInstanceUpdate(targetId, {
+        status: update.status,
+        payload: update,
+      }).catch(() => {});
+    }
+  }, [apiEnabled]);
 
   const setInstanceStatus = useCallback((sessionId: string, status: LessonPlanInstanceStatus) => {
+    let targetId: string | undefined;
     setInstances((prev) =>
-      prev.map((i) => (i.sessionId === sessionId ? { ...i, status } : i))
+      prev.map((i) =>
+        i.sessionId === sessionId ? ((targetId = i.id), { ...i, status }) : i
+      )
     );
-  }, []);
+    if (apiEnabled && targetId) {
+      lessonPlanInstanceUpdate(targetId, { status }).catch(() => {});
+    }
+  }, [apiEnabled]);
 
   const value = useMemo(
     () => ({

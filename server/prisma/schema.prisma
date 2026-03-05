@@ -1,5 +1,6 @@
 // CWK Hub API – PostgreSQL schema
-// Run: npx prisma migrate dev
+// Apply schema: npx prisma db push   (use this if migrate dev fails with P3014 shadow DB permission)
+// Migrations:  npx prisma migrate dev   (requires DB user with CREATEDB permission)
 
 generator client {
   provider = "prisma-client-js"
@@ -58,15 +59,16 @@ model Learner {
 }
 
 model Class {
-  id          String   @id
-  name        String
-  program     String
-  ageGroup    String
-  location    String
-  educatorId  String
-  termId      String
-  learnerIds  String[]
-  capacity    Int?
+  id                      String   @id
+  name                    String
+  program                 String
+  ageGroup                String
+  location                String
+  educatorId              String
+  termId                  String
+  learnerIds              String[]
+  capacity                Int?
+  schoolOrOrganisationName String?  // school or organisation the class belongs to
 
   @@map("classes")
 }
@@ -196,3 +198,153 @@ model Payment {
 
   @@map("payments")
 }
+
+model Event {
+  id          String   @id
+  slug        String   @unique
+  title       String
+  description String?
+  startDate   String
+  endDate     String?
+  location    String
+  capacity    Int?
+  price       Float?
+  tracks      String[]
+  status      String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("events")
+}
+
+model FinanceEducatorPayment {
+  id          String   @id
+  educatorId  String
+  period      String
+  type        String
+  amount      Float
+  status      String
+  datePaid    String?
+  notes       String?
+
+  @@map("finance_educator_payments")
+}
+
+model InventoryItem {
+  id                    String   @id
+  name                  String
+  category              String
+  status                String
+  serialNumber          String?
+  purchasedAt           String?
+  checkedOutByEducatorId String?
+  assignedEducatorId    String?
+  checkedOutAt          String?
+  dueAt                 String?
+  notes                 String?
+
+  @@map("inventory_items")
+}
+
+model LessonPlanTemplate {
+  id              String   @id
+  learningTrackId String
+  title           String
+  payload         Json
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("lesson_plan_templates")
+}
+
+model LessonPlanInstance {
+  id          String   @id
+  sessionId   String
+  templateId  String?
+  status      String
+  payload     Json
+  educatorId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("lesson_plan_instances")
+}
+
+model CoachingNote {
+  id        String   @id
+  educatorId String
+  authorId  String
+  date      String
+  text      String
+  trackRef  String?
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  @@map("coaching_notes")
+}
+
+model EducatorBadge {
+  id         String @id
+  educatorId String
+  badgeId    String
+  trackId    String?
+  earnedAt   String
+
+  @@map("educator_badges")
+}
+
+model LearnerBadgeAward {
+  id        String @id
+  learnerId String
+  sessionId String
+  badgeId   String
+  awardedAt String
+  awardedBy String
+
+  @@map("learner_badge_awards")
+}
+
+// Settings reference data (admin-managed)
+model Program {
+  id          String   @id
+  name        String
+  description String?
+
+  @@map("programs")
+}
+
+model Location {
+  id      String  @id
+  name    String
+  address String?
+
+  @@map("locations")
+}
+
+model AgeGroup {
+  id     String @id
+  name   String
+  minAge Int?
+  maxAge Int?
+
+  @@map("age_groups")
+}
+
+model IncomeSource {
+  id   String  @id
+  name String
+  code String?
+
+  @@map("income_sources")
+}
+
+model ExpenseCategory {
+  id   String  @id
+  name String
+  code String?
+
+  @@map("expense_categories")
+}
+

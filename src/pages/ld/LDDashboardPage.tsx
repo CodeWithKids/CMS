@@ -1,18 +1,16 @@
 import { Link } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useLessonPlans } from "@/context/LessonPlansContext";
 import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
-import { getCurrentTerm, getSessionsForTerm, mockStaff, mockSessions } from "@/mockData";
-import type { LearningTrack } from "@/types";
+import { getCurrentTerm, mockStaff, mockSessions } from "@/mockData";
+import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useState } from "react";
-import { LayoutDashboard, BookOpen, Users, AlertTriangle, FileText } from "lucide-react";
+import { LayoutDashboard, BookOpen, Users, AlertTriangle, FileText, AlertCircle } from "lucide-react";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
 
 const educatorIds = mockStaff.filter((s) => s.role === "educator").map((s) => s.id);
 
@@ -23,7 +21,19 @@ export default function LDDashboardPage() {
   const { feedbacks } = useLearnerFeedback();
   const currentTerm = getCurrentTerm();
   const termId = currentTerm?.id ?? "t1";
-  const termSessions = getSessionsForTerm(termId);
+
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [], isError } = useQuery({
+    queryKey: ["ld", "dashboard", "sessions", termId],
+    queryFn: () => sessionsGetAll({ termId }),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const allSessions = useMemo<Pick<SessionApi, "id" | "date">[]>(
+    () => (apiEnabled ? apiSessions : mockSessions),
+    [apiEnabled, apiSessions]
+  );
 
   const trackIds = [...new Set(templates.map((t) => t.learningTrackId))];
   const activeTracksCount = trackIds.length;
@@ -38,7 +48,7 @@ export default function LDDashboardPage() {
   const thisWeekEnd = new Date(thisWeekStart);
   thisWeekEnd.setDate(thisWeekStart.getDate() + 6);
   const thisWeekStr = (d: Date) => d.toISOString().slice(0, 10);
-  const sessionsThisWeek = mockSessions.filter(
+  const sessionsThisWeek = allSessions.filter(
     (s) => s.date >= thisWeekStr(thisWeekStart) && s.date <= thisWeekStr(thisWeekEnd)
   ).length;
 
@@ -63,7 +73,7 @@ export default function LDDashboardPage() {
 
       <RoleResponsibilitiesCard />
 
-      {loadError && (
+      {(loadError || isError) && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Something went wrong</AlertTitle>

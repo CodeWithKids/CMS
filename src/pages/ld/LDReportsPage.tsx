@@ -1,7 +1,10 @@
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useLessonPlans } from "@/context/LessonPlansContext";
 import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
 import { mockSessions } from "@/mockData";
+import { isApiEnabled, sessionsGetAll } from "@/lib/api";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { LearningTrack } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +17,22 @@ export default function LDReportsPage() {
   const { feedbacks } = useLearnerFeedback();
   const reports = listReports();
 
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["ld", "reports", "sessions"],
+    queryFn: () => sessionsGetAll({}),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const sessions = useMemo(
+    () => (apiEnabled ? apiSessions : mockSessions),
+    [apiEnabled, apiSessions]
+  );
+
   const byTrack = (() => {
     const map = new Map<LearningTrack, { sessions: number; feedbackSum: number; feedbackCount: number; challengeCount: number }>();
-    for (const s of mockSessions) {
+    for (const s of sessions) {
       const r = reports.find((x) => x.sessionId === s.id);
       const entry = map.get(s.learningTrack) ?? { sessions: 0, feedbackSum: 0, feedbackCount: 0, challengeCount: 0 };
       entry.sessions += 1;
@@ -24,7 +40,7 @@ export default function LDReportsPage() {
       map.set(s.learningTrack, entry);
     }
     for (const f of feedbacks) {
-      const s = mockSessions.find((x) => x.id === f.sessionId);
+      const s = sessions.find((x) => x.id === f.sessionId);
       if (!s) continue;
       const entry = map.get(s.learningTrack);
       if (entry) {

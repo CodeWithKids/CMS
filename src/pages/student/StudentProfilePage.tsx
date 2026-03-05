@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
 import { getLearnerByUserId } from "@/mockData";
@@ -10,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Check, Award, BookOpen, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { isApiEnabled, learnersGetAll, learnerBadgesGetAll, type LearnerApi, type LearnerBadgeAwardApi } from "@/lib/api";
 
 const PLATFORM_LINKS = [
   { name: "Scratch", url: "https://scratch.mit.edu", color: "bg-amber-500" },
@@ -24,12 +27,44 @@ export default function StudentProfilePage() {
   const { toast } = useToast();
   const { getByLearner: getBadgeAwardsByLearner } = useBadgeAwards();
   const currentAvatar = currentUser?.avatarId ? getPresetAvatar(currentUser.avatarId) : null;
-  const learner =
-    currentUser?.role === "student" && currentUser?.id
-      ? getLearnerByUserId(currentUser.id)
-      : null;
+
+  const apiEnabled = isApiEnabled();
+
+  const { data: learnerFromApi = [] } = useQuery({
+    queryKey: ["student", "learner", currentUser?.id],
+    queryFn: () =>
+      learnersGetAll({
+        userId: currentUser?.id,
+      } as any),
+    enabled: apiEnabled && currentUser?.role === "student" && !!currentUser?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const learner: LearnerApi | null =
+    apiEnabled && Array.isArray(learnerFromApi) && learnerFromApi.length > 0
+      ? (learnerFromApi[0] as LearnerApi)
+      : currentUser?.role === "student" && currentUser?.id
+        ? (getLearnerByUserId(currentUser.id) as any)
+        : null;
+
   const learnerId = learner?.id ?? null;
-  const badgeAwards = learnerId ? getBadgeAwardsByLearner(learnerId) : [];
+
+  const { data: apiBadgeAwards = [] } = useQuery({
+    queryKey: ["student", "badges", learnerId],
+    queryFn: () => learnerBadgesGetAll(learnerId!),
+    enabled: apiEnabled && !!learnerId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const badgeAwards = useMemo(
+    () =>
+      learnerId
+        ? apiEnabled
+          ? (apiBadgeAwards as LearnerBadgeAwardApi[])
+          : getBadgeAwardsByLearner(learnerId)
+        : [],
+    [apiEnabled, apiBadgeAwards, getBadgeAwardsByLearner, learnerId]
+  );
   const badgeByType = (() => {
     const by: Record<string, number> = {};
     badgeAwards.forEach((a) => {

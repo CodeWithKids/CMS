@@ -1,10 +1,15 @@
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   getStaffMember,
   mockClasses,
   getSessionsForTerm,
   getCurrentTerm,
 } from "@/mockData";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTerms } from "@/hooks/useTerms";
+import { useAuth } from "@/context/AuthContext";
+import { isApiEnabled, educatorsGetById, classesGetAll, sessionsGetAll, adminAccountsDelete } from "@/lib/api";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import {
   Card,
@@ -14,7 +19,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, Briefcase, FileText, FolderOpen, BookOpen, Calendar, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, User, Briefcase, FileText, FolderOpen, BookOpen, Calendar, Clock, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { ContractType, PayType, PreferredPaymentMethod } from "@/types";
 
 const contractLabels: Record<ContractType, string> = {
@@ -49,19 +66,60 @@ function formatDate(iso: string): string {
 
 export default function StaffProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { currentUser } = useAuth();
   const staffId = id ?? "";
-  const staff = getStaffMember(staffId);
-
-  const currentTerm = getCurrentTerm();
+  const apiEnabled = isApiEnabled();
+  const { currentTerm } = useTerms();
   const termId = currentTerm?.id ?? "t1";
-  const assignedClasses = staff ? mockClasses.filter((c) => c.educatorId === staffId) : [];
-  const sessionsThisTerm = staff
-    ? getSessionsForTerm(termId).filter(
-        (s) =>
-          s.leadEducatorId === staffId ||
-          (s.assistantEducatorIds ?? []).includes(staffId)
-      )
-    : [];
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const isAdmin = currentUser?.role === "admin";
+  const isOwnProfile = currentUser?.id === staffId;
+
+  const { data: apiStaff } = useQuery({
+    queryKey: ["educator", staffId],
+    queryFn: () => educatorsGetById(staffId),
+    enabled: apiEnabled && !!staffId,
+  });
+  const { data: apiClasses = [] } = useQuery({
+    queryKey: ["classes", "educator", staffId],
+    queryFn: () => classesGetAll({ educatorId: staffId }),
+    enabled: apiEnabled && !!staffId,
+  });
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["sessions", "educator", staffId, termId],
+    queryFn: () => sessionsGetAll({ educatorId: staffId, termId, dateFrom: currentTerm?.startDate, dateTo: currentTerm?.endDate }),
+    enabled: apiEnabled && !!staffId && !!termId,
+  });
+
+  const staff = apiEnabled && apiStaff
+    ? {
+        id: apiStaff.id,
+        name: apiStaff.name,
+        email: apiStaff.email ?? "",
+        role: apiStaff.role,
+        employmentStatus: (apiStaff.status ?? "active").replace("_", " "),
+        contractType: undefined as ContractType | undefined,
+        phone: undefined as string | undefined,
+        hireDate: undefined as string | undefined,
+        createdAt: apiStaff.createdAt,
+        notes: undefined as string | undefined,
+      }
+    : getStaffMember(staffId);
+  const assignedClasses = apiEnabled ? apiClasses : (staff ? mockClasses.filter((c) => c.educatorId === staffId) : []);
+  const sessionsThisTerm = apiEnabled
+    ? apiSessions
+    : staff
+      ? getSessionsForTerm(termId).filter(
+          (s) =>
+            s.leadEducatorId === staffId ||
+            (s.assistantEducatorIds ?? []).includes(staffId)
+        )
+      : [];
   const hoursThisTerm = sessionsThisTerm.reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
   const facilitatingHours = sessionsThisTerm
     .filter((s) => s.leadEducatorId === staffId)
@@ -112,9 +170,9 @@ export default function StaffProfilePage() {
                   {staff.role}
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge variant="secondary">{staff.employmentStatus.replace("_", " ")}</Badge>
-                  {staff.contractType && (
-                    <Badge variant="outline">{contractLabels[staff.contractType]}</Badge>
+                  <Badge variant="secondary">{(staff as { employmentStatus?: string }).employmentStatus ?? "active"}</Badge>
+                  {(staff as { contractType?: ContractType }).contractType && (
+                    <Badge variant="outline">{contractLabels[(staff as { contractType: ContractType }).contractType]}</Badge>
                   )}
                 </div>
               </div>
@@ -291,6 +349,62 @@ export default function StaffProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete account (admin only, not own profile) */}
+      {isAdmin && apiEnabled && !isOwnProfile && (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger zone</CardTitle>
+            <CardDescription>
+              Permanently delete this account. They will no longer be able to log in. This cannot be undone.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" /> Delete account
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Delete account</AlertDialogTitle>
+          <AlertDialogDescription>
+            Permanently delete the account for <strong>{staff.name}</strong>? They will no longer be able to log in.
+            This cannot be undone.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!apiEnabled) return;
+                setDeleteLoading(true);
+                try {
+                  await adminAccountsDelete(staffId);
+                  queryClient.invalidateQueries({ queryKey: ["educators"] });
+                  toast({ title: "Account deleted", description: `${staff.name} has been removed.` });
+                  navigate("/admin/hr/staff");
+                } catch (err: unknown) {
+                  const msg = err && typeof err === "object" && "body" in err && (err as { body?: { message?: string } }).body?.message;
+                  toast({ title: "Delete failed", description: msg ?? "Could not delete account.", variant: "destructive" });
+                } finally {
+                  setDeleteLoading(false);
+                }
+              }}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLoading ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -143,4 +143,30 @@ router.post("/invoices/:id/payments", async (req: Request, res: Response) => {
   });
 });
 
+/** GET /v1/finance/educator-payments */
+router.get("/educator-payments", async (req: Request, res: Response) => {
+  const { educatorId, period, status } = req.query;
+  const where: Parameters<typeof prisma.financeEducatorPayment.findMany>[0]["where"] = {};
+  if (typeof educatorId === "string") where.educatorId = educatorId;
+  if (typeof period === "string") where.period = period;
+  if (typeof status === "string") where.status = status;
+
+  const rows = await prisma.financeEducatorPayment.findMany({
+    where,
+    orderBy: [{ period: "asc" }, { educatorId: "asc" }],
+  });
+  res.json(
+    rows.map((p) => ({
+      id: p.id,
+      educatorId: p.educatorId,
+      period: p.period,
+      type: p.type,
+      amount: p.amount,
+      status: p.status,
+      datePaid: p.datePaid,
+      notes: p.notes,
+    }))
+  );
+});
+
 export default router;

@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { mockSessions, mockTerms, mockUsers, getEducatorName } from "@/mockData";
+import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
+import type { Session, SessionType, LearningTrack } from "@/types";
 import {
   calculateEducatorHoursByTerm,
   filterEducatorHoursByTerm,
@@ -32,9 +35,41 @@ export default function EducatorHoursPage() {
   const [selectedTermId, setSelectedTermId] = useState<string>(mockTerms[0]?.id ?? "");
   const [educatorSearch, setEducatorSearch] = useState("");
 
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["admin", "educator-hours", "sessions"],
+    queryFn: () => sessionsGetAll({}),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const sessions: Session[] = useMemo(
+    () =>
+      apiEnabled
+        ? apiSessions.map(
+            (s: SessionApi): Session => ({
+              id: s.id,
+              classId: s.classId,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              topic: s.topic,
+              sessionType: s.sessionType as SessionType,
+              duration: "1_hour",
+              learningTrack: s.learningTrack as LearningTrack,
+              termId: s.termId,
+              leadEducatorId: s.leadEducatorId,
+              assistantEducatorIds: s.assistantEducatorIds ?? [],
+              durationHours: s.durationHours ?? 1,
+            })
+          )
+        : mockSessions,
+    [apiEnabled, apiSessions]
+  );
+
   const allSummaries = useMemo(
-    () => calculateEducatorHoursByTerm(mockSessions),
-    []
+    () => calculateEducatorHoursByTerm(sessions),
+    [sessions]
   );
 
   const termSummaries = useMemo(

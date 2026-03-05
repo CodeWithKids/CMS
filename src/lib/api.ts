@@ -186,6 +186,264 @@ export function financeRecordPayment(
   });
 }
 
+// ——— Events ———
+
+export interface EventApi {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  location: string;
+  capacity?: number | null;
+  price?: number | null;
+  tracks: string[];
+  status: string;
+}
+
+export function eventsGetAll(params?: { status?: string; dateFrom?: string; dateTo?: string }): Promise<EventApi[]> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+  if (params?.dateTo) q.set("dateTo", params.dateTo);
+  const query = q.toString();
+  return apiFetch<EventApi[]>(`/v1/events${query ? `?${query}` : ""}`);
+}
+
+export function eventsGetBySlug(slug: string): Promise<EventApi | null> {
+  return apiFetch<EventApi>(`/v1/events/${slug}`).catch((e) => {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  });
+}
+
+export function eventsCreate(body: {
+  title: string;
+  slug: string;
+  description?: string;
+  startDate: string;
+  endDate?: string | null;
+  location: string;
+  capacity?: number | null;
+  price?: number | null;
+  tracks?: string[];
+  status?: string;
+  createdById?: string;
+}): Promise<EventApi> {
+  return apiFetch<EventApi>("/v1/events", {
+    method: "POST",
+    body,
+  });
+}
+
+export function eventsUpdate(
+  slug: string,
+  body: Partial<{
+    title: string;
+    slug: string;
+    description: string;
+    startDate: string;
+    endDate: string | null;
+    location: string;
+    capacity: number | null;
+    price: number | null;
+    tracks: string[];
+    status: string;
+  }>
+): Promise<EventApi> {
+  return apiFetch<EventApi>(`/v1/events/${slug}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+// ——— Educator payments (finance) ———
+
+export interface EducatorPaymentApi {
+  id: string;
+  educatorId: string;
+  period: string;
+  type: string;
+  amount: number;
+  status: string;
+  datePaid?: string | null;
+  notes?: string | null;
+}
+
+export function financeEducatorPaymentsGetAll(params?: {
+  educatorId?: string;
+  period?: string;
+  status?: string;
+}): Promise<EducatorPaymentApi[]> {
+  const q = new URLSearchParams();
+  if (params?.educatorId) q.set("educatorId", params.educatorId);
+  if (params?.period) q.set("period", params.period);
+  if (params?.status) q.set("status", params.status);
+  const query = q.toString();
+  return apiFetch<EducatorPaymentApi[]>(`/v1/finance/educator-payments${query ? `?${query}` : ""}`);
+}
+
+// ——— Inventory ———
+
+export interface InventoryItemApi {
+  id: string;
+  name: string;
+  category: string;
+  status: string;
+  serialNumber?: string | null;
+  purchasedAt?: string | null;
+  checkedOutByEducatorId?: string | null;
+  assignedEducatorId?: string | null;
+  checkedOutAt?: string | null;
+  dueAt?: string | null;
+  notes?: string | null;
+}
+
+export function inventoryGetAll(params?: {
+  status?: string;
+  category?: string;
+  educatorId?: string;
+}): Promise<InventoryItemApi[]> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.category) q.set("category", params.category);
+  if (params?.educatorId) q.set("educatorId", params.educatorId);
+  const query = q.toString();
+  return apiFetch<InventoryItemApi[]>(`/v1/inventory/items${query ? `?${query}` : ""}`);
+}
+
+export function inventoryCreate(body: {
+  id?: string;
+  name: string;
+  category: string;
+  status?: string;
+  serialNumber?: string | null;
+  purchasedAt?: string | null;
+  notes?: string | null;
+}): Promise<InventoryItemApi> {
+  return apiFetch<InventoryItemApi>("/v1/inventory/items", {
+    method: "POST",
+    body,
+  });
+}
+
+export function inventoryUpdate(
+  id: string,
+  body: Partial<{
+    name: string;
+    category: string;
+    status: string;
+    serialNumber: string | null;
+    purchasedAt: string | null;
+    checkedOutByEducatorId: string | null;
+    assignedEducatorId: string | null;
+    checkedOutAt: string | null;
+    dueAt: string | null;
+    notes: string | null;
+  }>
+): Promise<InventoryItemApi> {
+  return apiFetch<InventoryItemApi>(`/v1/inventory/items/${id}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function inventoryDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/inventory/items/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// ——— Lesson plans & coaching notes ———
+
+export interface LessonPlanTemplateApi {
+  id: string;
+  learningTrackId: string;
+  title: string;
+  payload: unknown;
+}
+
+export interface LessonPlanInstanceApi {
+  id: string;
+  sessionId: string;
+  templateId?: string | null;
+  status: string;
+  payload: unknown;
+  educatorId?: string | null;
+}
+
+export interface CoachingNoteApi {
+  id: string;
+  educatorId: string;
+  authorId: string;
+  date: string;
+  text: string;
+  trackRef?: string | null;
+  sessionId?: string | null;
+  createdAt: string;
+}
+
+export function lessonPlanTemplatesGetAll(): Promise<LessonPlanTemplateApi[]> {
+  return apiFetch<LessonPlanTemplateApi[]>("/v1/lesson-plans/templates");
+}
+
+export function lessonPlanInstancesGetAll(params?: {
+  sessionId?: string;
+  educatorId?: string;
+}): Promise<LessonPlanInstanceApi[]> {
+  const q = new URLSearchParams();
+  if (params?.sessionId) q.set("sessionId", params.sessionId);
+  if (params?.educatorId) q.set("educatorId", params.educatorId);
+  const query = q.toString();
+  return apiFetch<LessonPlanInstanceApi[]>(`/v1/lesson-plans/instances${query ? `?${query}` : ""}`);
+}
+
+export function lessonPlanInstanceCreate(body: {
+  id?: string;
+  sessionId: string;
+  templateId?: string | null;
+  status?: string;
+  payload?: unknown;
+  educatorId?: string | null;
+}): Promise<LessonPlanInstanceApi> {
+  return apiFetch<LessonPlanInstanceApi>("/v1/lesson-plans/instances", {
+    method: "POST",
+    body,
+  });
+}
+
+export function lessonPlanInstanceUpdate(
+  id: string,
+  body: Partial<{ status: string; payload: unknown; templateId: string | null }>
+): Promise<LessonPlanInstanceApi> {
+  return apiFetch<LessonPlanInstanceApi>(`/v1/lesson-plans/instances/${id}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function coachingNotesGetAll(params?: { educatorId?: string }): Promise<CoachingNoteApi[]> {
+  const q = new URLSearchParams();
+  if (params?.educatorId) q.set("educatorId", params.educatorId);
+  const query = q.toString();
+  return apiFetch<CoachingNoteApi[]>(`/v1/coaching-notes${query ? `?${query}` : ""}`);
+}
+
+export function coachingNotesCreate(body: {
+  educatorId: string;
+  authorId: string;
+  date?: string;
+  text: string;
+  trackRef?: string | null;
+  sessionId?: string | null;
+}): Promise<CoachingNoteApi> {
+  return apiFetch<CoachingNoteApi>("/v1/coaching-notes", {
+    method: "POST",
+    body,
+  });
+}
+
 // ——— Terms ———
 export interface TermApi {
   id: string;
@@ -204,6 +462,143 @@ export function termsGetCurrent(): Promise<TermApi | null> {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
   });
+}
+
+export function termsCreate(body: { name: string; startDate: string; endDate: string; isCurrent?: boolean }): Promise<TermApi> {
+  return apiFetch<TermApi>("/v1/terms", { method: "POST", body });
+}
+
+export function termsPatch(
+  id: string,
+  body: Partial<{ name: string; startDate: string; endDate: string; isCurrent: boolean }>
+): Promise<TermApi> {
+  return apiFetch<TermApi>(`/v1/terms/${id}`, { method: "PATCH", body });
+}
+
+export function termsDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/terms/${id}`, { method: "DELETE" });
+}
+
+// ——— Programs (settings) ———
+export interface ProgramApi {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export function programsGetAll(): Promise<ProgramApi[]> {
+  return apiFetch<ProgramApi[]>("/v1/programs");
+}
+
+export function programsCreate(body: { name: string; description?: string | null }): Promise<ProgramApi> {
+  return apiFetch<ProgramApi>("/v1/programs", { method: "POST", body });
+}
+
+export function programsPatch(id: string, body: Partial<{ name: string; description: string | null }>): Promise<ProgramApi> {
+  return apiFetch<ProgramApi>(`/v1/programs/${id}`, { method: "PATCH", body });
+}
+
+export function programsDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/programs/${id}`, { method: "DELETE" });
+}
+
+// ——— Locations (settings) ———
+export interface LocationApi {
+  id: string;
+  name: string;
+  address?: string | null;
+}
+
+export function locationsGetAll(): Promise<LocationApi[]> {
+  return apiFetch<LocationApi[]>("/v1/locations");
+}
+
+export function locationsCreate(body: { name: string; address?: string | null }): Promise<LocationApi> {
+  return apiFetch<LocationApi>("/v1/locations", { method: "POST", body });
+}
+
+export function locationsPatch(id: string, body: Partial<{ name: string; address: string | null }>): Promise<LocationApi> {
+  return apiFetch<LocationApi>(`/v1/locations/${id}`, { method: "PATCH", body });
+}
+
+export function locationsDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/locations/${id}`, { method: "DELETE" });
+}
+
+// ——— Age groups (settings) ———
+export interface AgeGroupApi {
+  id: string;
+  name: string;
+  minAge?: number | null;
+  maxAge?: number | null;
+}
+
+export function ageGroupsGetAll(): Promise<AgeGroupApi[]> {
+  return apiFetch<AgeGroupApi[]>("/v1/age-groups");
+}
+
+export function ageGroupsCreate(body: { name: string; minAge?: number | null; maxAge?: number | null }): Promise<AgeGroupApi> {
+  return apiFetch<AgeGroupApi>("/v1/age-groups", { method: "POST", body });
+}
+
+export function ageGroupsPatch(
+  id: string,
+  body: Partial<{ name: string; minAge: number | null; maxAge: number | null }>
+): Promise<AgeGroupApi> {
+  return apiFetch<AgeGroupApi>(`/v1/age-groups/${id}`, { method: "PATCH", body });
+}
+
+export function ageGroupsDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/age-groups/${id}`, { method: "DELETE" });
+}
+
+// ——— Income sources (settings) ———
+export interface IncomeSourceApi {
+  id: string;
+  name: string;
+  code?: string | null;
+}
+
+export function incomeSourcesGetAll(): Promise<IncomeSourceApi[]> {
+  return apiFetch<IncomeSourceApi[]>("/v1/income-sources");
+}
+
+export function incomeSourcesCreate(body: { name: string; code?: string | null }): Promise<IncomeSourceApi> {
+  return apiFetch<IncomeSourceApi>("/v1/income-sources", { method: "POST", body });
+}
+
+export function incomeSourcesPatch(id: string, body: Partial<{ name: string; code: string | null }>): Promise<IncomeSourceApi> {
+  return apiFetch<IncomeSourceApi>(`/v1/income-sources/${id}`, { method: "PATCH", body });
+}
+
+export function incomeSourcesDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/income-sources/${id}`, { method: "DELETE" });
+}
+
+// ——— Expense categories (settings) ———
+export interface ExpenseCategoryApi {
+  id: string;
+  name: string;
+  code?: string | null;
+}
+
+export function expenseCategoriesGetAll(): Promise<ExpenseCategoryApi[]> {
+  return apiFetch<ExpenseCategoryApi[]>("/v1/expense-categories");
+}
+
+export function expenseCategoriesCreate(body: { name: string; code?: string | null }): Promise<ExpenseCategoryApi> {
+  return apiFetch<ExpenseCategoryApi>("/v1/expense-categories", { method: "POST", body });
+}
+
+export function expenseCategoriesPatch(
+  id: string,
+  body: Partial<{ name: string; code: string | null }>
+): Promise<ExpenseCategoryApi> {
+  return apiFetch<ExpenseCategoryApi>(`/v1/expense-categories/${id}`, { method: "PATCH", body });
+}
+
+export function expenseCategoriesDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/expense-categories/${id}`, { method: "DELETE" });
 }
 
 // ——— Learners ———
@@ -243,6 +638,53 @@ export function learnersGetById(id: string): Promise<LearnerApi | null> {
   });
 }
 
+export function learnersCreate(body: {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  school: string;
+  enrolmentType: string;
+  programType: string;
+  membershipStatus?: string | null;
+  userId?: string | null;
+  parentName?: string | null;
+  parentPhone?: string | null;
+  parentEmail?: string | null;
+  organizationId?: string | null;
+  status?: string;
+  gender?: string | null;
+  joinedAt?: string | null;
+}): Promise<LearnerApi> {
+  return apiFetch<LearnerApi>("/v1/learners", { method: "POST", body });
+}
+
+export function learnersPatch(
+  id: string,
+  body: Partial<{
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    school: string;
+    enrolmentType: string;
+    programType: string;
+    membershipStatus: string | null;
+    userId: string | null;
+    parentName: string | null;
+    parentPhone: string | null;
+    parentEmail: string | null;
+    organizationId: string | null;
+    status: string;
+    gender: string | null;
+    joinedAt: string | null;
+  }>
+): Promise<LearnerApi> {
+  return apiFetch<LearnerApi>(`/v1/learners/${id}`, { method: "PATCH", body });
+}
+
+export function learnersDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/learners/${id}`, { method: "DELETE" });
+}
+
 // ——— Classes ———
 export interface ClassApi {
   id: string;
@@ -254,6 +696,7 @@ export interface ClassApi {
   termId: string;
   learnerIds: string[];
   capacity?: number | null;
+  schoolOrOrganisationName?: string | null;
 }
 
 export function classesGetAll(params?: { termId?: string; program?: string; educatorId?: string }): Promise<ClassApi[]> {
@@ -272,16 +715,45 @@ export function classesGetById(id: string): Promise<ClassApi | null> {
   });
 }
 
+export function classesCreate(body: {
+  name: string;
+  program: string;
+  ageGroup: string;
+  location: string;
+  educatorId: string;
+  termId: string;
+  learnerIds?: string[];
+  capacity?: number | null;
+  schoolOrOrganisationName?: string | null;
+}): Promise<ClassApi> {
+  return apiFetch<ClassApi>("/v1/classes", {
+    method: "POST",
+    body,
+  });
+}
+
 export function classesPatch(
   id: string,
   body: {
+    name?: string;
+    program?: string;
+    ageGroup?: string;
+    location?: string;
     educatorId?: string | null;
+    termId?: string;
+    learnerIds?: string[];
+    capacity?: number | null;
+    schoolOrOrganisationName?: string | null;
   }
 ): Promise<ClassApi> {
   return apiFetch<ClassApi>(`/v1/classes/${id}`, {
     method: "PATCH",
     body,
   });
+}
+
+export function classesDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/classes/${id}`, { method: "DELETE" });
 }
 
 // ——— Sessions ———
@@ -422,6 +894,53 @@ export function sessionReportsPatch(id: string, body: Partial<SessionReportApi>)
   return apiFetch<SessionReportApi>(`/v1/session-reports/${id}`, { method: "PATCH", body });
 }
 
+// ——— Educator & learner badges ———
+
+export interface EducatorBadgeApi {
+  id: string;
+  educatorId: string;
+  badgeId: string;
+  trackId?: string | null;
+  earnedAt: string;
+}
+
+export function educatorBadgesGetAll(educatorId: string): Promise<EducatorBadgeApi[]> {
+  return apiFetch<EducatorBadgeApi[]>(`/v1/educators/${educatorId}/badges`);
+}
+
+export function educatorBadgesCreate(
+  educatorId: string,
+  body: { badgeId: string; trackId?: string | null; earnedAt?: string }
+): Promise<EducatorBadgeApi> {
+  return apiFetch<EducatorBadgeApi>(`/v1/educators/${educatorId}/badges`, {
+    method: "POST",
+    body,
+  });
+}
+
+export interface LearnerBadgeAwardApi {
+  id: string;
+  learnerId: string;
+  sessionId: string;
+  badgeId: string;
+  awardedAt: string;
+  awardedBy: string;
+}
+
+export function learnerBadgesGetAll(learnerId: string): Promise<LearnerBadgeAwardApi[]> {
+  return apiFetch<LearnerBadgeAwardApi[]>(`/v1/learners/${learnerId}/badges`);
+}
+
+export function learnerBadgesCreate(
+  learnerId: string,
+  body: { sessionId: string; badgeId: string; awardedAt?: string; awardedBy?: string }
+): Promise<LearnerBadgeAwardApi> {
+  return apiFetch<LearnerBadgeAwardApi>(`/v1/learners/${learnerId}/badges`, {
+    method: "POST",
+    body,
+  });
+}
+
 // ——— Organisations (signup is public; creates pending request until admin approves) ———
 export interface OrganisationSignupPayload {
   signupType: "school" | "organisation" | "miradi";
@@ -515,6 +1034,23 @@ export function adminPendingSignupReject(id: string): Promise<{ rejected: boolea
   });
 }
 
+export interface OrganisationApi {
+  id: string;
+  name: string;
+  type: string;
+  contactPerson: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  location: string;
+}
+
+export function organisationsGetById(id: string): Promise<OrganisationApi | null> {
+  return apiFetch<OrganisationApi>(`/v1/organisations/${id}`).catch((e) => {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  });
+}
+
 export function organisationsSignup(payload: OrganisationSignupPayload): Promise<OrganisationSignupResponse> {
   return apiFetch<OrganisationSignupResponse>("/v1/organisations/signup", {
     method: "POST",
@@ -555,6 +1091,10 @@ export function adminAccountsCreate(body: {
   organizationId?: string | null;
 }): Promise<AdminAccountUser> {
   return apiFetch<AdminAccountUser>("/v1/admin/accounts", { method: "POST", body });
+}
+
+export function adminAccountsDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/admin/accounts/${id}`, { method: "DELETE" });
 }
 
 // ——— Parent self-signup (public) ———

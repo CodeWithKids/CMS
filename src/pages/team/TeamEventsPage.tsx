@@ -1,4 +1,4 @@
-import { getUpcomingEvents } from "@/mockData";
+import { useEventsList } from "@/features/events/api";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Calendar } from "lucide-react";
 
@@ -16,7 +16,8 @@ function formatDate(dateStr: string): string {
 }
 
 export default function TeamEventsPage() {
-  const upcomingEvents = getUpcomingEvents();
+  const { data: events = [] } = useEventsList({ upcomingOnly: true });
+  const upcomingEvents = events;
 
   return (
     <div className="page-container p-6">

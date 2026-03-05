@@ -10,7 +10,7 @@ import { getEducatorBadgesForEducator } from "@/mockData/educator";
 import { filterSessionsByPeriod, type PeriodFilter } from "@/utils/period";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { LEARNING_TRACK_LABELS } from "@/types";
-import type { LearningTrack } from "@/types";
+import type { LearningTrack, Session, SessionType } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/table";
 import { UserCircle, Clock, BookOpen, Award, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import { isApiEnabled, sessionsGetAll, classesGetAll, educatorBadgesGetAll, type EducatorBadgeApi } from "@/lib/api";
 
 const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "this_term", label: "This term" },
@@ -44,9 +46,56 @@ export default function EducatorProfilePage() {
   const [period, setPeriod] = useState<PeriodFilter>("this_term");
   const currentAvatar = currentUser?.avatarId ? getPresetAvatar(currentUser.avatarId) : null;
 
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessions = [] } = useQuery({
+    queryKey: ["educator", "sessions", "profile", educatorId],
+    queryFn: () => sessionsGetAll({ educatorId }),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: apiClasses = [] } = useQuery({
+    queryKey: ["classes", "all"],
+    queryFn: () => classesGetAll(),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: apiBadges = [] } = useQuery({
+    queryKey: ["educator", "badges", educatorId],
+    queryFn: () => educatorBadgesGetAll(educatorId),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const classMap = useMemo(() => {
+    if (!apiEnabled) return null as Map<string, { name: string; location: string }> | null;
+    const map = new Map<string, { name: string; location: string }>();
+    apiClasses.forEach((c) => {
+      map.set(c.id, { name: c.name, location: c.location });
+    });
+    return map;
+  }, [apiEnabled, apiClasses]);
+
   const allSessions = useMemo(
-    () => getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" }),
-    [educatorId, getSessionsForEducatorByRole]
+    (): Session[] =>
+      apiEnabled && educatorId
+        ? apiSessions.map((s) => ({
+            id: s.id,
+            classId: s.classId,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            topic: s.topic,
+            sessionType: s.sessionType as SessionType,
+            duration: "1_hour",
+            learningTrack: s.learningTrack as LearningTrack,
+            termId: s.termId,
+            leadEducatorId: s.leadEducatorId,
+            assistantEducatorIds: s.assistantEducatorIds ?? [],
+            durationHours: s.durationHours ?? 1,
+          }))
+        : getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" }),
+    [apiEnabled, educatorId, apiSessions, getSessionsForEducatorByRole]
   );
 
   const sessionsInPeriod = useMemo(
@@ -86,11 +135,31 @@ export default function EducatorProfilePage() {
     return Array.from(map.entries()).map(([track, data]) => ({ track, ...data })).sort((a, b) => b.sessions - a.sessions);
   }, [facilitatorSessions]);
 
-  const computedBadges = useMemo(() => computeEducatorBadges(educatorId, allSessions), [educatorId, allSessions]);
-  const staticBadges = useMemo(() => getEducatorBadgesForEducator(educatorId), [educatorId]);
+  const computedBadges = useMemo(
+    () => computeEducatorBadges(educatorId, allSessions),
+    [educatorId, allSessions]
+  );
+
+  const staticBadges = useMemo(() => {
+    if (apiEnabled) {
+      return (apiBadges as EducatorBadgeApi[]).map((b) => ({
+        id: b.id,
+        educatorId: b.educatorId,
+        trackId: b.trackId ?? undefined,
+        name: b.badgeId,
+        description: "",
+        earnedAt: b.earnedAt,
+      }));
+    }
+    return getEducatorBadgesForEducator(educatorId);
+  }, [apiEnabled, apiBadges, educatorId]);
+
   const badges = useMemo(() => {
     const byTrack = new Set(computedBadges.map((b) => b.trackId).filter(Boolean));
-    return [...computedBadges, ...staticBadges.filter((s) => !s.trackId || !byTrack.has(s.trackId))];
+    return [
+      ...computedBadges,
+      ...staticBadges.filter((s) => !s.trackId || !byTrack.has(s.trackId)),
+    ];
   }, [computedBadges, staticBadges]);
 
   const handleSelectAvatar = (avatarId: string) => {
@@ -307,7 +376,7 @@ export default function EducatorProfilePage() {
               </TableHeader>
               <TableBody>
                 {sessionsInPeriod.slice(0, 20).map((s) => {
-                  const cls = getClass(s.classId);
+                  const cls = apiEnabled && classMap ? classMap.get(s.classId) : getClass(s.classId);
                   const role = s.leadEducatorId === educatorId ? "Facilitator" : "Coach";
                   return (
                     <TableRow key={s.id}>

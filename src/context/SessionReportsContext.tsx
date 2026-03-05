@@ -4,10 +4,19 @@ import {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   type ReactNode,
 } from "react";
-import type { SessionReport, CoachFeedbackEntry } from "@/types";
+import type { SessionReport, CoachFeedbackEntry, SessionReportStatus, SessionDuration, SessionType, LearningTrack, ObjectivesMet } from "@/types";
 import { mockSessionReports } from "@/mockData";
+import {
+  isApiEnabled,
+  sessionReportsGetAll,
+  sessionReportsGetBySession,
+  sessionReportsCreate,
+  sessionReportsPatch,
+  type SessionReportApi,
+} from "@/lib/api";
 
 export interface SessionReportFilters {
   dateFrom?: string;
@@ -39,8 +48,48 @@ function nextId(existing: SessionReport[]): string {
   return `sr${max + 1}`;
 }
 
+function apiToSessionReport(api: SessionReportApi): SessionReport {
+  return {
+    id: api.id,
+    sessionId: api.sessionId,
+    status: (api.status as SessionReportStatus) ?? "draft",
+    leadEducatorId: api.leadEducatorId,
+    assistantEducatorIds: api.assistantEducatorIds ?? [],
+    date: api.date,
+    duration: (api.duration as SessionDuration) ?? "1_hour",
+    sessionType: (api.sessionType as SessionType) ?? "makerspace",
+    schoolOrOrganizationName: api.schoolOrOrganizationName ?? "",
+    totalLearners: api.totalLearners ?? 0,
+    learningTrack: (api.learningTrack as LearningTrack) ?? "computer_basics",
+    durationHours: api.durationHours ?? 1,
+    femaleCount: api.femaleCount ?? 0,
+    maleCount: api.maleCount ?? 0,
+    highlights: api.highlights ?? [],
+    objectivesMet: (api.objectivesMet as ObjectivesMet) ?? "yes",
+    ranAsPlanned: true,
+    technicalChallenges: false,
+    curriculumAdjustmentsSuggested: false,
+    incidentOccurred: false,
+    equipmentReturned: true,
+    honestyConfirmed: true,
+    coachFeedback: [],
+    createdAt: api.createdAt,
+    updatedAt: api.updatedAt,
+  };
+}
+
 export function SessionReportsProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<SessionReport[]>(() => [...mockSessionReports]);
+  const apiEnabled = isApiEnabled();
+
+  useEffect(() => {
+    if (!apiEnabled) return;
+    sessionReportsGetAll()
+      .then((list) => setReports(list.map(apiToSessionReport)))
+      .catch(() => {
+        // keep mock fallback if API fails
+      });
+  }, [apiEnabled]);
 
   const getBySession = useCallback(
     (sessionId: string) => reports.find((r) => r.sessionId === sessionId),
@@ -59,7 +108,6 @@ export function SessionReportsProvider({ children }: { children: ReactNode }) {
       if (filters.dateFrom) out = out.filter((r) => r.date >= filters!.dateFrom!);
       if (filters.dateTo) out = out.filter((r) => r.date <= filters!.dateTo!);
       if (filters.educatorId) out = out.filter((r) => r.leadEducatorId === filters!.educatorId);
-      // program/location require joining to session/class; we can add when we have getSession/getClass in context or pass sessions/classes
       return out;
     },
     [reports]
@@ -67,7 +115,7 @@ export function SessionReportsProvider({ children }: { children: ReactNode }) {
 
   const saveReport = useCallback((report: SessionReport) => {
     const now = new Date().toISOString();
-    setReports((prev) => {
+    const mergeIntoState = (prev: SessionReport[]) => {
       const id = report.id || nextId(prev);
       const existing = prev.find((r) => r.sessionId === report.sessionId);
       const merged: SessionReport = {
@@ -78,8 +126,58 @@ export function SessionReportsProvider({ children }: { children: ReactNode }) {
       };
       const rest = prev.filter((r) => r.sessionId !== report.sessionId);
       return [...rest, merged];
-    });
-  }, []);
+    };
+
+    if (apiEnabled) {
+      const existing = reports.find((r) => r.sessionId === report.sessionId);
+      if (existing?.id) {
+        sessionReportsPatch(existing.id, {
+          status: report.status,
+          assistantEducatorIds: report.assistantEducatorIds,
+          date: report.date,
+          duration: report.duration,
+          totalLearners: report.totalLearners,
+          femaleCount: report.femaleCount,
+          maleCount: report.maleCount,
+          highlights: report.highlights,
+          objectivesMet: report.objectivesMet,
+        })
+          .then((updated) => {
+            setReports((prev) =>
+              prev.map((r) => (r.id === updated.id ? { ...apiToSessionReport(updated), ...r, coachFeedback: r.coachFeedback } : r))
+            );
+          })
+          .catch(() => {});
+      } else {
+        sessionReportsCreate({
+          sessionId: report.sessionId,
+          status: report.status,
+          leadEducatorId: report.leadEducatorId,
+          assistantEducatorIds: report.assistantEducatorIds,
+          date: report.date,
+          duration: report.duration,
+          sessionType: report.sessionType,
+          schoolOrOrganizationName: report.schoolOrOrganizationName,
+          totalLearners: report.totalLearners,
+          learningTrack: report.learningTrack,
+          durationHours: report.durationHours,
+          femaleCount: report.femaleCount,
+          maleCount: report.maleCount,
+          highlights: report.highlights,
+          objectivesMet: report.objectivesMet,
+        })
+          .then((created) => {
+            setReports((prev) => [
+              ...prev.filter((r) => r.sessionId !== report.sessionId),
+              apiToSessionReport(created),
+            ]);
+          })
+          .catch(() => {});
+      }
+      return;
+    }
+    setReports(mergeIntoState);
+  }, [apiEnabled, reports]);
 
   const saveCoachFeedback = useCallback((sessionId: string, educatorId: string, text: string) => {
     const now = new Date().toISOString();
@@ -96,12 +194,19 @@ export function SessionReportsProvider({ children }: { children: ReactNode }) {
 
   const submitReport = useCallback((id: string) => {
     const now = new Date().toISOString();
+    if (apiEnabled) {
+      sessionReportsPatch(id, { status: "submitted" }).then((updated) => {
+        setReports((prev) =>
+          prev.map((r) => (r.id === id ? { ...apiToSessionReport(updated), submittedAt: now, coachFeedback: r.coachFeedback } : r))
+        );
+      }).catch(() => {});
+    }
     setReports((prev) =>
       prev.map((r) =>
         r.id === id ? { ...r, status: "submitted" as const, submittedAt: now, updatedAt: now } : r
       )
     );
-  }, []);
+  }, [apiEnabled]);
 
   const submitReportBySession = useCallback(
     (sessionId: string) => {

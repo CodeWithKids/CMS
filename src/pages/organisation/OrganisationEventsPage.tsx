@@ -1,11 +1,12 @@
 import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
-import { getUpcomingEvents } from "@/mockData";
+import { useEventsList } from "@/features/events/api";
 import { UpcomingEventsWithRegistration } from "@/features/events/components/UpcomingEventsWithRegistration";
 
 export default function OrganisationEventsPage() {
   const { organisation, learners, isOrgUser } = useOrganisationLearners();
   const learnerIds = learners.map((l) => l.id);
-  const upcomingEvents = getUpcomingEvents();
+  const { data: events = [] } = useEventsList({ upcomingOnly: true });
+  const upcomingEvents = events;
 
   if (!isOrgUser || !organisation) {
     return (

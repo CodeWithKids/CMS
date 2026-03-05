@@ -30,8 +30,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getPaidAmount, formatCurrency } from "@/lib/financeUtils";
-import { useFinanceAccount } from "@/context/FinanceAccountContext";
-import { getLearner, getOrganization, getCurrentTerm } from "@/mockData";
+import { useInvoices } from "@/context/FinanceContext";
+import { useTerms } from "@/hooks/useTerms";
+import { useOrganisation } from "@/hooks/useOrganisation";
 import {
   INVOICE_SOURCE_LABELS,
   getIncomeSessionTypeFromSource,
@@ -78,7 +79,7 @@ function getDisplayAmount(inv: Invoice): number {
 const ALL = "all";
 
 export default function FinanceIncomePage() {
-  const currentTerm = getCurrentTerm();
+  const { currentTerm } = useTerms();
   const termStart = currentTerm?.startDate ?? "2026-01-01";
   const termEnd = currentTerm?.endDate ?? "2026-12-31";
 
@@ -106,18 +107,19 @@ export default function FinanceIncomePage() {
     notes: "",
   });
 
-  const { getInvoices } = useFinanceAccount();
-  const invoices = getInvoices();
+  const invoices = useInvoices();
+  const getOrgName = (orgId: string | undefined | null): string => {
+    if (!orgId) return "—";
+    const { organisation } = useOrganisation(orgId);
+    return organisation?.name ?? "—";
+  };
   const entries = useMemo(() => {
     return invoices.map((inv) => {
       const payerLabel =
-        inv.organizationId != null
-          ? (getOrganization(inv.organizationId)?.name ?? "—")
+        inv.organisationId != null
+          ? getOrgName(inv.organisationId)
           : inv.learnerId != null
-            ? (() => {
-                const learner = getLearner(inv.learnerId!);
-                return learner ? `${learner.firstName} ${learner.lastName}` : "—";
-              })()
+            ? inv.learnerId
             : "—";
       const description = inv.description ?? null;
       const date = inv.paidDate ?? inv.dueDate;

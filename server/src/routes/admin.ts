@@ -140,6 +140,27 @@ router.patch("/accounts/:id", requireAuth, async (req: Request, res: Response) =
   res.json(updated);
 });
 
+/** DELETE /v1/admin/accounts/:id - delete a user account (admin only). Admins cannot delete their own account. */
+router.delete("/accounts/:id", requireAuth, async (req: Request, res: Response) => {
+  if (!isAdmin(req as Request & { auth?: { user: { role: string; id: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin only.");
+    return;
+  }
+  const id = req.params.id;
+  const currentUserId = (req as Request & { auth?: { user: { id: string } } }).auth?.user?.id;
+  if (currentUserId && id === currentUserId) {
+    sendError(res, 400, "VALIDATION_ERROR", "You cannot delete your own account.");
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    sendError(res, 404, "NOT_FOUND", "User not found.");
+    return;
+  }
+  await prisma.user.delete({ where: { id } });
+  res.status(204).send();
+});
+
 // ——— Pending signups (school, organisation, miradi, parent) ———
 
 type PendingSignupPayloadOrg = {

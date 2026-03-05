@@ -14,6 +14,15 @@ import sessionReportsRoutes from "./routes/sessionReports.js";
 import adminRoutes from "./routes/admin.js";
 import parentsRoutes from "./routes/parents.js";
 import partnersRoutes from "./routes/partners.js";
+import eventsRoutes from "./routes/events.js";
+import inventoryRoutes from "./routes/inventory.js";
+import lessonPlansRoutes from "./routes/lessonPlans.js";
+import coachingNotesRoutes from "./routes/coachingNotes.js";
+import programsRoutes from "./routes/programs.js";
+import locationsRoutes from "./routes/locations.js";
+import ageGroupsRoutes from "./routes/ageGroups.js";
+import incomeSourcesRoutes from "./routes/incomeSources.js";
+import expenseCategoriesRoutes from "./routes/expenseCategories.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -48,6 +57,15 @@ app.use("/v1/session-reports", sessionReportsRoutes);
 app.use("/v1/admin", adminRoutes);
 app.use("/v1/parents", parentsRoutes);
 app.use("/v1/partners", partnersRoutes);
+app.use("/v1/inventory", inventoryRoutes);
+app.use("/v1/lesson-plans", lessonPlansRoutes);
+app.use("/v1/coaching-notes", coachingNotesRoutes);
+app.use("/v1/events", eventsRoutes);
+app.use("/v1/programs", programsRoutes);
+app.use("/v1/locations", locationsRoutes);
+app.use("/v1/age-groups", ageGroupsRoutes);
+app.use("/v1/income-sources", incomeSourcesRoutes);
+app.use("/v1/expense-categories", expenseCategoriesRoutes);
 
 app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   errorHandler(req, res, next, err);
@@ -65,4 +83,8 @@ app.listen(port, () => {
   console.log("  Orgs:    GET /v1/organisations/:id, GET /v1/organisations/:id/learners, GET /v1/organisations/:id/invoices");
   console.log("  Educators: GET /v1/educators, GET /v1/educators/:id");
   console.log("  Partners: GET /v1/partners/organisations, GET /v1/partners/parents, GET /v1/partners/learners");
+  console.log("  Events:   GET /v1/events, GET /v1/events/:slug");
+  console.log("  Inventory: GET/POST/PATCH/DELETE /v1/inventory/items");
+  console.log("  Lesson plans: GET/POST/PATCH /v1/lesson-plans/templates, GET/POST/PATCH /v1/lesson-plans/instances");
+  console.log("  Coaching notes: GET/POST /v1/coaching-notes");
 });

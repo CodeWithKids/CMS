@@ -1,12 +1,14 @@
 import { useAuth } from "@/context/AuthContext";
-import { parentChildMap, getUpcomingEvents } from "@/mockData";
+import { parentChildMap } from "@/mockData";
+import { useEventsList } from "@/features/events/api";
 import { UpcomingEventsWithRegistration } from "@/features/events/components/UpcomingEventsWithRegistration";
 
 export default function ParentEventsPage() {
   const { currentUser } = useAuth();
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
-  const upcomingEvents = getUpcomingEvents();
+  const { data: events = [] } = useEventsList({ upcomingOnly: true });
+  const upcomingEvents = events;
 
   return (
     <div className="page-container">

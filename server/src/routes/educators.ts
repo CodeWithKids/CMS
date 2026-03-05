@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { randomUUID } from "crypto";
 import { prisma } from "../db.js";
 
 const router = Router();
@@ -53,6 +54,35 @@ router.get("/:id", async (req: Request, res: Response) => {
     return;
   }
   res.json(user);
+});
+
+/** GET /v1/educators/:id/badges */
+router.get("/:id/badges", async (req: Request, res: Response) => {
+  const badges = await prisma.educatorBadge.findMany({
+    where: { educatorId: req.params.id },
+    orderBy: { earnedAt: "desc" },
+  });
+  res.json(badges);
+});
+
+/** POST /v1/educators/:id/badges */
+router.post("/:id/badges", async (req: Request, res: Response) => {
+  const { badgeId, trackId, earnedAt } = req.body ?? {};
+  if (typeof badgeId !== "string" || !badgeId.trim()) {
+    res.status(400).json({ code: "BAD_REQUEST", message: "badgeId is required." });
+    return;
+  }
+  const id = randomUUID();
+  const created = await prisma.educatorBadge.create({
+    data: {
+      id,
+      educatorId: req.params.id,
+      badgeId,
+      trackId: typeof trackId === "string" ? trackId : null,
+      earnedAt: typeof earnedAt === "string" && earnedAt.trim() ? earnedAt : new Date().toISOString().slice(0, 10),
+    },
+  });
+  res.status(201).json(created);
 });
 
 export default router;
