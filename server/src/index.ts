@@ -73,6 +73,13 @@ app.use((err: unknown, req: express.Request, res: express.Response, next: expres
   errorHandler(req, res, next, err);
 });
 
+// In production, require a strong JWT_SECRET (set in Render env; never commit it).
+const devSecret = "cwk-hub-dev-secret-change-in-production";
+if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET === devSecret)) {
+  console.error("FATAL: Set JWT_SECRET in production (e.g. Render Environment). Do not use the dev default.");
+  process.exit(1);
+}
+
 app.listen(port, () => {
   console.log(`CWK Hub API listening on http://localhost:${port}`);
   console.log("  Health: GET /health");
