@@ -228,6 +228,23 @@ Accessing a route for a different role redirects to that role's home (e.g. `/stu
 
 ---
 
+## Deploying the frontend to Render (static site)
+
+The app uses **React Router** (`<BrowserRouter>`) for client-side routes (e.g. `/login`, `/dashboard`). On Render, the static site serves files from `dist/` and has no notion of those paths, so a direct request to `/login` or a refresh on that URL returns **Not Found** unless you add a rewrite rule.
+
+**Add this redirect so all routes serve `index.html` and React Router can handle them:**
+
+1. In **Render** → your **CWK Hub** (frontend) service → **Settings**.
+2. Open **Redirects/Rewrites**.
+3. **Add Rewrite Rule:**
+   - **Source:** `/*`
+   - **Destination:** `/index.html`
+   - **Action:** `Rewrite`
+
+Save. No redeploy needed; the rule applies immediately. After that, refreshing `/login`, `/dashboard`, or any other route will load the app correctly.
+
+---
+
 ## Next steps (when adding a backend)
 
 - **Replace mock data** — Add API clients or hooks (e.g. `useLearners`, `useClasses`) that call your backend. Swap these in where `mockData` is used today. TanStack React Query is already in the stack and can be used for data fetching and caching.

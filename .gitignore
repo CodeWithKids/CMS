@@ -9,6 +9,7 @@ dist-ssr
 # Environment and secrets (never commit)
 .env
 .env.local
+server/scripts/seed-admin-render.sql
 .env.*.local
 .env.development.local
 .env.test.local
