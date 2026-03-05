@@ -29,13 +29,15 @@ const port = Number(process.env.PORT) || 3001;
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = process.env.CORS_ORIGIN;
 
-// In production, restrict CORS to your frontend URL. In dev, allow any (origin: true).
+// In production, allow only the Render frontend. In dev, allow any origin.
+const allowedOrigins = isProduction
+  ? (typeof corsOrigin === "string" && corsOrigin.length > 0
+      ? corsOrigin.split(",").map((o) => o.trim())
+      : ["https://cwk-hub.onrender.com"])
+  : true;
 app.use(
   cors({
-    origin:
-      isProduction && typeof corsOrigin === "string" && corsOrigin.length > 0
-        ? corsOrigin
-        : true,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
