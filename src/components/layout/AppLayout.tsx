@@ -133,7 +133,13 @@ export default function AppLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  if (!currentUser) return null;
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Loading…</p>
+      </div>
+    );
+  }
 
   const baseNav = navByRole[currentUser.role] ?? [];
   const navItems = canViewAiMarketing(currentUser.role)

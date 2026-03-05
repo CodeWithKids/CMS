@@ -34,6 +34,7 @@ import { CanvasStateProvider } from "@/features/aiMarketing/CanvasStateContext";
 import LoginPage from "@/pages/auth/LoginPage";
 import AppLayout from "@/components/layout/AppLayout";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 
 const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
 const LearnersPage = lazy(() => import("@/pages/admin/LearnersPage"));
@@ -178,6 +179,7 @@ const App = () => (
         <EventRegistrationsProvider>
         <CanvasStateProvider>
         <BrowserRouter>
+          <RouteErrorBoundary>
           <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -339,6 +341,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </RouteErrorBoundary>
         </BrowserRouter>
         </CanvasStateProvider>
         </EventRegistrationsProvider>
