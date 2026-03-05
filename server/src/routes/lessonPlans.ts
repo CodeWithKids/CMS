@@ -52,7 +52,7 @@ router.patch("/templates/:id", async (req: Request, res: Response) => {
 /** GET /v1/lesson-plans/instances?sessionId=&educatorId= */
 router.get("/instances", async (req: Request, res: Response) => {
   const { sessionId, educatorId } = req.query;
-  const where: Parameters<typeof prisma.lessonPlanInstance.findMany>[0]["where"] = {};
+  const where: { sessionId?: string; educatorId?: string } = {};
   if (typeof sessionId === "string") where.sessionId = sessionId;
   if (typeof educatorId === "string") where.educatorId = educatorId;
   const list = await prisma.lessonPlanInstance.findMany({

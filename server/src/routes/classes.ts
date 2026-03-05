@@ -26,7 +26,7 @@ function parseOptionalNumber(val: unknown): number | null | undefined {
 /** GET /v1/classes */
 router.get("/", async (req: Request, res: Response) => {
   const { termId, program, educatorId } = req.query;
-  const where: Parameters<typeof prisma.class.findMany>[0]["where"] = {};
+  const where: { termId?: string; program?: string; educatorId?: string } = {};
   if (typeof termId === "string") where.termId = termId;
   if (typeof program === "string") where.program = program;
   if (typeof educatorId === "string") where.educatorId = educatorId;
@@ -121,7 +121,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   const location = parseString(body.location);
   const educatorId =
     body.educatorId === null || body.educatorId === ""
-      ? null
+      ? undefined
       : parseString(body.educatorId);
   const termId = parseString(body.termId);
   const learnerIds = Array.isArray(body.learnerIds)
@@ -137,7 +137,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
     program?: string;
     ageGroup?: string;
     location?: string;
-    educatorId?: string | null;
+    educatorId?: string;
     termId?: string;
     learnerIds?: string[];
     capacity?: number | null;

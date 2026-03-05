@@ -6,7 +6,10 @@ const router = Router();
 /** GET /v1/session-reports - query: dateFrom?, dateTo?, educatorId? */
 router.get("/", async (req: Request, res: Response) => {
   const { dateFrom, dateTo, educatorId } = req.query;
-  const where: Parameters<typeof prisma.sessionReport.findMany>[0]["where"] = {};
+  const where: {
+    date?: { gte?: string; lte?: string };
+    OR?: ({ leadEducatorId: string } | { assistantEducatorIds: { has: string } })[];
+  } = {};
   if (typeof dateFrom === "string" && typeof dateTo === "string") where.date = { gte: dateFrom, lte: dateTo };
   else if (typeof dateFrom === "string") where.date = { gte: dateFrom };
   else if (typeof dateTo === "string") where.date = { lte: dateTo };

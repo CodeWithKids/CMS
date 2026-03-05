@@ -6,7 +6,7 @@ const router = Router();
 /** GET /v1/coaching-notes?educatorId= */
 router.get("/", async (req: Request, res: Response) => {
   const { educatorId } = req.query;
-  const where: Parameters<typeof prisma.coachingNote.findMany>[0]["where"] = {};
+  const where: { educatorId?: string } = {};
   if (typeof educatorId === "string") where.educatorId = educatorId;
   const list = await prisma.coachingNote.findMany({
     where,

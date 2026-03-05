@@ -6,7 +6,11 @@ const router = Router();
 /** GET /v1/inventory/items?status=&category=&educatorId= */
 router.get("/items", async (req: Request, res: Response) => {
   const { status, category, educatorId } = req.query;
-  const where: Parameters<typeof prisma.inventoryItem.findMany>[0]["where"] = {};
+  const where: {
+    status?: string;
+    category?: string;
+    OR?: ({ checkedOutByEducatorId: string } | { assignedEducatorId: string })[];
+  } = {};
   if (typeof status === "string") where.status = status;
   if (typeof category === "string") where.category = category;
   if (typeof educatorId === "string") {

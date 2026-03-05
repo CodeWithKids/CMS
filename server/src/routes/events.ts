@@ -7,7 +7,10 @@ const router = Router();
 /** GET /v1/events?status=&dateFrom=&dateTo= */
 router.get("/", async (req: Request, res: Response) => {
   const { status, dateFrom, dateTo } = req.query;
-  const where: Parameters<typeof prisma.event.findMany>[0]["where"] = {};
+  const where: {
+    status?: string;
+    startDate?: { gte?: string; lte?: string };
+  } = {};
   if (typeof status === "string") where.status = status;
   if (typeof dateFrom === "string" && typeof dateTo === "string") {
     where.startDate = { gte: dateFrom, lte: dateTo };

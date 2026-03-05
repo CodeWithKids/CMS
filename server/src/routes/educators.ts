@@ -9,7 +9,7 @@ const STAFF_ROLES = ["admin", "educator", "finance"];
 /** GET /v1/educators - list staff (admin, educator, finance). Query: role?, status? */
 router.get("/", async (req: Request, res: Response) => {
   const { role, status } = req.query;
-  const where: Parameters<typeof prisma.user.findMany>[0]["where"] = {
+  const where: { role: { in: string[] } | string; status?: string } = {
     role: { in: STAFF_ROLES },
   };
   if (typeof role === "string" && STAFF_ROLES.includes(role)) where.role = role;

@@ -18,7 +18,12 @@ function parseString(val: unknown): string | undefined {
 router.get("/", async (req: Request, res: Response) => {
   const { enrolmentType, organisationId, status, search, userId } = req.query;
 
-  const where: Parameters<typeof prisma.learner.findMany>[0]["where"] = {};
+  const where: {
+    enrolmentType?: string;
+    organizationId?: string;
+    status?: string;
+    userId?: string;
+  } = {};
   if (typeof enrolmentType === "string") where.enrolmentType = enrolmentType;
   if (typeof organisationId === "string") where.organizationId = organisationId;
   if (typeof status === "string") where.status = status;

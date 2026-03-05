@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../db.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, type AuthLocals } from "../middleware/auth.js";
 import { sendError } from "../middleware/error.js";
 
 const router = Router();
@@ -9,13 +9,15 @@ const router = Router();
 const TEAM_ROLES = ["admin", "educator", "finance", "partnerships", "marketing", "social_media", "ld_manager"];
 const MIN_PASSWORD_LENGTH = 6;
 
-function isAdmin(req: Request & { auth?: { user: { role: string } } }): boolean {
+type AuthedRequest = Request & { auth?: AuthLocals };
+
+function isAdmin(req: AuthedRequest): boolean {
   return req.auth?.user?.role === "admin";
 }
 
 /** POST /v1/admin/accounts - create a team member (admin only). Internal team = invited/created by admin, no public signup. */
 router.post("/accounts", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
@@ -76,7 +78,7 @@ router.post("/accounts", requireAuth, async (req: Request, res: Response) => {
 
 /** GET /v1/admin/accounts - list users (e.g. status=pending). Admin only. */
 router.get("/accounts", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
@@ -102,7 +104,7 @@ router.get("/accounts", requireAuth, async (req: Request, res: Response) => {
 
 /** PATCH /v1/admin/accounts/:id - approve/reject or update user. Admin only. */
 router.patch("/accounts/:id", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
@@ -142,12 +144,12 @@ router.patch("/accounts/:id", requireAuth, async (req: Request, res: Response) =
 
 /** DELETE /v1/admin/accounts/:id - delete a user account (admin only). Admins cannot delete their own account. */
 router.delete("/accounts/:id", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string; id: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
   const id = req.params.id;
-  const currentUserId = (req as Request & { auth?: { user: { id: string } } }).auth?.user?.id;
+  const currentUserId = (req as AuthedRequest).auth?.user.id;
   if (currentUserId && id === currentUserId) {
     sendError(res, 400, "VALIDATION_ERROR", "You cannot delete your own account.");
     return;
@@ -182,7 +184,7 @@ type PendingSignupPayloadParent = {
 
 /** GET /v1/admin/pending-signups - list pending signup requests. Admin only. */
 router.get("/pending-signups", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
@@ -195,7 +197,7 @@ router.get("/pending-signups", requireAuth, async (req: Request, res: Response) 
 
 /** POST /v1/admin/pending-signups/:id/approve - approve signup: create Organisation+User or User, link in DB. Admin only. */
 router.post("/pending-signups/:id/approve", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string; id: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
@@ -210,7 +212,7 @@ router.post("/pending-signups/:id/approve", requireAuth, async (req: Request, re
     return;
   }
 
-  const adminId = (req as Request & { auth?: { user: { id: string } } }).auth?.user?.id ?? "";
+  const adminId = (req as AuthedRequest).auth?.user.id ?? "";
 
   if (pending.signupType === "parent") {
     const payload = pending.payload as PendingSignupPayloadParent;
@@ -296,7 +298,7 @@ router.post("/pending-signups/:id/approve", requireAuth, async (req: Request, re
 
 /** POST /v1/admin/pending-signups/:id/reject - reject signup request. Admin only. */
 router.post("/pending-signups/:id/reject", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { id: string } } })) {
+  if (!isAdmin(req as AuthedRequest)) {
     sendError(res, 403, "FORBIDDEN", "Admin only.");
     return;
   }
@@ -310,7 +312,7 @@ router.post("/pending-signups/:id/reject", requireAuth, async (req: Request, res
     sendError(res, 400, "VALIDATION_ERROR", "This signup has already been processed.");
     return;
   }
-  const adminId = (req as Request & { auth?: { user: { id: string } } }).auth?.user?.id ?? "";
+  const adminId = (req as AuthedRequest).auth?.user.id ?? "";
   await prisma.pendingSignup.update({
     where: { id },
     data: { status: "rejected", reviewedAt: new Date(), reviewedBy: adminId },

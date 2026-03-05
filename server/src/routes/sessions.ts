@@ -6,7 +6,11 @@ const router = Router();
 /** GET /v1/sessions */
 router.get("/", async (req: Request, res: Response) => {
   const { educatorId, classId, termId, dateFrom, dateTo } = req.query;
-  const where: Parameters<typeof prisma.session.findMany>[0]["where"] = {};
+  const where: {
+    classId?: string;
+    termId?: string;
+    date?: { gte?: string; lte?: string };
+  } = {};
   if (typeof classId === "string") where.classId = classId;
   if (typeof termId === "string") where.termId = termId;
   if (typeof dateFrom === "string" && typeof dateTo === "string") {

@@ -46,7 +46,12 @@ function toInvoiceResponse(row: Awaited<ReturnType<typeof prisma.financeInvoice.
 /** GET /v1/finance/invoices */
 router.get("/invoices", async (req: Request, res: Response) => {
   const { termId, status, payerType, organisationId, learnerId } = req.query;
-  const where: Parameters<typeof prisma.financeInvoice.findMany>[0]["where"] = {};
+  const where: {
+    termId?: string;
+    payerType?: string;
+    organisationId?: string;
+    learnerId?: string;
+  } = {};
   if (typeof termId === "string") where.termId = termId;
   if (typeof payerType === "string") where.payerType = payerType;
   if (typeof organisationId === "string") where.organisationId = organisationId;
@@ -122,6 +127,7 @@ router.post("/invoices/:id/payments", async (req: Request, res: Response) => {
         reference: typeof reference === "string" ? reference : null,
         date: dateStr,
         recordedBy: recorded,
+        createdAt: new Date(),
       },
     });
     await tx.financeInvoice.update({
@@ -146,7 +152,11 @@ router.post("/invoices/:id/payments", async (req: Request, res: Response) => {
 /** GET /v1/finance/educator-payments */
 router.get("/educator-payments", async (req: Request, res: Response) => {
   const { educatorId, period, status } = req.query;
-  const where: Parameters<typeof prisma.financeEducatorPayment.findMany>[0]["where"] = {};
+  const where: {
+    educatorId?: string;
+    period?: string;
+    status?: string;
+  } = {};
   if (typeof educatorId === "string") where.educatorId = educatorId;
   if (typeof period === "string") where.period = period;
   if (typeof status === "string") where.status = status;
