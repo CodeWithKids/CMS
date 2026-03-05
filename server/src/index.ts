@@ -41,7 +41,7 @@ app.use(
 );
 app.use(express.json());
 
-app.get("/health", (_req, res) => {
+app.get("/health", (_req: express.Request, res: express.Response) => {
   res.json({ status: "ok", service: "cwk-hub-api" });
 });
 

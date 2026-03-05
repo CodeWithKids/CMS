@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { prisma } from "../db.js";
 import { sendError } from "../middleware/error.js";
+import type { AppUser, UserRole } from "../types.js";
 
 const router = Router();
 
@@ -29,10 +30,10 @@ router.post("/login", async (req: Request, res: Response) => {
     return;
   }
 
-  const appUser = {
+  const appUser: AppUser = {
     id: user.id,
     name: user.name,
-    role: user.role,
+    role: user.role as UserRole,
     email: user.email ?? undefined,
     status: user.status ?? undefined,
     organizationId: user.organizationId ?? undefined,
