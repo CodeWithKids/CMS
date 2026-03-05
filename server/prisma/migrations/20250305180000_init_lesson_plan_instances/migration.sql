@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "lesson_plan_templates" (
+-- CreateTable (IF NOT EXISTS so migration is idempotent if tables were created by db push)
+CREATE TABLE IF NOT EXISTS "lesson_plan_templates" (
     "id" TEXT NOT NULL,
     "learningTrackId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -11,8 +11,7 @@ CREATE TABLE "lesson_plan_templates" (
     CONSTRAINT "lesson_plan_templates_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "lesson_plan_instances" (
+CREATE TABLE IF NOT EXISTS "lesson_plan_instances" (
     "id" TEXT NOT NULL,
     "sessionId" TEXT NOT NULL,
     "templateId" TEXT,
