@@ -11,7 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus, Users, BookOpen, GraduationCap, Building2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -48,13 +48,15 @@ function StatCard({
   title,
   value,
   description,
+  to,
 }: {
   title: string;
   value: string | number;
   description?: string;
+  to?: string;
 }) {
-  return (
-    <Card>
+  const content = (
+    <>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
@@ -66,8 +68,18 @@ function StatCard({
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
       </CardContent>
-    </Card>
+    </>
   );
+  if (to) {
+    return (
+      <Card className="transition-colors hover:bg-muted/50">
+        <Link to={to} className="block">
+          {content}
+        </Link>
+      </Card>
+    );
+  }
+  return <Card>{content}</Card>;
 }
 
 function formatDate(iso: string): string {
@@ -182,11 +194,58 @@ export default function AdminDashboardPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Operations overview: people, finance, and pending actions.
+          Create, read, update, and delete: use quick actions and the links below to manage accounts, staff, classes, learners, and partners.
         </p>
       </div>
 
       <RoleResponsibilitiesCard />
+
+      {/* Quick actions: Create, Read, Update, Delete */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3">Quick actions</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Create & manage</CardTitle>
+            <CardDescription>
+              Create new records or open lists to update and delete.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              <Button asChild>
+                <Link to="/admin/create-team-member" className="gap-2">
+                  <Plus className="h-4 w-4" /> Create account
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/admin/classes" className="gap-2">
+                  <BookOpen className="h-4 w-4" /> Classes
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/admin/learners" className="gap-2">
+                  <GraduationCap className="h-4 w-4" /> Learners
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/admin/hr/staff" className="gap-2">
+                  <Users className="h-4 w-4" /> Staff directory
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/partnerships" className="gap-2">
+                  <Building2 className="h-4 w-4" /> Partners
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/admin/account-approvals" className="gap-2">
+                  Account approvals
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Pending actions summary */}
       {(sessionReportsMissingCount > 0 || totalPendingApprovals > 0) && (
@@ -222,16 +281,21 @@ export default function AdminDashboardPage() {
       <section>
         <h2 className="text-lg font-semibold mb-3">Overview — active partners</h2>
         <div className="grid gap-4 sm:grid-cols-3 mb-4">
-          <StatCard title="Active schools" value={overview.activeSchools} />
-          <StatCard title="Active organisations" value={overview.activeOrganisations} />
-          <StatCard title="Active Miradi sites" value={overview.activeMiradis} />
+          <StatCard title="Active schools" value={overview.activeSchools} to="/partnerships" />
+          <StatCard title="Active organisations" value={overview.activeOrganisations} to="/partnerships" />
+          <StatCard title="Active Miradi sites" value={overview.activeMiradis} to="/partnerships" />
         </div>
         <Card>
-          <CardHeader>
-            <CardTitle>Partners</CardTitle>
-            <CardDescription>
-              Active organisations with learner counts (schools, organisations, Miradi).
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Partners</CardTitle>
+              <CardDescription>
+                Active organisations with learner counts (schools, organisations, Miradi).
+              </CardDescription>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/partnerships">View all</Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {overview.partners.length === 0 ? (
@@ -294,13 +358,14 @@ export default function AdminDashboardPage() {
       <section>
         <h2 className="text-lg font-semibold mb-3">People</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Active learners" value={peopleStats.activeLearners} />
-          <StatCard title="Active educators" value={peopleStats.activeEducators} />
-          <StatCard title="Active parents" value={peopleStats.activeParents} />
+          <StatCard title="Active learners" value={peopleStats.activeLearners} to="/admin/learners" />
+          <StatCard title="Active educators" value={peopleStats.activeEducators} to="/admin/hr/staff" />
+          <StatCard title="Active parents" value={peopleStats.activeParents} to="/partnerships" />
           <StatCard
             title="Pending accounts"
             value={peopleStats.pendingAccounts}
             description="Awaiting approval"
+            to="/admin/account-approvals"
           />
         </div>
       </section>
@@ -312,18 +377,22 @@ export default function AdminDashboardPage() {
           <StatCard
             title="Total invoiced"
             value={formatCurrency(financeStats.totalInvoiced)}
+            to="/finance/invoices"
           />
           <StatCard
             title="Total collected"
             value={formatCurrency(financeStats.totalCollected)}
+            to="/finance/income"
           />
           <StatCard
             title="Total pending"
             value={formatCurrency(financeStats.totalPending)}
+            to="/finance/invoices"
           />
           <StatCard
             title="Learners with pending payments"
             value={financeStats.learnersWithPendingPayments}
+            to="/admin/learners"
           />
         </div>
       </section>
@@ -331,11 +400,16 @@ export default function AdminDashboardPage() {
       {/* Pending account approvals */}
       <section>
         <Card>
-          <CardHeader>
-            <CardTitle>Pending account approvals</CardTitle>
-            <CardDescription>
-              Users awaiting approval. Manage in Account Approvals when available.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Pending account approvals</CardTitle>
+              <CardDescription>
+                Users awaiting approval. Approve or reject in Account Approvals.
+              </CardDescription>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/admin/account-approvals">Manage approvals</Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {pendingApprovals.length === 0 ? (

@@ -9,7 +9,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/hooks/useTerms";
 import { useAuth } from "@/context/AuthContext";
-import { isApiEnabled, educatorsGetById, classesGetAll, sessionsGetAll, adminAccountsDelete } from "@/lib/api";
+import { isApiEnabled, educatorsGetById, classesGetAll, sessionsGetAll, adminAccountsDelete, adminAccountsPatch } from "@/lib/api";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import {
   Card,
@@ -20,6 +20,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Briefcase, FileText, FolderOpen, BookOpen, Calendar, Clock, Trash2 } from "lucide-react";
+import { ArrowLeft, User, Briefcase, FileText, FolderOpen, BookOpen, Calendar, Clock, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ContractType, PayType, PreferredPaymentMethod } from "@/types";
 
@@ -76,6 +85,9 @@ export default function StaffProfilePage() {
   const termId = currentTerm?.id ?? "t1";
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", email: "", role: "", status: "active" });
 
   const isAdmin = currentUser?.role === "admin";
   const isOwnProfile = currentUser?.id === staffId;
@@ -128,6 +140,49 @@ export default function StaffProfilePage() {
     .filter((s) => (s.assistantEducatorIds ?? []).includes(staffId))
     .reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
 
+  const startEditing = () => {
+    const rawStatus = apiStaff?.status ?? (staff as { employmentStatus?: string }).employmentStatus?.replace(/ /g, "_") ?? "active";
+    setEditForm({
+      name: staff.name,
+      email: staff.email ?? "",
+      role: staff.role,
+      status: rawStatus,
+    });
+    setEditing(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!apiEnabled || !isAdmin) return;
+    const name = editForm.name.trim();
+    const email = editForm.email.trim();
+    if (!name) {
+      toast({ title: "Name required", variant: "destructive" });
+      return;
+    }
+    if (!email) {
+      toast({ title: "Email required", variant: "destructive" });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await adminAccountsPatch(staffId, {
+        name,
+        email,
+        role: editForm.role,
+        status: editForm.status,
+      });
+      queryClient.invalidateQueries({ queryKey: ["educator", staffId] });
+      queryClient.invalidateQueries({ queryKey: ["educators"] });
+      toast({ title: "Profile updated", description: "Changes have been saved." });
+      setEditing(false);
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "body" in err && (err as { body?: { message?: string } }).body?.message;
+      toast({ title: "Update failed", description: msg ?? "Could not update profile.", variant: "destructive" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   if (!staff) {
     return (
       <div className="p-6">
@@ -138,6 +193,21 @@ export default function StaffProfilePage() {
       </div>
     );
   }
+
+  const STAFF_ROLES = [
+    { value: "admin", label: "Admin" },
+    { value: "educator", label: "Educator" },
+    { value: "finance", label: "Finance" },
+    { value: "partnerships", label: "Partnerships" },
+    { value: "marketing", label: "Marketing" },
+    { value: "social_media", label: "Social media" },
+    { value: "ld_manager", label: "L&D Manager" },
+    { value: "parent", label: "Parent" },
+  ] as const;
+  const STATUS_OPTIONS = [
+    { value: "active", label: "Active" },
+    { value: "pending", label: "Pending" },
+  ];
 
   return (
     <div className="p-6 space-y-6">
@@ -155,6 +225,83 @@ export default function StaffProfilePage() {
       >
         <ArrowLeft className="w-4 h-4" /> Back to staff directory
       </Link>
+
+      {/* Edit profile (admin only, when API enabled) */}
+      {isAdmin && apiEnabled && !editing && (
+        <Card>
+          <CardContent className="pt-6">
+            <Button variant="outline" onClick={startEditing} className="gap-2">
+              <Pencil className="w-4 h-4" /> Edit profile
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {editing && isAdmin && apiEnabled && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Edit profile</CardTitle>
+            <CardDescription>Update name, email, role, or status. Changes apply immediately.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Full name"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email (login)</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="email@example.com"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Role</Label>
+              <Select value={editForm.role} onValueChange={(v) => setEditForm((f) => ({ ...f, role: v }))}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAFF_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={handleEditSave} disabled={editSaving}>
+                {editSaving ? "Saving…" : "Save changes"}
+              </Button>
+              <Button variant="outline" onClick={() => setEditing(false)} disabled={editSaving}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Personal & status */}
       <Card>

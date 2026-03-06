@@ -25,7 +25,7 @@ import {
 import { useEducators } from "@/hooks/useEducators";
 import { useAuth } from "@/context/AuthContext";
 import { isApiEnabled, adminAccountsDelete } from "@/lib/api";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EducatorListItem } from "@/hooks/useEducators";
 
@@ -75,7 +75,7 @@ export default function StaffDirectoryPage() {
         <CardHeader>
           <CardTitle>Staff</CardTitle>
           <CardDescription>
-            Name, role, contact, and status. Click a name to open the profile.
+            Name, role, contact, and status. Click a name to open the profile; admins can edit and update staff from the profile page.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -102,6 +102,18 @@ export default function StaffDirectoryPage() {
                       >
                         {staff.name}
                       </Link>
+                      {isAdmin && apiEnabled && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="ml-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                          asChild
+                        >
+                          <Link to={`/admin/hr/staff/${staff.id}`} title="Open profile to edit">
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
                     </TableCell>
                     <TableCell className="capitalize">{staff.role}</TableCell>
                     <TableCell>

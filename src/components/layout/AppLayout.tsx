@@ -5,7 +5,7 @@ import {
   Users, BookOpen, LayoutDashboard, Calendar, FileText, Clock,
   GraduationCap, MessageSquare, LogOut, Menu, X,
   UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, CalendarDays, Megaphone,
-  LayoutGrid, FlaskConical,
+  LayoutGrid, FlaskConical, Building2,
 } from "lucide-react";
 import type { UserRole } from "@/types";
 import { canViewAiMarketing } from "@/features/aiMarketing/permissions";
@@ -30,6 +30,8 @@ const adminNav: NavEntry[] = [
   { type: "link", label: "Account approvals", path: "/admin/account-approvals", icon: <UserPlus className="w-5 h-5" /> },
   { type: "link", label: "Create account", path: "/admin/create-team-member", icon: <Users className="w-5 h-5" /> },
   { type: "link", label: "Settings", path: "/admin/settings", icon: <Settings className="w-5 h-5" /> },
+  { type: "section", label: "Partners" },
+  { type: "link", label: "Partners", path: "/partnerships", icon: <Building2 className="w-5 h-5" /> },
   { type: "link", label: "Learners", path: "/admin/learners", icon: <Users className="w-5 h-5" /> },
   { type: "link", label: "Classes", path: "/admin/classes", icon: <BookOpen className="w-5 h-5" /> },
   { type: "link", label: "Session reports", path: "/admin/session-reports", icon: <FileText className="w-5 h-5" /> },
@@ -94,7 +96,8 @@ const navByRole: Record<UserRole, NavEntry[]> = {
   partnerships: [
     { type: "link", label: "Dashboard", path: "/partnerships/dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     { type: "link", label: "Schedule", path: "/schedule", icon: <Calendar className="w-5 h-5" /> },
-    { type: "link", label: "Active partnerships", path: "/partnerships", icon: <Users className="w-5 h-5" /> },
+    { type: "section", label: "Partners" },
+    { type: "link", label: "Partners", path: "/partnerships", icon: <Building2 className="w-5 h-5" /> },
     { type: "link", label: "Prospects", path: "/partnerships/prospects", icon: <UserPlus className="w-5 h-5" /> },
     { type: "link", label: "Grants & funding", path: "/partnerships/grants", icon: <Wallet className="w-5 h-5" /> },
     { type: "link", label: "Campaigns linked to partnerships", path: "/partnerships/campaigns", icon: <Megaphone className="w-5 h-5" /> },

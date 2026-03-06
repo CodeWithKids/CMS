@@ -195,7 +195,11 @@ export default function CreateTeamMemberPage() {
         location: orgForm.location.trim() || undefined,
         password: orgForm.password,
       });
-      toast({ title: "Organisation account created", description: "They can log in with the contact email and the password you set." });
+      toast({
+        title: "Organisation account created",
+        description:
+          "They can log in with the contact email and the password you set. View all organisations on the Partners page.",
+      });
       navigate("/admin/account-approvals");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Could not create organisation account.";

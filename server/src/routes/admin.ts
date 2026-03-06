@@ -200,11 +200,33 @@ router.patch("/accounts/:id", requireAuth, async (req: Request, res: Response) =
     return;
   }
   const body = req.body ?? {};
+  const name = typeof body.name === "string" ? body.name.trim() : undefined;
+  const email = typeof body.email === "string" ? body.email.trim() : undefined;
   const status = typeof body.status === "string" ? body.status : undefined;
   const role = typeof body.role === "string" ? body.role : undefined;
   const organizationId = body.organizationId !== undefined ? (body.organizationId as string | null) : undefined;
 
-  const data: { status?: string; role?: string; organizationId?: string | null } = {};
+  if (name !== undefined && !name.length) {
+    sendError(res, 400, "VALIDATION_ERROR", "Name cannot be empty.");
+    return;
+  }
+  if (email !== undefined) {
+    if (!email.length) {
+      sendError(res, 400, "VALIDATION_ERROR", "Email cannot be empty.");
+      return;
+    }
+    const existingByEmail = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" }, id: { not: id } },
+    });
+    if (existingByEmail) {
+      sendError(res, 400, "VALIDATION_ERROR", "A user with this email already exists.");
+      return;
+    }
+  }
+
+  const data: { name?: string; email?: string; status?: string; role?: string; organizationId?: string | null } = {};
+  if (name !== undefined) data.name = name;
+  if (email !== undefined) data.email = email;
   if (status) data.status = status;
   if (role) data.role = role;
   if (organizationId !== undefined) data.organizationId = organizationId;

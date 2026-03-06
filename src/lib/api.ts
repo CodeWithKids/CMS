@@ -1078,7 +1078,7 @@ export function adminAccountsGetPending(): Promise<AdminAccountUser[]> {
 
 export function adminAccountsPatch(
   id: string,
-  body: { status?: string; role?: string; organizationId?: string | null }
+  body: { name?: string; email?: string; status?: string; role?: string; organizationId?: string | null }
 ): Promise<AdminAccountUser> {
   return apiFetch<AdminAccountUser>(`/v1/admin/accounts/${id}`, { method: "PATCH", body });
 }

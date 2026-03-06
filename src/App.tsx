@@ -288,10 +288,10 @@ const App = () => (
             </Route>
 
             {/* Grants & funding: shared with finance so they can see partnership pipeline and received donations */}
-            <Route element={<ProtectedRoute allowedRoles={["partnerships", "finance"]}><AppLayout /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={["partnerships", "finance", "admin"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/partnerships/grants" element={<PartnershipGrantsPage />} />
             </Route>
-            <Route element={<ProtectedRoute allowedRoles={["partnerships"]}><AppLayout /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute allowedRoles={["partnerships", "admin"]}><AppLayout /></ProtectedRoute>}>
               <Route path="/partnerships/dashboard" element={<PartnershipsDashboardPage />} />
               <Route path="/partnerships" element={<PartnershipsListPage />} />
               <Route path="/partnerships/prospects" element={<PartnershipProspectsPage />} />
