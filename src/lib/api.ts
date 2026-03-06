@@ -1093,6 +1093,26 @@ export function adminAccountsCreate(body: {
   return apiFetch<AdminAccountUser>("/v1/admin/accounts", { method: "POST", body });
 }
 
+export interface AdminCreateOrganisationBody {
+  organisationName: string;
+  type: "school" | "organisation" | "miradi" | "other";
+  contactPerson: string;
+  contactEmail: string;
+  contactPhone?: string | null;
+  location?: string | null;
+  password: string;
+}
+
+export function adminCreateOrganisationAccount(body: AdminCreateOrganisationBody): Promise<{
+  user: AdminAccountUser;
+  organisationId: string;
+}> {
+  return apiFetch<{ user: AdminAccountUser; organisationId: string }>(
+    "/v1/admin/accounts/organisation",
+    { method: "POST", body }
+  );
+}
+
 export function adminAccountsDelete(id: string): Promise<void> {
   return apiFetch<void>(`/v1/admin/accounts/${id}`, { method: "DELETE" });
 }

@@ -461,7 +461,7 @@ export default function AccountApprovalsPage() {
       </Card>
 
       <AlertDialog
-        open={!!confirmAction}
+        open={!!confirmAction?.user}
         onOpenChange={(open) => !open && setConfirmAction(null)}
       >
         <AlertDialogContent>
@@ -470,9 +470,11 @@ export default function AccountApprovalsPage() {
               {confirmAction?.action === "approve" ? "Approve account" : "Reject account"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction?.action === "approve"
-                ? `Approve ${confirmAction.user.name}? They will be able to sign in to CWK Hub.`
-                : `Reject ${confirmAction.user.name}? They will not have access until the decision is reviewed.`}
+              {confirmAction?.user
+                ? confirmAction.action === "approve"
+                  ? `Approve ${confirmAction.user.name}? They will be able to sign in to CWK Hub.`
+                  : `Reject ${confirmAction.user.name}? They will not have access until the decision is reviewed.`
+                : "Select an account to approve or reject."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -480,7 +482,7 @@ export default function AccountApprovalsPage() {
             {confirmAction?.action === "approve" ? (
               <AlertDialogAction
                 disabled={actionLoading}
-                onClick={() => confirmAction && handleApprove(confirmAction.user)}
+                onClick={() => confirmAction?.user && handleApprove(confirmAction.user)}
               >
                 {actionLoading ? "Approving…" : "Approve"}
               </AlertDialogAction>
@@ -488,7 +490,7 @@ export default function AccountApprovalsPage() {
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 disabled={actionLoading}
-                onClick={() => confirmAction && handleReject(confirmAction.user)}
+                onClick={() => confirmAction?.user && handleReject(confirmAction.user)}
               >
                 {actionLoading ? "Rejecting…" : "Reject"}
               </AlertDialogAction>

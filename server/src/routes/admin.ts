@@ -7,7 +7,10 @@ import { sendError } from "../middleware/error.js";
 const router = Router();
 
 const TEAM_ROLES = ["admin", "educator", "finance", "partnerships", "marketing", "social_media", "ld_manager"];
+/** Roles admin can create via POST /accounts (team + parent). Organisation uses POST /accounts/organisation. */
+const ACCOUNT_CREATE_ROLES = [...TEAM_ROLES, "parent"];
 const MIN_PASSWORD_LENGTH = 6;
+const ORG_TYPES = ["school", "organisation", "miradi", "other"] as const;
 
 type AuthedRequest = Request & { auth?: AuthLocals };
 
@@ -32,8 +35,8 @@ router.post("/accounts", requireAuth, async (req: Request, res: Response) => {
     sendError(res, 400, "VALIDATION_ERROR", "Name, email, role, and password are required.");
     return;
   }
-  if (!TEAM_ROLES.includes(role)) {
-    sendError(res, 400, "VALIDATION_ERROR", `Role must be one of: ${TEAM_ROLES.join(", ")}.`);
+  if (!ACCOUNT_CREATE_ROLES.includes(role)) {
+    sendError(res, 400, "VALIDATION_ERROR", `Role must be one of: ${ACCOUNT_CREATE_ROLES.join(", ")}. For organisation accounts use Create organisation account.`);
     return;
   }
   if (password.length < MIN_PASSWORD_LENGTH) {
@@ -74,6 +77,88 @@ router.post("/accounts", requireAuth, async (req: Request, res: Response) => {
     },
   });
   res.status(201).json(user);
+});
+
+/** POST /v1/admin/accounts/organisation - create organisation + linked user (admin only). */
+router.post("/accounts/organisation", requireAuth, async (req: Request, res: Response) => {
+  if (!isAdmin(req as AuthedRequest)) {
+    sendError(res, 403, "FORBIDDEN", "Admin only.");
+    return;
+  }
+  const body = req.body ?? {};
+  const organisationName = typeof body.organisationName === "string" ? body.organisationName.trim() : "";
+  const type = typeof body.type === "string" && ORG_TYPES.includes(body.type as (typeof ORG_TYPES)[number])
+    ? (body.type as (typeof ORG_TYPES)[number])
+    : "organisation";
+  const contactPerson = typeof body.contactPerson === "string" ? body.contactPerson.trim() : "";
+  const contactEmail = typeof body.contactEmail === "string" ? body.contactEmail.trim() : "";
+  const contactPhone = typeof body.contactPhone === "string" ? body.contactPhone.trim() : null;
+  const location = typeof body.location === "string" ? body.location.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+
+  if (!organisationName || !contactPerson || !contactEmail) {
+    sendError(res, 400, "VALIDATION_ERROR", "Organisation name, contact person, and contact email are required.");
+    return;
+  }
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    sendError(res, 400, "VALIDATION_ERROR", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+    return;
+  }
+
+  const existingUser = await prisma.user.findFirst({
+    where: { email: { equals: contactEmail, mode: "insensitive" } },
+  });
+  if (existingUser) {
+    sendError(res, 400, "VALIDATION_ERROR", "A user with this email already exists.");
+    return;
+  }
+  const nameLower = organisationName.toLowerCase();
+  const existingOrg = await prisma.organisation.findFirst({
+    where: { name: { equals: organisationName, mode: "insensitive" } },
+  });
+  if (existingOrg) {
+    sendError(res, 400, "VALIDATION_ERROR", "An organisation with this name already exists.");
+    return;
+  }
+
+  const orgId = `org-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const userId = `u-org-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const passwordHash = bcrypt.hashSync(password, 10);
+
+  await prisma.organisation.create({
+    data: {
+      id: orgId,
+      name: organisationName,
+      type,
+      contactPerson,
+      contactEmail,
+      contactPhone: contactPhone || undefined,
+      location: location || "",
+    },
+  });
+  const user = await prisma.user.create({
+    data: {
+      id: userId,
+      name: contactPerson,
+      role: "organisation",
+      email: contactEmail,
+      status: "active",
+      organizationId: orgId,
+      passwordHash,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      organizationId: true,
+      membershipStatus: true,
+      avatarId: true,
+      createdAt: true,
+    },
+  });
+  res.status(201).json({ user, organisationId: orgId });
 });
 
 /** GET /v1/admin/accounts - list users (e.g. status=pending). Admin only. */

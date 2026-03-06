@@ -28,7 +28,7 @@ const adminNav: NavEntry[] = [
   { type: "link", label: "Expenses", path: "/admin/finance/expenses", icon: <Receipt className="w-5 h-5" /> },
   { type: "section", label: "System setup" },
   { type: "link", label: "Account approvals", path: "/admin/account-approvals", icon: <UserPlus className="w-5 h-5" /> },
-  { type: "link", label: "Create team member", path: "/admin/create-team-member", icon: <Users className="w-5 h-5" /> },
+  { type: "link", label: "Create account", path: "/admin/create-team-member", icon: <Users className="w-5 h-5" /> },
   { type: "link", label: "Settings", path: "/admin/settings", icon: <Settings className="w-5 h-5" /> },
   { type: "link", label: "Learners", path: "/admin/learners", icon: <Users className="w-5 h-5" /> },
   { type: "link", label: "Classes", path: "/admin/classes", icon: <BookOpen className="w-5 h-5" /> },

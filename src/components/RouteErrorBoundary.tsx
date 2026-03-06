@@ -30,11 +30,10 @@ export class RouteErrorBoundary extends Component<Props, State> {
             <AlertTitle>Something went wrong</AlertTitle>
             <AlertDescription>
               This page failed to load. You can try again or go back to the dashboard.
-              {process.env.NODE_ENV === "development" && (
-                <pre className="mt-2 text-xs overflow-auto max-h-24">
-                  {this.state.error.message}
-                </pre>
-              )}
+              <p className="mt-2 text-xs text-muted-foreground">Check the browser console (F12 → Console) for the full error.</p>
+              <pre className="mt-2 text-xs overflow-auto max-h-24 bg-muted/50 p-2 rounded">
+                {this.state.error.message}
+              </pre>
             </AlertDescription>
             <div className="mt-4 flex gap-2">
               <Button variant="outline" size="sm" asChild>

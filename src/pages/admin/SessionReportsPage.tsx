@@ -80,13 +80,8 @@ function presentCountForSession(
 export default function SessionReportsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const apiEnabled = isApiEnabled();
   const { list, getBySession } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
-  const { summaries: apiSummaries, isLoading: apiSummariesLoading } = useSessionReportsList({
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-  });
 
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -105,6 +100,11 @@ export default function SessionReportsPage() {
   const { currentUser } = useAuth();
   const { createTask } = useTasks();
   const { addNotification } = useNotifications();
+  const apiEnabled = isApiEnabled();
+  const { summaries: apiSummaries, isLoading: apiSummariesLoading } = useSessionReportsList({
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);

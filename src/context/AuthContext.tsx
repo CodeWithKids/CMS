@@ -11,7 +11,10 @@ import {
   type LoginResponse,
 } from "@/lib/api";
 
-function apiUserToAppUser(u: LoginResponse["user"]): AppUser {
+function apiUserToAppUser(u: LoginResponse["user"] | null | undefined): AppUser {
+  if (!u || typeof u !== "object" || !("id" in u) || !("role" in u)) {
+    throw new Error("Invalid user object from server");
+  }
   return {
     id: u.id,
     name: u.name,
@@ -68,7 +71,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("cwk_token");
     if (!token) return;
     authMe(token)
-      .then((user) => setCurrentUser(apiUserToAppUser(user)))
+      .then((data) => {
+        // Backend may return the user object directly or as { user }
+        const user = data && typeof data === "object" && "user" in data ? (data as { user: LoginResponse["user"] }).user : data;
+        if (!user) {
+          clearAccessToken();
+          localStorage.removeItem("cwk_user");
+          return;
+        }
+        setCurrentUser(apiUserToAppUser(user));
+      })
       .catch(() => {
         clearAccessToken();
         localStorage.removeItem("cwk_user");
@@ -83,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithCredentials = useCallback(async (email: string, password: string) => {
     try {
       const res = await authLogin(email, password);
+      if (!res?.user) {
+        return { ok: false as const, error: "Invalid response from server." };
+      }
       setAccessToken(res.accessToken);
       const user = apiUserToAppUser(res.user);
       setCurrentUser(user);

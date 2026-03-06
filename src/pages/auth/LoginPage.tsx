@@ -57,7 +57,7 @@ export default function LoginPage() {
     setLoading(true);
     const result = await loginWithCredentials(email.trim(), password);
     setLoading(false);
-    if (result.ok) {
+    if (result?.ok && result.user) {
       navigate(getRoleDashboard(result.user.role));
     } else {
       setError(result.error);

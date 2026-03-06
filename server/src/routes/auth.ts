@@ -63,7 +63,11 @@ router.post("/login", async (req: Request, res: Response) => {
 
 /** GET /v1/auth/me - requires auth */
 router.get("/me", requireAuth, (req: Request, res: Response) => {
-  const auth = (req as Request & { auth: { user: { id: string; name: string; role: string; email?: string; status?: string; organizationId?: string | null; membershipStatus?: string; avatarId?: string | null } } }).auth;
+  const auth = (req as Request & { auth?: { user: AppUser } }).auth;
+  if (!auth?.user) {
+    res.status(401).json({ code: "UNAUTHORIZED", message: "User not found." });
+    return;
+  }
   const user = auth.user;
   res.status(200).json({
     id: user.id,
