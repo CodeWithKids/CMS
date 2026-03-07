@@ -42,7 +42,9 @@ import {
 } from "@/mockData";
 import type { AppUser } from "@/types";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
-import { isApiEnabled, adminPendingSignupsGet } from "@/lib/api";
+import { isApiEnabled, adminPendingSignupsGet, adminOverviewGet } from "@/lib/api";
+import type { LearningTrack } from "@/types";
+import { LEARNING_TRACK_LABELS } from "@/types";
 
 function StatCard({
   title,
@@ -110,51 +112,97 @@ export default function AdminDashboardPage() {
     queryFn: adminPendingSignupsGet,
     enabled: apiEnabled,
   });
+  const {
+    data: overviewApi,
+    isLoading: overviewLoading,
+    isError: overviewError,
+    refetch: refetchOverview,
+  } = useQuery({
+    queryKey: ["admin", "overview"],
+    queryFn: adminOverviewGet,
+    enabled: apiEnabled,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
     return () => clearTimeout(t);
   }, []);
 
-  const peopleStats = getPeopleStats(mockUsers, mockLearners);
-  const financeStats = getFinanceStats(invoices, mockLearners);
-  const pendingApprovals = pendingUsers();
+  // When API is enabled and overview is loaded, use real data; otherwise use mock
+  const peopleStats = overviewApi
+    ? overviewApi.peopleStats
+    : getPeopleStats(mockUsers, mockLearners);
+  const financeStats = overviewApi
+    ? overviewApi.financeStats
+    : getFinanceStats(invoices, mockLearners);
+  const pendingApprovals = overviewApi
+    ? overviewApi.pendingUsers.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        status: "pending" as const,
+        organizationId: null,
+        membershipStatus: null,
+        avatarId: null,
+        createdAt: u.createdAt,
+      }))
+    : pendingUsers();
   const pendingSignupsCount = apiEnabled ? pendingSignups.length : 0;
-  const totalPendingApprovals = pendingApprovals.length + pendingSignupsCount;
-  const learnersWithPending = getLearnersWithPendingPayments(
-    mockLearners,
-    invoices,
-    getOrganization
-  );
-  const organizationsWithPending = getOrganizationsWithPendingPayments(
-    mockLearners,
-    invoices,
-    getOrganization
-  );
-
-  const overview = useMemo(
-    () =>
-      getAdminOverviewSummary(
-        mockOrganizations,
+  const totalPendingApprovals = overviewApi
+    ? overviewApi.peopleStats.pendingAccounts + pendingSignupsCount
+    : pendingApprovals.length + pendingSignupsCount;
+  const learnersWithPending = overviewApi
+    ? overviewApi.learnersWithPending
+    : getLearnersWithPendingPayments(mockLearners, invoices, getOrganization);
+  const organizationsWithPending = overviewApi
+    ? overviewApi.organizationsWithPending
+    : getOrganizationsWithPendingPayments(
         mockLearners,
-        mockSessions,
-        mockSessionReports,
-        mockClassEnrollments
-      ),
-    []
-  );
+        invoices,
+        getOrganization
+      );
 
-  const sessionReportsMissingCount = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const submittedSessionIds = new Set(
-      mockSessionReports.filter((r) => r.status === "submitted").map((r) => r.sessionId)
+  const overview = useMemo(() => {
+    if (overviewApi) {
+      return {
+        activeSchools: overviewApi.activeSchools,
+        activeOrganisations: overviewApi.activeOrganisations,
+        activeMiradis: overviewApi.activeMiradis,
+        partners: overviewApi.partners,
+        learnersByTrack: overviewApi.learnersByTrack.map((row) => ({
+          learningTrackId: row.learningTrackId as LearningTrack,
+          learningTrackName:
+            LEARNING_TRACK_LABELS[row.learningTrackId as LearningTrack] ??
+            row.learningTrackName,
+          learnerCount: row.learnerCount,
+        })),
+      };
+    }
+    return getAdminOverviewSummary(
+      mockOrganizations,
+      mockLearners,
+      mockSessions,
+      mockSessionReports,
+      mockClassEnrollments
     );
-    return mockSessions.filter(
-      (s) => s.date < today && !submittedSessionIds.has(s.id)
-    ).length;
-  }, []);
+  }, [overviewApi]);
 
-  if (isLoading) {
+  const sessionReportsMissingCount = overviewApi
+    ? overviewApi.sessionReportsMissingCount
+    : (() => {
+        const today = new Date().toISOString().split("T")[0];
+        const submittedSessionIds = new Set(
+          mockSessionReports.filter((r) => r.status === "submitted").map((r) => r.sessionId)
+        );
+        return mockSessions.filter(
+          (s) => s.date < today && !submittedSessionIds.has(s.id)
+        ).length;
+      })();
+
+  const showSkeleton = !apiEnabled ? isLoading : isLoading || overviewLoading;
+
+  if (showSkeleton) {
     return (
       <div className="p-6 space-y-8">
         <div>
@@ -187,6 +235,22 @@ export default function AdminDashboardPage() {
             We couldn&apos;t load the dashboard.{" "}
             <Button variant="link" className="p-0 h-auto font-medium" onClick={() => setIsError(false)}>
               Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {apiEnabled && overviewError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Dashboard data unavailable</AlertTitle>
+          <AlertDescription>
+            Overview stats could not be loaded. You can try again or continue using the rest of the app.
+            <Button
+              variant="link"
+              className="p-0 h-auto font-medium ml-1"
+              onClick={() => refetchOverview()}
+            >
+              Retry
             </Button>
           </AlertDescription>
         </Alert>
@@ -255,7 +319,7 @@ export default function AdminDashboardPage() {
             {sessionReportsMissingCount > 0 && (
               <Button asChild>
                 <Link
-                  to="/admin/session-reports"
+                  to="/admin/session-reports?filter=missing"
                   className="inline-flex items-center gap-2"
                 >
                   Review session reports
@@ -328,14 +392,14 @@ export default function AdminDashboardPage() {
         </Card>
       </section>
 
-      {/* Learning tracks: learner counts by track (from Learner.learningTrackId or inferred from session reports) */}
+      {/* Learning tracks: learner counts by track (from session reports / class attendance) */}
       <section>
         <h2 className="text-lg font-semibold mb-3">Learning tracks</h2>
         <Card>
           <CardHeader>
             <CardTitle>Learners by track</CardTitle>
             <CardDescription>
-              Counts by learning track. Where a learner has no track set, it is inferred from recent session reports for that learner.
+              Based on session reports and class attendance. Counts may be 0 until sessions and reports are added.
             </CardDescription>
           </CardHeader>
           <CardContent>

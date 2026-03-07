@@ -270,6 +270,259 @@ router.delete("/accounts/:id", requireAuth, async (req: Request, res: Response) 
   res.status(204).send();
 });
 
+// ——— Admin dashboard overview (real data) ———
+
+/** Learning track IDs matching frontend LEARNING_TRACK_LABELS for learners-by-track summary. */
+const LEARNING_TRACK_IDS = [
+  "computer_basics", "game_design", "web_design", "app_design", "python", "graphic_design",
+  "robotics", "3d_design", "microbit", "physical_computing", "science_experiments",
+  "financial_literacy", "ai", "blockchain", "esports",
+] as const;
+
+function orgTypeToOverviewType(type: string): "SCHOOL" | "ORGANISATION" | "MIRADI" {
+  const t = type?.toLowerCase();
+  if (t === "school") return "SCHOOL";
+  if (t === "miradi") return "MIRADI";
+  return "ORGANISATION";
+}
+
+function normaliseLearningTrack(s: string | null | undefined): string | null {
+  if (s == null || typeof s !== "string") return null;
+  const t = s.toLowerCase().trim().replace(/\s+/g, "_");
+  return LEARNING_TRACK_IDS.includes(t as (typeof LEARNING_TRACK_IDS)[number]) ? t : null;
+}
+
+/** GET /v1/admin/overview - dashboard aggregates (admin only). */
+router.get("/overview", requireAuth, async (req: Request, res: Response) => {
+  if (!isAdmin(req as AuthedRequest)) {
+    sendError(res, 403, "FORBIDDEN", "Admin only.");
+    return;
+  }
+
+  const [
+    organisations,
+    learners,
+    users,
+    classes,
+    sessions,
+    sessionReports,
+    invoices,
+  ] = await Promise.all([
+    prisma.organisation.findMany({ orderBy: { name: "asc" } }),
+    prisma.learner.findMany(),
+    prisma.user.findMany({ select: { id: true, role: true, status: true } }),
+    prisma.class.findMany({ select: { id: true, learnerIds: true } }),
+    prisma.session.findMany({ select: { id: true, classId: true, date: true, learningTrack: true } }),
+    prisma.sessionReport.findMany({ where: { status: "submitted" }, select: { sessionId: true, learningTrack: true } }),
+    prisma.financeInvoice.findMany(),
+  ]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const activeLearners = learners.filter((l) => l.status === "active");
+  const orgById = new Map(organisations.map((o) => [o.id, o]));
+  const reportBySessionId = new Map(sessionReports.map((r) => [r.sessionId, r.learningTrack]));
+
+  // Partners: active orgs with type and learner count
+  let activeSchools = 0;
+  let activeOrganisations = 0;
+  let activeMiradis = 0;
+  const activeByOrgId = new Map<string, number>();
+  for (const l of activeLearners) {
+    if (l.organizationId)
+      activeByOrgId.set(l.organizationId, (activeByOrgId.get(l.organizationId) ?? 0) + 1);
+  }
+  const partners: { organisationId: string; organisationName: string; type: "SCHOOL" | "ORGANISATION" | "MIRADI"; activeLearners: number }[] = [];
+  for (const o of organisations) {
+    const type = orgTypeToOverviewType(o.type);
+    if (type === "SCHOOL") activeSchools += 1;
+    else if (type === "MIRADI") activeMiradis += 1;
+    else activeOrganisations += 1;
+    partners.push({
+      organisationId: o.id,
+      organisationName: o.name,
+      type,
+      activeLearners: activeByOrgId.get(o.id) ?? 0,
+    });
+  }
+
+  // Learners by track: infer from class -> sessions -> report/session learningTrack
+  const sessionsByClassId = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const list = sessionsByClassId.get(s.classId) ?? [];
+    list.push(s);
+    sessionsByClassId.set(s.classId, list);
+  }
+  const trackCounts = new Map<string, number>(LEARNING_TRACK_IDS.map((id) => [id, 0]));
+  for (const l of activeLearners) {
+    const trackCountsForLearner = new Map<string, number>();
+    for (const c of classes) {
+      if (!c.learnerIds.includes(l.id)) continue;
+      const classSessions = sessionsByClassId.get(c.id) ?? [];
+      for (const sess of classSessions) {
+        const raw = reportBySessionId.get(sess.id) ?? sess.learningTrack;
+        const track = normaliseLearningTrack(raw ?? "");
+        if (track) trackCountsForLearner.set(track, (trackCountsForLearner.get(track) ?? 0) + 1);
+      }
+    }
+    const entries = [...trackCountsForLearner.entries()].sort((a, b) => b[1] - a[1]);
+    const topTrack = entries[0]?.[0];
+    if (topTrack) trackCounts.set(topTrack, (trackCounts.get(topTrack) ?? 0) + 1);
+  }
+  const learnersByTrack = LEARNING_TRACK_IDS.map((learningTrackId) => ({
+    learningTrackId,
+    learningTrackName: learningTrackId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    learnerCount: trackCounts.get(learningTrackId) ?? 0,
+  }));
+
+  // People stats
+  const activeUsers = users.filter((u) => (u.status ?? "active") === "active");
+  const peopleStats = {
+    activeLearners: activeLearners.length,
+    activeEducators: activeUsers.filter((u) => u.role === "educator").length,
+    activeParents: activeUsers.filter((u) => u.role === "parent").length,
+    pendingAccounts: users.filter((u) => u.status === "pending").length,
+  };
+
+  // Finance stats (netAmount = invoiced, amountPaid = collected, balance = pending)
+  let totalInvoiced = 0;
+  let totalCollected = 0;
+  const learnerIdsWithPending = new Set<string>();
+  for (const inv of invoices) {
+    totalInvoiced += inv.netAmount;
+    totalCollected += inv.amountPaid;
+    if (inv.balance > 0) {
+      if (inv.learnerId) learnerIdsWithPending.add(inv.learnerId);
+    }
+  }
+  const financeStats = {
+    totalInvoiced,
+    totalCollected,
+    totalPending: totalInvoiced - totalCollected,
+    learnersWithPendingPayments: learnerIdsWithPending.size,
+  };
+
+  // Session reports missing: past sessions without submitted report
+  const submittedSessionIds = new Set(sessionReports.map((r) => r.sessionId));
+  const sessionReportsMissingCount = sessions.filter(
+    (s) => s.date < today && !submittedSessionIds.has(s.id)
+  ).length;
+
+  // Learners with pending payments (for table)
+  const learnerById = new Map(learners.map((l) => [l.id, l]));
+  const byLearner: Map<string, { totalInvoiced: number; totalPaid: number; pendingAmount: number; hasOverdue: boolean }> = new Map();
+  for (const inv of invoices) {
+    if (!inv.learnerId) continue;
+    const paid = inv.amountPaid;
+    const pending = inv.netAmount - paid;
+    if (pending <= 0) continue;
+    const existing = byLearner.get(inv.learnerId);
+    const dueDate = inv.dueDate;
+    const isOverdue = !!(dueDate && dueDate < today);
+    byLearner.set(inv.learnerId, {
+      totalInvoiced: (existing?.totalInvoiced ?? 0) + inv.netAmount,
+      totalPaid: (existing?.totalPaid ?? 0) + paid,
+      pendingAmount: (existing?.pendingAmount ?? 0) + pending,
+      hasOverdue: existing?.hasOverdue ?? isOverdue,
+    });
+  }
+  const learnersWithPending: {
+    learnerId: string;
+    learnerName: string;
+    enrolmentType: string;
+    payerLabel: string;
+    payerPhone: string;
+    payerEmail: string;
+    totalInvoiced: number;
+    totalPaid: number;
+    pendingAmount: number;
+    isOverdue: boolean;
+  }[] = [];
+  for (const [learnerId, summary] of byLearner) {
+    const learner = learnerById.get(learnerId);
+    if (!learner) continue;
+    const isPartner = learner.enrolmentType === "partner_org";
+    const org = learner.organizationId ? orgById.get(learner.organizationId) : undefined;
+    learnersWithPending.push({
+      learnerId,
+      learnerName: `${learner.firstName} ${learner.lastName}`,
+      enrolmentType: learner.enrolmentType ?? "member",
+      payerLabel: isPartner && org ? org.name : (learner.parentName ?? "—"),
+      payerPhone: isPartner && org ? (org.contactPhone ?? "") : (learner.parentPhone ?? ""),
+      payerEmail: isPartner && org ? (org.contactEmail ?? "") : (learner.parentEmail ?? ""),
+      totalInvoiced: summary.totalInvoiced,
+      totalPaid: summary.totalPaid,
+      pendingAmount: summary.pendingAmount,
+      isOverdue: summary.hasOverdue,
+    });
+  }
+
+  // Organisations with pending payments
+  const byOrg: Map<string, { pendingAmount: number; hasOverdue: boolean }> = new Map();
+  for (const inv of invoices) {
+    const orgId = inv.organisationId ?? (inv.learnerId ? learnerById.get(inv.learnerId)?.organizationId : undefined);
+    if (!orgId) continue;
+    const pending = inv.balance;
+    if (pending <= 0) continue;
+    const dueDate = inv.dueDate;
+    const isOverdue = !!(dueDate && dueDate < today);
+    const existing = byOrg.get(orgId);
+    byOrg.set(orgId, {
+      pendingAmount: (existing?.pendingAmount ?? 0) + pending,
+      hasOverdue: existing?.hasOverdue ?? isOverdue,
+    });
+  }
+  const organizationsWithPending: {
+    organizationId: string;
+    organizationName: string;
+    contactPerson: string;
+    contactPhone: string;
+    contactEmail: string;
+    pendingAmount: number;
+    isOverdue: boolean;
+  }[] = [];
+  for (const [orgId, summary] of byOrg) {
+    const org = orgById.get(orgId);
+    if (!org) continue;
+    organizationsWithPending.push({
+      organizationId: org.id,
+      organizationName: org.name,
+      contactPerson: org.contactPerson,
+      contactPhone: org.contactPhone ?? "",
+      contactEmail: org.contactEmail ?? "",
+      pendingAmount: summary.pendingAmount,
+      isOverdue: summary.hasOverdue,
+    });
+  }
+
+  // Pending users (status = 'pending') for approvals table
+  const pendingUsersList = await prisma.user.findMany({
+    where: { status: "pending" },
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const pendingUsers = pendingUsersList.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email ?? null,
+    role: u.role,
+    createdAt: u.createdAt.toISOString(),
+  }));
+
+  res.json({
+    partners,
+    activeSchools,
+    activeOrganisations,
+    activeMiradis,
+    learnersByTrack,
+    peopleStats,
+    financeStats,
+    sessionReportsMissingCount,
+    learnersWithPending,
+    organizationsWithPending,
+    pendingUsers,
+  });
+});
+
 // ——— Pending signups (school, organisation, miradi, parent) ———
 
 type PendingSignupPayloadOrg = {

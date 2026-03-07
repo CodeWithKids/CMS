@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
@@ -79,6 +79,7 @@ function presentCountForSession(
 
 export default function SessionReportsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { list, getBySession } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
@@ -110,6 +111,11 @@ export default function SessionReportsPage() {
     const t = setTimeout(() => setIsLoading(false), 200);
     return () => clearTimeout(t);
   }, []);
+
+  // When URL has ?filter=missing, show only missing reports
+  useEffect(() => {
+    if (searchParams.get("filter") === "missing") setStatuses(["MISSING"]);
+  }, [searchParams]);
 
   const summariesFromReports = useMemo(() => {
     if (apiEnabled) return [];
@@ -269,10 +275,32 @@ export default function SessionReportsPage() {
         <CardHeader>
           <CardTitle className="text-base">Filters</CardTitle>
           <CardDescription>
-            Date range, session type, organisation, and status.
+            Date range, session type, organisation, and status. Use &quot;Missing only&quot; to see sessions without a submitted report.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <Button
+              variant={statuses.length === 1 && statuses[0] === "MISSING" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setStatuses(["MISSING"]);
+                setSearchParams({ filter: "missing" });
+              }}
+            >
+              Missing only
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setStatuses([]);
+                setSearchParams({});
+              }}
+            >
+              Clear filters
+            </Button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Date from</label>

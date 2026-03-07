@@ -243,6 +243,24 @@ The app uses **React Router** (`<BrowserRouter>`) for client-side routes (e.g. `
 
 Save. No redeploy needed; the rule applies immediately. After that, refreshing `/login`, `/dashboard`, or any other route will load the app correctly.
 
+### Keep the API warm (free tier)
+
+On Render’s free tier, the API may spin down after idle time; the first request can be slow (e.g. ~1 minute). To reduce that:
+
+- Use a **cron or ping service** (e.g. [cron-job.org](https://cron-job.org)) to call `GET https://your-api.onrender.com/health` every 10–15 minutes.
+- Optionally upgrade the API service so it doesn’t spin down.
+
+### Deployment verification checklist
+
+After pushing and redeploying, log in as admin on production and verify:
+
+1. **Dashboard** — Numbers for partners, learners by track, people, and finance match the database. If you have no session reports yet, “Learners by track” may show 0s (see note on that section in the app).
+2. **Staff directory** — Open a staff profile → **Edit profile** → change **Role** → **Save**. Confirm the role updates. Optionally change role from the directory table dropdown.
+3. **Create account** — Create a team member, parent, and organisation from **Admin → Create account**. Confirm they appear in Account approvals, Staff directory, or Partners as expected.
+4. **Finance** — When `VITE_API_URL` is set and you’re logged in, **Finance → Invoices** loads from the API. Record a payment and confirm it persists.
+5. **Session reports** — Use **Session reports** and click **Missing only** (or open the link from the dashboard) to see sessions without a submitted report.
+6. **Errors** — The app uses a route-level error boundary; if a page crashes, a fallback message is shown with an option to go back.
+
 ---
 
 ## Next steps (when adding a backend)

@@ -1034,6 +1034,44 @@ export function adminPendingSignupReject(id: string): Promise<{ rejected: boolea
   });
 }
 
+// ——— Admin: dashboard overview (real data) ———
+export interface AdminOverviewApi {
+  partners: { organisationId: string; organisationName: string; type: "SCHOOL" | "ORGANISATION" | "MIRADI"; activeLearners: number }[];
+  activeSchools: number;
+  activeOrganisations: number;
+  activeMiradis: number;
+  learnersByTrack: { learningTrackId: string; learningTrackName: string; learnerCount: number }[];
+  peopleStats: { activeLearners: number; activeEducators: number; activeParents: number; pendingAccounts: number };
+  financeStats: { totalInvoiced: number; totalCollected: number; totalPending: number; learnersWithPendingPayments: number };
+  sessionReportsMissingCount: number;
+  learnersWithPending: {
+    learnerId: string;
+    learnerName: string;
+    enrolmentType: string;
+    payerLabel: string;
+    payerPhone: string;
+    payerEmail: string;
+    totalInvoiced: number;
+    totalPaid: number;
+    pendingAmount: number;
+    isOverdue: boolean;
+  }[];
+  organizationsWithPending: {
+    organizationId: string;
+    organizationName: string;
+    contactPerson: string;
+    contactPhone: string;
+    contactEmail: string;
+    pendingAmount: number;
+    isOverdue: boolean;
+  }[];
+  pendingUsers: { id: string; name: string; email: string | null; role: string; createdAt: string }[];
+}
+
+export function adminOverviewGet(): Promise<AdminOverviewApi> {
+  return apiFetch<AdminOverviewApi>("/v1/admin/overview");
+}
+
 export interface OrganisationApi {
   id: string;
   name: string;

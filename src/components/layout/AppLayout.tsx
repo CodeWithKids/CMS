@@ -5,7 +5,7 @@ import {
   Users, BookOpen, LayoutDashboard, Calendar, FileText, Clock,
   GraduationCap, MessageSquare, LogOut, Menu, X,
   UserCircle, Wallet, Receipt, UserPlus, Settings, TrendingUp, ReceiptText, Package, BarChart2, CalendarDays, Megaphone,
-  LayoutGrid, FlaskConical, Building2,
+  LayoutGrid, FlaskConical, Building2, HelpCircle,
 } from "lucide-react";
 import type { UserRole } from "@/types";
 import { canViewAiMarketing } from "@/features/aiMarketing/permissions";
@@ -184,9 +184,9 @@ export default function AppLayout() {
       <div className="flex flex-1">
         {/* Sidebar */}
         <aside
-          className={`${sidebarOpen ? "w-56" : "w-0"} bg-sidebar text-sidebar-foreground transition-all duration-200 overflow-hidden shrink-0`}
+          className={`${sidebarOpen ? "w-56" : "w-0"} flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-200 overflow-hidden shrink-0`}
         >
-          <nav className="p-3 space-y-1 mt-2">
+          <nav className="p-3 space-y-1 mt-2 flex-1 overflow-auto">
             {navItems.map((item, i) => {
               if (item.type === "section") {
                 const isAdminSection = currentUser.role === "admin";
@@ -216,6 +216,17 @@ export default function AppLayout() {
               );
             })}
           </nav>
+          <div className="p-3 mt-auto border-t border-sidebar-border/50">
+            <a
+              href="mailto:codewithkidsafrica@gmail.com?subject=CWK%20Hub%20-%20Report%20a%20problem"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <HelpCircle className="w-4 h-4 shrink-0" />
+              <span>Report a problem</span>
+            </a>
+          </div>
         </aside>
 
         {/* Main content */}
