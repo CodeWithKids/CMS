@@ -60,9 +60,13 @@ export default function InvoiceListPage() {
   const [searchParams] = useSearchParams();
   const statusParam = searchParams.get("status");
   const statusFilter = statusParam ?? ALL_STATUSES;
-  const { terms: mockTerms } = useTerms();
+  const { terms: termOptions } = useTerms();
 
   const [termFilter, setTermFilter] = useState(ALL_TERMS);
+
+  // Ensure Select value is always valid (API terms have ids like t-xxx, not "t1")
+  const termSelectValue =
+    termFilter === ALL_TERMS || termOptions.some((t) => t.id === termFilter) ? termFilter : ALL_TERMS;
   const [payerTypeFilter, setPayerTypeFilter] = useState(ALL_PAYER_TYPES);
   const [loadError, setLoadError] = useState(false);
 
@@ -128,13 +132,13 @@ export default function InvoiceListPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
-            <Select value={termFilter} onValueChange={setTermFilter}>
+            <Select value={termSelectValue} onValueChange={setTermFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Term" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL_TERMS}>All terms</SelectItem>
-                {mockTerms.map((t) => (
+                {termOptions.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>

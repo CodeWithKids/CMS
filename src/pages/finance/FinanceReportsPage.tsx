@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInvoices, useFinance } from "@/context/FinanceContext";
 import { useSessions } from "@/context/SessionsContext";
 import { useTerms } from "@/hooks/useTerms";
@@ -28,9 +28,17 @@ import { BarChart2 } from "lucide-react";
 type ReportTab = "income_term" | "income_programme" | "adjustments" | "educator_cost";
 
 export default function FinanceReportsPage() {
-  const { terms } = useTerms();
-  const [termId, setTermId] = useState(terms[0]?.id ?? "t1");
+  const { terms, currentTerm } = useTerms();
+  const [termId, setTermId] = useState("");
   const [reportType, setReportType] = useState<ReportTab>("income_term");
+
+  // Sync termId when terms load (API returns ids like t-xxx, not "t1")
+  useEffect(() => {
+    if (terms.length === 0) return;
+    if (!terms.some((t) => t.id === termId)) setTermId(currentTerm?.id ?? terms[0].id ?? "");
+  }, [terms, currentTerm, termId]);
+
+  const selectValue = terms.length > 0 ? (terms.some((t) => t.id === termId) ? termId : terms[0].id) : "";
 
   const allInvoices = useInvoices({ termId });
   const { adjustmentRequests } = useFinance();
@@ -112,7 +120,7 @@ export default function FinanceReportsPage() {
       </div>
 
       <div className="flex flex-wrap gap-4">
-        <Select value={termId} onValueChange={setTermId}>
+        <Select value={selectValue} onValueChange={setTermId}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Term" />
           </SelectTrigger>

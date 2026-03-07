@@ -97,7 +97,8 @@ export default function FinanceIncomePage() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
 
   const { currentUser } = useAuth();
-  const { donations, addDonation, updateDonation } = useReceivedDonations();
+  const { donations: donationsFromStore, addDonation, updateDonation } = useReceivedDonations();
+  const donations = donationsFromStore ?? [];
   const [donationDialogOpen, setDonationDialogOpen] = useState(false);
   const [editingDonationId, setEditingDonationId] = useState<string | null>(null);
   const [donationForm, setDonationForm] = useState({
@@ -107,7 +108,8 @@ export default function FinanceIncomePage() {
     notes: "",
   });
 
-  const invoices = useInvoices();
+  const invoicesRaw = useInvoices();
+  const invoices = Array.isArray(invoicesRaw) ? invoicesRaw : [];
   const getOrgName = (orgId: string | undefined | null): string => {
     if (!orgId) return "—";
     const { organisation } = useOrganisation(orgId);
@@ -330,7 +332,7 @@ export default function FinanceIncomePage() {
                   <ul className="space-y-1 text-sm border rounded-md p-3 bg-muted/30">
                     {cardByEntity.map(({ id, total }) => (
                       <li key={id} className="flex justify-between">
-                        <span>{getOrganization(id)?.name ?? id}</span>
+                        <span>{getOrgName(id) === "—" ? id : getOrgName(id)}</span>
                         <span className="font-medium">{formatCurrency(total)}</span>
                       </li>
                     ))}
@@ -364,9 +366,12 @@ export default function FinanceIncomePage() {
                           </TableCell>
                           {detailCard.payerType !== "PARENT" && (
                             <TableCell className="text-sm">
-                              {e.inv.organizationId
-                                ? getOrganization(e.inv.organizationId)?.name ?? e.inv.organizationId
-                                : "—"}
+                              {((): string => {
+                                const orgId = (e.inv as { organisationId?: string; organizationId?: string }).organisationId ?? (e.inv as { organizationId?: string }).organizationId;
+                                if (!orgId) return "—";
+                                const name = getOrgName(orgId);
+                                return name === "—" ? orgId : name;
+                              })()}
                             </TableCell>
                           )}
                           <TableCell className="text-right font-medium">{formatCurrency(getIncomeAmount(e.inv))}</TableCell>
@@ -442,7 +447,7 @@ export default function FinanceIncomePage() {
             <ul className="space-y-1 text-sm">
               {summaryByOrganisation.map(({ orgId, total }) => (
                 <li key={orgId} className="flex justify-between">
-                  <span>{getOrganization(orgId)?.name ?? orgId}</span>
+                  <span>{getOrgName(orgId) === "—" ? orgId : getOrgName(orgId)}</span>
                   <span>{formatCurrency(total)}</span>
                 </li>
               ))}
@@ -664,7 +669,7 @@ export default function FinanceIncomePage() {
             <SelectContent>
               <SelectItem value={ALL}>All organisations</SelectItem>
               {organisations.map((orgId) => (
-                <SelectItem key={orgId} value={orgId}>{getOrganization(orgId)?.name ?? orgId}</SelectItem>
+                <SelectItem key={orgId} value={orgId}>{getOrgName(orgId) === "—" ? orgId : getOrgName(orgId)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

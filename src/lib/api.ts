@@ -1099,6 +1099,23 @@ export function organisationsGetById(id: string): Promise<OrganisationApi | null
   });
 }
 
+export type OrganisationUpdateBody = {
+  name?: string;
+  type?: string;
+  contactPerson?: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  location?: string;
+};
+
+export function organisationsUpdate(id: string, body: OrganisationUpdateBody): Promise<OrganisationApi> {
+  return apiFetch<OrganisationApi>(`/v1/organisations/${id}`, { method: "PATCH", body });
+}
+
+export function organisationsDelete(id: string): Promise<void> {
+  return apiFetch<void>(`/v1/organisations/${id}`, { method: "DELETE" });
+}
+
 export function organisationsSignup(payload: OrganisationSignupPayload): Promise<OrganisationSignupResponse> {
   return apiFetch<OrganisationSignupResponse>("/v1/organisations/signup", {
     method: "POST",

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
-import { mockTerms, getEducatorName, getClass } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
+import { getEducatorName, getClass } from "@/mockData";
 import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
 import type { Session, SessionType, LearningTrack } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +23,15 @@ function formatHours(h: number): string {
 
 export default function EducatorFinanceDetailPage() {
   const { id: educatorId } = useParams<{ id: string }>();
-  const [termId, setTermId] = useState(mockTerms[0]?.id ?? "t1");
+  const { terms: termOptions, currentTerm } = useTerms();
+  const [termId, setTermId] = useState("");
+
+  useEffect(() => {
+    if (termOptions.length === 0) return;
+    if (!termOptions.some((t) => t.id === termId)) setTermId(currentTerm?.id ?? termOptions[0].id ?? "");
+  }, [termOptions, currentTerm, termId]);
+
+  const termSelectValue = termOptions.length > 0 ? (termOptions.some((t) => t.id === termId) ? termId : termOptions[0].id) : "";
 
   const { expenses: allExpenses } = useSessionExpenses();
 
@@ -39,7 +48,7 @@ export default function EducatorFinanceDetailPage() {
 
   const sessionsInTerm = useMemo(() => {
     if (!educatorId) return [];
-    const term = mockTerms.find((t) => t.id === termId);
+    const term = termOptions.find((t) => t.id === termId);
     if (!term) return [];
     if (apiEnabled) {
       return (apiSessions as SessionApi[])
@@ -63,7 +72,7 @@ export default function EducatorFinanceDetailPage() {
         );
     }
     return []; // when API is off, SessionExpensesContext still uses mock sessions for demo
-  }, [educatorId, termId, apiEnabled, apiSessions]);
+  }, [educatorId, termId, apiEnabled, apiSessions, termOptions]);
 
   const hours = useMemo(() => {
     let facilitating = 0;
@@ -88,13 +97,13 @@ export default function EducatorFinanceDetailPage() {
   }, [educatorId, allExpenses]);
 
   const expensesInTerm = useMemo(() => {
-    const term = mockTerms.find((t) => t.id === termId);
+    const term = termOptions.find((t) => t.id === termId);
     if (!term) return expenses;
     return expenses.filter((e) => {
       const session = sessionsInTerm.find((s) => s.id === e.sessionId);
       return session != null;
     });
-  }, [expenses, termId, sessionsInTerm]);
+  }, [expenses, termId, sessionsInTerm, termOptions]);
 
   const totalRequested = useMemo(
     () => expensesInTerm.reduce((s, e) => s + e.totalRequested, 0),
@@ -112,7 +121,7 @@ export default function EducatorFinanceDetailPage() {
     );
   }
 
-  const term = mockTerms.find((t) => t.id === termId);
+  const term = termOptions.find((t) => t.id === termId);
 
   return (
     <div className="p-6 space-y-6">
@@ -131,12 +140,12 @@ export default function EducatorFinanceDetailPage() {
           <CardDescription>Finance summary: hours and session expenses.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Select value={termId} onValueChange={setTermId}>
+          <Select value={termSelectValue} onValueChange={setTermId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Term" />
             </SelectTrigger>
             <SelectContent>
-              {mockTerms.map((t) => (
+              {termOptions.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.name}
                 </SelectItem>

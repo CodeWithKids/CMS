@@ -27,14 +27,19 @@ function inTermRange(termId: string, start: string, end: string): (inv: FinanceI
 
 export default function FinanceDashboardPage() {
   const { terms, currentTerm } = useTerms();
-  const [termId, setTermId] = useState("t1");
+  const [termId, setTermId] = useState("");
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Sync termId when terms load (API returns ids like t-xxx, not "t1")
   useEffect(() => {
-    if (currentTerm && terms.length && !terms.some((t) => t.id === termId)) setTermId(currentTerm.id);
-  }, [currentTerm, terms, termId]);
+    if (terms.length === 0) return;
+    const valid = terms.some((t) => t.id === termId);
+    if (!valid) setTermId(currentTerm?.id ?? terms[0].id ?? "");
+  }, [terms, currentTerm, termId]);
+
+  const selectValue = terms.length > 0 ? (terms.some((t) => t.id === termId) ? termId : terms[0].id) : "";
 
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
@@ -108,7 +113,7 @@ export default function FinanceDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={termId} onValueChange={setTermId}>
+          <Select value={selectValue} onValueChange={setTermId}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Term" />
             </SelectTrigger>

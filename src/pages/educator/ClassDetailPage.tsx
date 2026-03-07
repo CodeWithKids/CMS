@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   getClass,
@@ -44,7 +44,15 @@ export default function ClassDetailPage() {
   const { terms, currentTerm } = useTerms();
   const { educators } = useEducators();
   const { learners: allLearners } = useLearners();
-  const [termId, setTermId] = useState(DEFAULT_TERM_ID);
+  const [termId, setTermId] = useState("");
+
+  // Sync termId when terms load (API returns ids like t-xxx, not "t1")
+  useEffect(() => {
+    if (terms.length === 0) return;
+    if (!terms.some((t) => t.id === termId)) setTermId(currentTerm?.id ?? terms[0].id ?? DEFAULT_TERM_ID);
+  }, [terms, currentTerm, termId]);
+
+  const termSelectValue = terms.length > 0 ? (terms.some((t) => t.id === termId) ? termId : terms[0].id) : DEFAULT_TERM_ID;
   const [coachDialogSession, setCoachDialogSession] = useState<string | null>(null);
 
   const { data: apiClass } = useQuery({
@@ -172,7 +180,7 @@ export default function ClassDetailPage() {
         </h2>
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="text-sm text-muted-foreground">Term:</span>
-          <Select value={termId} onValueChange={setTermId}>
+          <Select value={termSelectValue} onValueChange={setTermId}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSessions } from "@/context/SessionsContext";
-import { mockTerms, mockUsers, getEducatorName } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
+import { mockUsers, getEducatorName } from "@/mockData";
 import {
   calculateEducatorHoursByTerm,
   filterEducatorHoursByTerm,
@@ -30,8 +31,16 @@ function formatHours(h: number): string {
 }
 
 export default function EducatorsListPage() {
-  const [termId, setTermId] = useState(mockTerms[0]?.id ?? "t1");
+  const { terms: termOptions, currentTerm } = useTerms();
+  const [termId, setTermId] = useState("");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (termOptions.length === 0) return;
+    if (!termOptions.some((t) => t.id === termId)) setTermId(currentTerm?.id ?? termOptions[0].id ?? "");
+  }, [termOptions, currentTerm, termId]);
+
+  const termSelectValue = termOptions.length > 0 ? (termOptions.some((t) => t.id === termId) ? termId : termOptions[0].id) : "";
 
   const { sessions } = useSessions();
 
@@ -83,12 +92,12 @@ export default function EducatorsListPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
-            <Select value={termId} onValueChange={setTermId}>
+            <Select value={termSelectValue} onValueChange={setTermId}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Term" />
               </SelectTrigger>
               <SelectContent>
-                {mockTerms.map((t) => (
+                {termOptions.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>

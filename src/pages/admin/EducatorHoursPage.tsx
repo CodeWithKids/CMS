@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { mockSessions, mockTerms, mockUsers, getEducatorName } from "@/mockData";
+import { useTerms } from "@/hooks/useTerms";
+import { mockSessions, mockUsers, getEducatorName } from "@/mockData";
 import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
 import type { Session, SessionType, LearningTrack } from "@/types";
 import {
@@ -32,8 +33,16 @@ function formatHours(h: number): string {
 }
 
 export default function EducatorHoursPage() {
-  const [selectedTermId, setSelectedTermId] = useState<string>(mockTerms[0]?.id ?? "");
+  const { terms: termOptions, currentTerm } = useTerms();
+  const [selectedTermId, setSelectedTermId] = useState("");
   const [educatorSearch, setEducatorSearch] = useState("");
+
+  useEffect(() => {
+    if (termOptions.length === 0) return;
+    if (!termOptions.some((t) => t.id === selectedTermId)) setSelectedTermId(currentTerm?.id ?? termOptions[0].id ?? "");
+  }, [termOptions, currentTerm, selectedTermId]);
+
+  const termSelectValue = termOptions.length > 0 ? (termOptions.some((t) => t.id === selectedTermId) ? selectedTermId : termOptions[0].id) : "";
 
   const apiEnabled = isApiEnabled();
   const { data: apiSessions = [] } = useQuery({
@@ -107,7 +116,7 @@ export default function EducatorHoursPage() {
     };
   }, [termSummaries]);
 
-  const selectedTerm = mockTerms.find((t) => t.id === selectedTermId);
+  const selectedTerm = termOptions.find((t) => t.id === selectedTermId);
 
   return (
     <div className="page-container">
@@ -119,12 +128,12 @@ export default function EducatorHoursPage() {
       </p>
 
       <div className="flex flex-wrap gap-4 mb-6">
-        <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+        <Select value={termSelectValue} onValueChange={setSelectedTermId}>
           <SelectTrigger className="w-[220px]">
             <SelectValue placeholder="Select term" />
           </SelectTrigger>
           <SelectContent>
-            {mockTerms.map((t) => (
+            {termOptions.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
               </SelectItem>
@@ -203,7 +212,7 @@ export default function EducatorHoursPage() {
                   <EducatorHoursRow
                     key={`${row.educatorId}-${row.termId}`}
                     row={row}
-                    termName={selectedTerm?.name ?? row.termId}
+                    termName={selectedTerm?.name ?? row.termId ?? "—"}
                   />
                 ))}
               </TableBody>
