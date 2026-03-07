@@ -245,9 +245,10 @@ Save. No redeploy needed; the rule applies immediately. After that, refreshing `
 
 ### Keep the API warm (free tier)
 
-On Render’s free tier, the API may spin down after idle time; the first request can be slow (e.g. ~1 minute). To reduce that:
+On Render’s free tier, the API may spin down after idle time; the first request can be slow. To reduce that:
 
 - Use a **cron or ping service** (e.g. [cron-job.org](https://cron-job.org)) to call `GET https://your-api.onrender.com/health` every 10–15 minutes.
+- Run **migrations at build time**, not at start: in the API service, set **Build** to `npm install && npx prisma generate && npx prisma migrate deploy && npm run build` and **Start** to `npm start`. Then when the container wakes, it only starts Node (no Prisma migrate), which is much faster.
 - Optionally upgrade the API service so it doesn’t spin down.
 
 ### Deployment verification checklist

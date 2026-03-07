@@ -65,6 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser]);
 
+  // When any API call returns 401, clear user and token so UI redirects to login
+  useEffect(() => {
+    const handler = () => {
+      clearAccessToken();
+      localStorage.removeItem("cwk_user");
+      setCurrentUser(null);
+    };
+    window.addEventListener("auth:session-expired", handler);
+    return () => window.removeEventListener("auth:session-expired", handler);
+  }, []);
+
   // When API is enabled and we have a token but no user (e.g. page refresh), restore session
   useEffect(() => {
     if (!isApiEnabled() || currentUser) return;

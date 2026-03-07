@@ -80,6 +80,16 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  // On 401, clear token and notify app so user is logged out and redirected to login
+  if (res.status === 401) {
+    clearAccessToken();
+    try {
+      sessionStorage.setItem("cwk_session_expired", "1");
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new CustomEvent("auth:session-expired"));
+  }
   return parseResponse<T>(res);
 }
 

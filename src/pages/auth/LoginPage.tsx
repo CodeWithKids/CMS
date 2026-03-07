@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
 import { mockUsers, getLearnerByUserId } from "@/mockData";
@@ -22,10 +22,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
   const { login, loginWithCredentials } = useAuth();
   const navigate = useNavigate();
 
   const useApi = isApiEnabled();
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("cwk_session_expired") === "1") {
+        sessionStorage.removeItem("cwk_session_expired");
+        setSessionExpiredMessage("Your session expired. Please log in again.");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const handleDemoLogin = () => {
     setError(null);
@@ -93,7 +105,11 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground mb-5">
             Enter your email and password to access your account.
           </p>
-
+          {sessionExpiredMessage && (
+            <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 mb-4">
+              {sessionExpiredMessage}
+            </p>
+          )}
           {useApi ? (
             <form onSubmit={handleApiLogin} className="space-y-4">
               <div className="space-y-2">

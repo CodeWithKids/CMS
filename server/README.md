@@ -71,8 +71,9 @@ Point the frontend API base URL to `http://localhost:3001` (e.g. via env or a sh
 
 ## Deploying to Render
 
-1. **Build command:** `npm install && npx prisma generate && npm run build`
-2. **Start command:** `npm start` (runs `prisma migrate deploy` then starts the server, so migrations apply on every deploy).
+1. **Build command:** `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`  
+   Run migrations during build so the container **start** is fast (no DB work on wake-up). Ensure `DATABASE_URL` is available at build time (Render injects env by default).
+2. **Start command:** `npm start` (starts the server only; migrations already ran at build).
 3. **Environment variables** (set in the Render dashboard; do not commit):
    - `DATABASE_URL` — from the Render Postgres service (Internal Database URL).
    - `JWT_SECRET` — use a long, random string (e.g. `openssl rand -base64 32`). Required in production; the server exits if unset or left as the dev default.
