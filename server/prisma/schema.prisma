@@ -69,6 +69,7 @@ model Class {
   learnerIds              String[]
   capacity                Int?
   schoolOrOrganisationName String?  // school or organisation the class belongs to
+  trackId                 String?  // optional primary learning track (matches LearningTrack.id)
 
   @@map("classes")
 }
@@ -311,8 +312,33 @@ model Program {
   id          String   @id
   name        String
   description String?
+  trackId     String?  // optional primary learning track (matches LearningTrack.id)
 
   @@map("programs")
+}
+
+// Focus areas group learning tracks (e.g. Programming & Development, Experiments & Applied Science)
+model FocusArea {
+  id     String @id
+  name   String
+  slug   String @unique
+  order  Int    @default(0)
+  tracks LearningTrack[]
+
+  @@map("focus_areas")
+}
+
+// Learning track (e.g. Game Design, Python); Session.learningTrack / LessonPlanTemplate.learningTrackId store this id
+model LearningTrack {
+  id           String     @id
+  name         String
+  slug         String     @unique
+  focusAreaId  String
+  focusArea    FocusArea  @relation(fields: [focusAreaId], references: [id], onDelete: Restrict)
+  level        String?
+  order        Int        @default(0)
+
+  @@map("learning_tracks")
 }
 
 model Location {

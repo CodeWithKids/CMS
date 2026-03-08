@@ -32,12 +32,13 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   const body = req.body ?? {};
   const name = parseString(body.name);
   const description = parseString(body.description) ?? undefined;
+  const trackId = body.trackId === null || body.trackId === "" ? null : (parseString(body.trackId) ?? undefined);
   if (!name) {
     sendError(res, 400, "VALIDATION_ERROR", "name is required.");
     return;
   }
   const id = nextId("prog");
-  const row = await prisma.program.create({ data: { id, name, description } });
+  const row = await prisma.program.create({ data: { id, name, description, trackId: trackId ?? undefined } });
   res.status(201).json(row);
 });
 
@@ -56,9 +57,11 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   const body = req.body ?? {};
   const name = parseString(body.name);
   const description = body.description !== undefined ? (parseString(body.description) ?? null) : undefined;
-  const data: { name?: string; description?: string | null } = {};
+  const trackId = body.trackId !== undefined ? (body.trackId === null || body.trackId === "" ? null : (parseString(body.trackId) ?? undefined)) : undefined;
+  const data: { name?: string; description?: string | null; trackId?: string | null } = {};
   if (name !== undefined) data.name = name;
   if (description !== undefined) data.description = description;
+  if (trackId !== undefined) data.trackId = trackId;
   if (Object.keys(data).length === 0) {
     res.json(existing);
     return;

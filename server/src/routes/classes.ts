@@ -25,11 +25,12 @@ function parseOptionalNumber(val: unknown): number | null | undefined {
 
 /** GET /v1/classes */
 router.get("/", async (req: Request, res: Response) => {
-  const { termId, program, educatorId } = req.query;
-  const where: { termId?: string; program?: string; educatorId?: string } = {};
+  const { termId, program, educatorId, trackId } = req.query;
+  const where: { termId?: string; program?: string; educatorId?: string; trackId?: string | null } = {};
   if (typeof termId === "string") where.termId = termId;
   if (typeof program === "string") where.program = program;
   if (typeof educatorId === "string") where.educatorId = educatorId;
+  if (typeof trackId === "string") where.trackId = trackId;
 
   const list = await prisma.class.findMany({ where });
   res.json(list);
@@ -63,6 +64,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     : [];
   const capacity = parseOptionalNumber(body.capacity);
   const schoolOrOrganisationName = parseString(body.schoolOrOrganisationName) || null;
+  const trackId = body.trackId === null || body.trackId === "" ? null : parseString(body.trackId) ?? undefined;
 
   if (!name || !program || !ageGroup || !location || !educatorId || !termId) {
     sendError(res, 400, "VALIDATION_ERROR", "name, program, ageGroup, location, educatorId, and termId are required.");
@@ -95,6 +97,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       learnerIds,
       capacity: capacity ?? undefined,
       schoolOrOrganisationName: schoolOrOrganisationName ?? undefined,
+      trackId: trackId ?? undefined,
     },
   });
   res.status(201).json(cls);
@@ -131,6 +134,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   const schoolOrOrganisationName = body.schoolOrOrganisationName === null || body.schoolOrOrganisationName === ""
     ? null
     : parseString(body.schoolOrOrganisationName);
+  const trackId = body.trackId === undefined ? undefined : (body.trackId === null || body.trackId === "" ? null : parseString(body.trackId));
 
   const data: {
     name?: string;
@@ -142,6 +146,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
     learnerIds?: string[];
     capacity?: number | null;
     schoolOrOrganisationName?: string | null;
+    trackId?: string | null;
   } = {};
   if (name !== undefined) data.name = name;
   if (program !== undefined) data.program = program;
@@ -152,6 +157,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   if (learnerIds !== undefined) data.learnerIds = learnerIds;
   if (capacity !== undefined) data.capacity = capacity;
   if (schoolOrOrganisationName !== undefined) data.schoolOrOrganisationName = schoolOrOrganisationName;
+  if (trackId !== undefined) data.trackId = trackId;
 
   if (Object.keys(data).length === 0) {
     res.json(cls);

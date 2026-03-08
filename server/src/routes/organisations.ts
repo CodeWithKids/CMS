@@ -10,6 +10,12 @@ function isAdmin(req: Request & { auth?: { user: { role: string } } }): boolean 
   return req.auth?.user?.role === "admin";
 }
 
+/** Admin or Partnership & Communications can update/delete partner orgs. */
+function canManagePartners(req: Request & { auth?: { user: { role: string } } }): boolean {
+  const role = req.auth?.user?.role;
+  return role === "admin" || role === "partnerships";
+}
+
 const MIN_PASSWORD_LENGTH = 6;
 
 const SIGNUP_TYPES = ["school", "organisation", "miradi"] as const;
@@ -140,10 +146,10 @@ router.get("/:id/invoices", async (req: Request, res: Response) => {
   );
 });
 
-/** PATCH /v1/organisations/:id - update partner details (admin only). */
+/** PATCH /v1/organisations/:id - update partner details (admin or Partnership & Communications). */
 router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
-    sendError(res, 403, "FORBIDDEN", "Admin only.");
+  if (!canManagePartners(req as Request & { auth?: { user: { role: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin or Partnership & Communications only.");
     return;
   }
   const orgId = req.params.id;
@@ -186,10 +192,10 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   res.json(updated);
 });
 
-/** DELETE /v1/organisations/:id - delete partner (admin only). Fails if any learners are linked. */
+/** DELETE /v1/organisations/:id - delete partner (admin or Partnership & Communications). Fails if any learners are linked. */
 router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
-    sendError(res, 403, "FORBIDDEN", "Admin only.");
+  if (!canManagePartners(req as Request & { auth?: { user: { role: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin or Partnership & Communications only.");
     return;
   }
   const orgId = req.params.id;

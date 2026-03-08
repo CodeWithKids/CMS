@@ -23,6 +23,7 @@ import locationsRoutes from "./routes/locations.js";
 import ageGroupsRoutes from "./routes/ageGroups.js";
 import incomeSourcesRoutes from "./routes/incomeSources.js";
 import expenseCategoriesRoutes from "./routes/expenseCategories.js";
+import focusAreasRoutes from "./routes/focusAreas.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -68,6 +69,7 @@ app.use("/v1/locations", locationsRoutes);
 app.use("/v1/age-groups", ageGroupsRoutes);
 app.use("/v1/income-sources", incomeSourcesRoutes);
 app.use("/v1/expense-categories", expenseCategoriesRoutes);
+app.use("/v1/focus-areas", focusAreasRoutes);
 
 app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   errorHandler(req, res, next, err);
