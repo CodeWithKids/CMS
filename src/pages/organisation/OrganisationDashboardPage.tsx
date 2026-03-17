@@ -15,7 +15,7 @@ export default function OrganisationDashboardPage() {
 
   if (!isOrgUser || !organisation) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <div className="rounded-xl border bg-card p-8 max-w-md">
           <p className="font-medium text-muted-foreground">Organisation not found</p>
           <p className="text-sm text-muted-foreground mt-1">Please contact Code With Kids support if you believe this is an error.</p>
@@ -25,7 +25,7 @@ export default function OrganisationDashboardPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Organisation portal</h1>
       <p className="page-subtitle">Welcome, {organisation.name}</p>
 

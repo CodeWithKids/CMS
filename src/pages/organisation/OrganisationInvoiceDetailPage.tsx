@@ -55,7 +55,7 @@ export default function OrganisationInvoiceDetailPage() {
 
   if (!isOrgUser || !organisation) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Organisation not found. Please contact support.</p>
       </div>
     );
@@ -63,7 +63,7 @@ export default function OrganisationInvoiceDetailPage() {
 
   if (!id || !invoice || !allowed) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Invoice not found or you don’t have access to it.</p>
         <Link to="/organisation/invoices" className="text-primary hover:underline mt-2 inline-block">
           Back to Invoices & receipts
@@ -115,7 +115,7 @@ export default function OrganisationInvoiceDetailPage() {
   }, [apiEnabled, invoice, organisation.name]);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <div className="mb-4 flex items-center gap-2">
         <button
           type="button"

@@ -42,7 +42,7 @@ import {
 } from "@/mockData";
 import type { AppUser } from "@/types";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
-import { isApiEnabled, adminPendingSignupsGet, adminOverviewGet } from "@/lib/api";
+import { isApiEnabled, adminPendingSignupsGet, adminOverviewGet, focusAreasGetAll } from "@/lib/api";
 import type { LearningTrack } from "@/types";
 import { LEARNING_TRACK_LABELS } from "@/types";
 
@@ -123,6 +123,13 @@ export default function AdminDashboardPage() {
     enabled: apiEnabled,
   });
 
+  const { data: focusAreas = [] } = useQuery({
+    queryKey: ["focus-areas"],
+    queryFn: focusAreasGetAll,
+    enabled: apiEnabled,
+    staleTime: 10 * 60 * 1000,
+  });
+
   useEffect(() => {
     const t = setTimeout(() => setIsLoading(false), 200);
     return () => clearTimeout(t);
@@ -188,6 +195,18 @@ export default function AdminDashboardPage() {
     );
   }, [overviewApi]);
 
+  const learnersByFocusArea = useMemo(() => {
+    if (focusAreas.length === 0) return [];
+    const trackToCount = new Map(
+      overview.learnersByTrack.map((r) => [r.learningTrackId, r.learnerCount])
+    );
+    return focusAreas.map((fa) => ({
+      focusAreaId: fa.id,
+      focusAreaName: fa.name,
+      learnerCount: fa.tracks.reduce((sum, t) => sum + (trackToCount.get(t.id) ?? 0), 0),
+    }));
+  }, [focusAreas, overview.learnersByTrack]);
+
   const sessionReportsMissingCount = overviewApi
     ? overviewApi.sessionReportsMissingCount
     : (() => {
@@ -226,7 +245,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -256,7 +275,7 @@ export default function AdminDashboardPage() {
         </Alert>
       )}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+        <h1 className="page-title">Admin Dashboard</h1>
         <p className="text-muted-foreground">
           Create, read, update, and delete: use quick actions and the links below to manage accounts, staff, classes, learners, and partners.
         </p>
@@ -365,7 +384,8 @@ export default function AdminDashboardPage() {
             {overview.partners.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">No active partners.</p>
             ) : (
-              <Table>
+              <div className="table-wrapper">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Organisation name</TableHead>
@@ -387,10 +407,39 @@ export default function AdminDashboardPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       </section>
+
+      {/* Students by Focus Area (when API + focus areas available) */}
+      {apiEnabled && learnersByFocusArea.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Students by focus area</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle>Learners by focus area</CardTitle>
+              <CardDescription>
+                Aggregated from session attendance by learning track. Use focus areas to see where learners are concentrated.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {learnersByFocusArea.map((row) => (
+                  <div
+                    key={row.focusAreaId}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium">{row.focusAreaName}</span>
+                    <span className="text-muted-foreground tabular-nums">{row.learnerCount}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Learning tracks: learner counts by track (from session reports / class attendance) */}
       <section>
@@ -481,7 +530,8 @@ export default function AdminDashboardPage() {
                 No pending approvals.
               </p>
             ) : (
-              <Table>
+              <div className="table-wrapper">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -505,6 +555,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -525,7 +576,8 @@ export default function AdminDashboardPage() {
                 No learners with pending payments.
               </p>
             ) : (
-              <Table>
+              <div className="table-wrapper">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Learner</TableHead>
@@ -545,6 +597,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -561,7 +614,8 @@ export default function AdminDashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
+              <div className="table-wrapper">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Organisation</TableHead>
@@ -593,6 +647,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </section>

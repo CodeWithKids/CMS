@@ -82,7 +82,7 @@ export default function TeamSchedulePage() {
 
   if (otherEducators.length === 0) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <h1 className="page-title flex items-center gap-2">
           <Calendar className="w-6 h-6" /> Team schedules
         </h1>
@@ -92,7 +92,7 @@ export default function TeamSchedulePage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <Calendar className="w-6 h-6" /> Team schedules
       </h1>

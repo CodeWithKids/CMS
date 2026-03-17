@@ -98,7 +98,7 @@ export default function EducatorProfilesListPage() {
   };
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <Users className="w-6 h-6" /> Team profiles
       </h1>

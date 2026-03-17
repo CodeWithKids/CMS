@@ -11,7 +11,7 @@ const resources = [
 
 export default function ResourcesPage() {
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Resources</h1>
       <p className="page-subtitle">Explore learning platforms and tools</p>
 

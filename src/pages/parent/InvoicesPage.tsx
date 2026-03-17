@@ -39,7 +39,7 @@ export default function InvoicesPage() {
   const [loadError, setLoadError] = useState(false);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Invoices</h1>
       <p className="page-subtitle">View payment history and outstanding invoices. Open an invoice to see details or pay.</p>
 

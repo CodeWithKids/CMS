@@ -227,7 +227,7 @@ export default function SessionExpensePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Link
         to={cls ? `/educator/classes/${cls.id}` : "/educator/dashboard"}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

@@ -4,8 +4,11 @@ import { useCoachingInvites } from "@/context/CoachingInvitesContext";
 import { useSchedule } from "@/context/ScheduleContext";
 import { getClass, mockUsers } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
+import { useEducators } from "@/hooks/useEducators";
+import { useQuery } from "@tanstack/react-query";
+import { isApiEnabled, sessionsGetAll, classesGetAll, type SessionApi } from "@/lib/api";
 import { LEARNING_TRACK_LABELS } from "@/types";
-import type { AvailabilitySlot, AvailabilitySlotType } from "@/types";
+import type { AvailabilitySlot, AvailabilitySlotType, Session } from "@/types";
 import { getSessionRoleForUser } from "@/features/educator/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,12 +97,37 @@ const SLOT_TYPE_LABELS: Record<AvailabilitySlotType, string> = {
 const VIEW_ME = "me";
 const VIEW_TEAM = "team";
 
+function mapSessionApiToSession(s: SessionApi): Session {
+  return {
+    id: s.id,
+    classId: s.classId,
+    date: s.date,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    topic: s.topic,
+    sessionType: s.sessionType as Session["sessionType"],
+    duration: "1_hour",
+    learningTrack: s.learningTrack as Session["learningTrack"],
+    termId: s.termId,
+    leadEducatorId: s.leadEducatorId,
+    assistantEducatorIds: s.assistantEducatorIds ?? [],
+    durationHours: s.durationHours ?? 1,
+  };
+}
+
 export default function EducatorSchedulePage() {
   const { currentUser } = useAuth();
   const { getSessionsForEducatorByRole } = useSessions();
   const { getSlotsForEducator, addSlot, updateSlot, removeSlot } = useSchedule();
   const { getForEducator: getCoachingInvitesForEducator } = useCoachingInvites();
   const { toast } = useToast();
+  const apiEnabled = isApiEnabled();
+  const { educators: educatorsFromApi } = useEducators({ role: "educator" });
+  const allEducators = useMemo(
+    () => (apiEnabled ? educatorsFromApi : mockUsers.filter((u) => u.role === "educator").map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, status: u.employmentStatus ?? "active" }))),
+    [apiEnabled, educatorsFromApi]
+  );
+
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     const day = d.getDay();
@@ -118,10 +146,6 @@ export default function EducatorSchedulePage() {
   const [formNote, setFormNote] = useState("");
   const [deleteSlotId, setDeleteSlotId] = useState<string | null>(null);
 
-  const allEducators = useMemo(
-    () => mockUsers.filter((u) => u.role === "educator"),
-    []
-  );
   const educatorId = currentUser?.id ?? "";
   const canShowTeamSchedule = currentUser?.role === "admin" || currentUser?.role === "educator";
   useEffect(() => {
@@ -131,6 +155,51 @@ export default function EducatorSchedulePage() {
   const isViewingTeam = viewMode === VIEW_TEAM && canShowTeamSchedule;
 
   const weekDates = useMemo(() => getWeekDates(new Date(weekStart)), [weekStart]);
+  const weekStartDate = weekDates[0].toISOString().split("T")[0];
+  const weekEndDate = weekDates[6].toISOString().split("T")[0];
+
+  const { data: apiSessionsRaw = [] } = useQuery({
+    queryKey: ["schedule", "sessions", weekStartDate, weekEndDate, educatorId, isViewingSelf],
+    queryFn: () =>
+      sessionsGetAll({
+        dateFrom: weekStartDate,
+        dateTo: weekEndDate,
+        ...(isViewingSelf ? { educatorId } : {}),
+      }),
+    enabled: apiEnabled,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: apiClasses = [] } = useQuery({
+    queryKey: ["schedule", "classes"],
+    queryFn: () => classesGetAll(),
+    enabled: apiEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
+  const classIdToName = useMemo(
+    () => new Map(apiClasses.map((c) => [c.id, c.name])),
+    [apiClasses]
+  );
+
+  const sessionsInWeekFromApi = useMemo(() => {
+    if (!apiEnabled) return [];
+    const mapped = apiSessionsRaw.map(mapSessionApiToSession);
+    if (isViewingSelf) {
+      return mapped
+        .filter(
+          (s) =>
+            s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId)
+        )
+        .map((s) => ({ ...s, _educatorId: educatorId, _educatorName: currentUser?.name ?? "" }));
+    }
+    return mapped.flatMap((s) => {
+      const educatorIds = [s.leadEducatorId, ...(s.assistantEducatorIds ?? [])];
+      return educatorIds.map((id) => {
+        const e = allEducators.find((x) => x.id === id);
+        return { ...s, _educatorId: id, _educatorName: e?.name ?? "—" };
+      });
+    });
+  }, [apiEnabled, apiSessionsRaw, educatorId, isViewingSelf, allEducators, currentUser?.name]);
 
   /** When viewing "me": one educator's slots. When viewing "team": all educators' slots with educatorId attached for labelling. */
   const slots = useMemo(() => {
@@ -142,8 +211,9 @@ export default function EducatorSchedulePage() {
 
   /** When viewing "me": one educator's sessions. When viewing "team": all educators' sessions (role per session for label). */
   const sessionsInWeek = useMemo(() => {
-    const start = weekDates[0].toISOString().split("T")[0];
-    const end = weekDates[6].toISOString().split("T")[0];
+    if (apiEnabled) return sessionsInWeekFromApi;
+    const start = weekStartDate;
+    const end = weekEndDate;
     if (isViewingSelf) return getSessionsForEducatorByRole(educatorId, { from: start, to: end });
     return allEducators.flatMap((e) =>
       getSessionsForEducatorByRole(e.id, { from: start, to: end }).map((s) => ({
@@ -152,7 +222,7 @@ export default function EducatorSchedulePage() {
         _educatorName: e.name,
       }))
     );
-  }, [weekDates, educatorId, getSessionsForEducatorByRole, isViewingSelf, allEducators]);
+  }, [apiEnabled, sessionsInWeekFromApi, weekStartDate, weekEndDate, educatorId, getSessionsForEducatorByRole, isViewingSelf, allEducators]);
 
   /** Coaching invites (accepted or pending) for this educator in the week — only when viewing "My schedule". */
   const coachingInvitesInWeek = useMemo(() => {
@@ -365,7 +435,9 @@ export default function EducatorSchedulePage() {
                             </div>
                           ))}
                           {cellSessions.map((s) => {
-                            const cls = getClass(s.classId);
+                            const className = apiEnabled
+                              ? (classIdToName.get(s.classId) ?? getClass(s.classId)?.name ?? s.classId)
+                              : (getClass(s.classId)?.name ?? s.classId);
                             const sessionWithEducator = s as typeof s & { _educatorId?: string; _educatorName?: string };
                             const role = isViewingSelf
                               ? getSessionRoleForUser(s, currentUser)

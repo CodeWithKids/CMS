@@ -135,11 +135,11 @@
 
 @layer components {
   .page-container {
-    @apply p-6 lg:p-8 max-w-7xl mx-auto;
+    @apply p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto min-w-0 w-full;
   }
 
   .page-title {
-    @apply text-2xl lg:text-3xl font-bold text-foreground mb-1;
+    @apply text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1;
   }
 
   .page-subtitle {
@@ -164,5 +164,10 @@
 
   .data-table tr:hover td {
     @apply bg-muted/30;
+  }
+
+  /* Responsive: tables scroll horizontally on small screens */
+  .table-wrapper {
+    @apply w-full overflow-x-auto -webkit-overflow-scrolling-touch;
   }
 }

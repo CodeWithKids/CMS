@@ -119,7 +119,7 @@ export default function EducatorHoursPage() {
   const selectedTerm = termOptions.find((t) => t.id === selectedTermId);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <Clock className="w-7 h-7" /> Educator hours
       </h1>

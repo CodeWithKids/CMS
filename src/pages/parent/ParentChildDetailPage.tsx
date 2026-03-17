@@ -49,7 +49,7 @@ export default function ParentChildDetailPage() {
 
   if (!id || !learner || !allowed) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Child not found or you don’t have access.</p>
         <button
           type="button"
@@ -63,7 +63,7 @@ export default function ParentChildDetailPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <div className="mb-4 flex items-center gap-2">
         <button
           type="button"

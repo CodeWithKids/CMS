@@ -36,7 +36,7 @@ export default function StudentDashboard() {
   const needsAvatar = currentUser?.role === "student" && !currentUser?.avatarId;
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Student Dashboard</h1>
       <p className="page-subtitle">Welcome back, {currentUser?.name}! 🚀</p>
 

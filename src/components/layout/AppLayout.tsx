@@ -1,6 +1,7 @@
-import { useState, createElement } from "react";
+import { useState, useEffect, createElement } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Users, BookOpen, LayoutDashboard, Calendar, FileText, Clock,
   GraduationCap, MessageSquare, LogOut, Menu, X,
@@ -134,7 +135,19 @@ const aiMarketingNav: NavEntry[] = [
 export default function AppLayout() {
   const { currentUser, logout } = useAuth();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile(); // true = mobile, false = desktop, undefined = not yet known
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const useDrawer = isMobile !== false; // treat unknown as mobile so we don't flash desktop layout
+
+  // Desktop: open sidebar by default. Mobile/unknown: keep closed.
+  useEffect(() => {
+    if (isMobile === false) setSidebarOpen(true);
+  }, [isMobile]);
+
+  // On mobile, close sidebar when navigating so user sees the new page full-width.
+  useEffect(() => {
+    if (isMobile === true) setSidebarOpen(false);
+  }, [location.pathname, isMobile]);
 
   if (!currentUser) {
     return (
@@ -181,12 +194,29 @@ export default function AppLayout() {
         </div>
       </header>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
+      <div className="flex flex-1 min-h-0">
+        {/* Backdrop when sidebar is open on mobile */}
+        {useDrawer && sidebarOpen && (
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="fixed inset-0 z-20 bg-black/50 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar: overlay drawer on mobile, inline on desktop */}
         <aside
-          className={`${sidebarOpen ? "w-56" : "w-0"} flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-200 overflow-hidden shrink-0`}
+          className={`
+            flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-200 overflow-hidden shrink-0
+            fixed inset-y-0 left-0 z-30 w-56 pt-14 md:pt-0 md:static md:translate-x-0
+            ${useDrawer
+              ? (sidebarOpen ? "translate-x-0" : "-translate-x-full")
+              : (sidebarOpen ? "md:w-56" : "md:w-0")
+            }
+          `}
         >
-          <nav className="p-3 space-y-1 mt-2 flex-1 overflow-auto">
+          <nav className="p-3 space-y-1 mt-2 flex-1 overflow-auto" onClick={() => useDrawer && setSidebarOpen(false)}>
             {navItems.map((item, i) => {
               if (item.type === "section") {
                 const isAdminSection = currentUser.role === "admin";
@@ -229,9 +259,11 @@ export default function AppLayout() {
           </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto bg-background">
-          <Outlet />
+        {/* Main content: responsive padding and width so all pages work on small screens */}
+        <main className="flex-1 min-w-0 overflow-auto bg-background pb-8 md:pb-0">
+          <div className="page-container min-h-full">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

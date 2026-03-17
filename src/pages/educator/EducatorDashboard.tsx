@@ -12,7 +12,9 @@ import { useSessions } from "@/context/SessionsContext";
 import { LEARNING_TRACK_LABELS, SESSION_TYPE_LABELS } from "@/types";
 import type { LearningTrack, SessionType } from "@/types";
 import { useQuery } from "@tanstack/react-query";
-import { classesGetAll, isApiEnabled, type ClassApi } from "@/lib/api";
+import { classesGetAll, sessionsGetAll, isApiEnabled, type ClassApi, type SessionApi } from "@/lib/api";
+import { useTerms } from "@/hooks/useTerms";
+import type { Session } from "@/types";
 import { EducatorSessionCard } from "@/features/educator/components/EducatorSessionCard";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,6 +26,24 @@ import { useMyTasks } from "@/features/tasks/context/TasksContext";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 
 const today = new Date().toISOString().split("T")[0];
+
+function mapSessionApiToSession(s: SessionApi): Session {
+  return {
+    id: s.id,
+    classId: s.classId,
+    date: s.date,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    topic: s.topic,
+    sessionType: s.sessionType as Session["sessionType"],
+    duration: "1_hour",
+    learningTrack: s.learningTrack as Session["learningTrack"],
+    termId: s.termId,
+    leadEducatorId: s.leadEducatorId,
+    assistantEducatorIds: s.assistantEducatorIds ?? [],
+    durationHours: s.durationHours ?? 1,
+  };
+}
 
 function getWeekStart(d: Date): string {
   const day = d.getDay();
@@ -43,27 +63,85 @@ export default function EducatorDashboard() {
   const { getItemsCheckedOutTo } = useInventory();
   const { getSessionsForEducatorByRole, getSessionsForClass } = useSessions();
   const { getNotesForDate, addNoteForDate } = useEducatorNotes();
+  const { currentTerm } = useTerms();
 
-  const todaySessions = useMemo(
-    () => getSessionsForEducatorByRole(educatorId, { date: today }),
-    [educatorId, getSessionsForEducatorByRole]
-  );
-  const upcomingSessions = useMemo(
-    () =>
-      getSessionsForEducatorByRole(educatorId, { from: today })
+  const apiEnabled = isApiEnabled();
+  const { data: apiSessionsRaw = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["educator", "sessions", educatorId],
+    queryFn: () => sessionsGetAll({ educatorId }),
+    enabled: apiEnabled && !!educatorId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const educatorSessionsFromApi = useMemo(() => {
+    if (!apiEnabled || !educatorId) return [];
+    return apiSessionsRaw
+      .filter(
+        (s) =>
+          s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId)
+      )
+      .map(mapSessionApiToSession);
+  }, [apiEnabled, educatorId, apiSessionsRaw]);
+
+  const getSessionsForClassResolved = useMemo(() => {
+    if (apiEnabled) {
+      return (classId: string) => educatorSessionsFromApi.filter((s) => s.classId === classId);
+    }
+    return getSessionsForClass;
+  }, [apiEnabled, educatorSessionsFromApi, getSessionsForClass]);
+
+  const todaySessions = useMemo(() => {
+    if (apiEnabled) return educatorSessionsFromApi.filter((s) => s.date === today);
+    return getSessionsForEducatorByRole(educatorId, { date: today });
+  }, [apiEnabled, educatorSessionsFromApi, educatorId, getSessionsForEducatorByRole]);
+
+  const upcomingSessions = useMemo(() => {
+    if (apiEnabled) {
+      return educatorSessionsFromApi
         .filter((s) => s.date > today)
-        .slice(0, 10),
-    [educatorId, getSessionsForEducatorByRole]
-  );
-  const pastSessions = useMemo(
-    () => getSessionsForEducatorByRole(educatorId, { past: true }).slice(0, 5),
-    [educatorId, getSessionsForEducatorByRole]
-  );
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 10);
+    }
+    return getSessionsForEducatorByRole(educatorId, { from: today })
+      .filter((s) => s.date > today)
+      .slice(0, 10);
+  }, [apiEnabled, educatorSessionsFromApi, educatorId, getSessionsForEducatorByRole]);
+
+  const pastSessions = useMemo(() => {
+    if (apiEnabled) {
+      return educatorSessionsFromApi
+        .filter((s) => s.date < today)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 5);
+    }
+    return getSessionsForEducatorByRole(educatorId, { past: true }).slice(0, 5);
+  }, [apiEnabled, educatorSessionsFromApi, educatorId, getSessionsForEducatorByRole]);
 
   const weekStart = useMemo(() => getWeekStart(new Date()), []);
 
-  const apiEnabled = isApiEnabled();
-  const { data: apiClasses = [] } = useQuery({
+  const termRange = useMemo(() => {
+    if (apiEnabled && currentTerm)
+      return { from: currentTerm.startDate, to: currentTerm.endDate };
+    const term = getCurrentTerm();
+    return term ? { from: term.startDate, to: term.endDate } : { from: weekStart, to: today };
+  }, [apiEnabled, currentTerm, weekStart]);
+
+  const hoursSummary = useMemo(() => {
+    const sessions = apiEnabled
+      ? educatorSessionsFromApi.filter(
+          (s) => s.date >= termRange.from && s.date <= termRange.to
+        )
+      : getSessionsForEducatorByRole(educatorId, { from: termRange.from, to: termRange.to });
+    let facilitating = 0;
+    let coaching = 0;
+    for (const s of sessions) {
+      if (s.leadEducatorId === educatorId) facilitating += s.durationHours ?? 1;
+      else if ((s.assistantEducatorIds ?? []).includes(educatorId)) coaching += s.durationHours ?? 1;
+    }
+    return { facilitating, coaching, sessionCount: sessions.length, classCount: new Set(sessions.map((s) => s.classId)).size };
+  }, [apiEnabled, educatorId, termRange, educatorSessionsFromApi, getSessionsForEducatorByRole]);
+
+  const { data: apiClasses = [], isLoading: classesLoading } = useQuery({
     queryKey: ["educator", "classes", educatorId],
     queryFn: () => classesGetAll({ educatorId }),
     enabled: apiEnabled && !!educatorId,
@@ -83,28 +161,12 @@ export default function EducatorDashboard() {
     );
   }, [apiEnabled, apiClasses, educatorId, getSessionsForEducatorByRole]);
 
-  const termRange = useMemo(() => {
-    const term = getCurrentTerm();
-    return term ? { from: term.startDate, to: term.endDate } : { from: weekStart, to: today };
-  }, [weekStart]);
-
-  const hoursSummary = useMemo(() => {
-    const sessions = getSessionsForEducatorByRole(educatorId, { from: termRange.from, to: termRange.to });
-    let facilitating = 0;
-    let coaching = 0;
-    for (const s of sessions) {
-      if (s.leadEducatorId === educatorId) facilitating += s.durationHours ?? 1;
-      else if ((s.assistantEducatorIds ?? []).includes(educatorId)) coaching += s.durationHours ?? 1;
-    }
-    return { facilitating, coaching, sessionCount: sessions.length, classCount: new Set(sessions.map((s) => s.classId)).size };
-  }, [educatorId, termRange, getSessionsForEducatorByRole]);
-
   const myDevices = useMemo(() => getItemsCheckedOutTo(educatorId), [getItemsCheckedOutTo, educatorId]);
 
-  const allSessionsForBadges = useMemo(
-    () => getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" }),
-    [educatorId, getSessionsForEducatorByRole]
-  );
+  const allSessionsForBadges = useMemo(() => {
+    if (apiEnabled) return educatorSessionsFromApi;
+    return getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" });
+  }, [apiEnabled, educatorSessionsFromApi, educatorId, getSessionsForEducatorByRole]);
   const dashboardBadges = useMemo(() => computeEducatorBadges(educatorId, allSessionsForBadges), [educatorId, allSessionsForBadges]);
 
   const myTasks = useMyTasks(educatorId);
@@ -123,12 +185,12 @@ export default function EducatorDashboard() {
   const tracksByClass = useMemo(() => {
     const map = new Map<string, LearningTrack[]>();
     for (const c of myClasses) {
-      const sessions = getSessionsForClass(c.id);
+      const sessions = getSessionsForClassResolved(c.id);
       const tracks = [...new Set(sessions.map((s) => s.learningTrack))];
       map.set(c.id, tracks);
     }
     return map;
-  }, [myClasses, getSessionsForClass]);
+  }, [myClasses, getSessionsForClassResolved]);
 
   /** Order of the six CWK program/session types for grouping My classes. */
   const SESSION_TYPE_ORDER: SessionType[] = [
@@ -143,13 +205,13 @@ export default function EducatorDashboard() {
   const sessionTypeByClass = useMemo(() => {
     const map = new Map<string, SessionType>();
     for (const c of myClasses) {
-      const sessions = getSessionsForClass(c.id);
+      const sessions = getSessionsForClassResolved(c.id);
       const types = sessions.map((s) => s.sessionType);
       const primary = types.length > 0 ? types[0] : "makerspace";
       map.set(c.id, primary);
     }
     return map;
-  }, [myClasses, getSessionsForClass]);
+  }, [myClasses, getSessionsForClassResolved]);
 
   const myClassesByProgramType = useMemo(() => {
     const byType = new Map<SessionType, typeof myClasses>();
@@ -169,14 +231,20 @@ export default function EducatorDashboard() {
 
   const todayNotes = useMemo(() => getNotesForDate(today), [today, getNotesForDate]);
 
+  const apiDataLoading = apiEnabled && (sessionsLoading || classesLoading);
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 200);
-    return () => clearTimeout(t);
-  }, []);
+    if (!apiEnabled) {
+      const t = setTimeout(() => setIsLoading(false), 200);
+      return () => clearTimeout(t);
+    }
+  }, [apiEnabled]);
+  useEffect(() => {
+    if (apiEnabled && !apiDataLoading) setIsLoading(false);
+  }, [apiEnabled, apiDataLoading]);
 
   if (isLoading) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-56 mb-2" />
         <Skeleton className="h-5 w-48 mb-6" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -194,7 +262,7 @@ export default function EducatorDashboard() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Educator Dashboard</h1>
       <p className="page-subtitle">Welcome back, {currentUser?.name}</p>
       <p className="text-sm text-muted-foreground mb-4">Your classes and devices are below.</p>

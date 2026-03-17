@@ -56,7 +56,7 @@ const PATTERNS = [
 
 export default function MarketingBrandKitPage() {
   return (
-    <div className="p-6 space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Brand Kit</h1>
         <p className="text-muted-foreground">

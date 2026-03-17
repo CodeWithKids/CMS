@@ -84,7 +84,7 @@ export default function FinanceDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Skeleton className="h-8 w-56 mb-2" />
@@ -104,7 +104,7 @@ export default function FinanceDashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Finance dashboard</h1>

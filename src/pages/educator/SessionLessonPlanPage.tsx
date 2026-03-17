@@ -74,7 +74,7 @@ export default function SessionLessonPlanPage() {
 
   if (!session || !cls) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Session not found.</p>
         <Link to="/educator/dashboard" className="text-primary hover:underline text-sm">← Dashboard</Link>
       </div>
@@ -82,7 +82,7 @@ export default function SessionLessonPlanPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <Link to="/educator/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft className="w-4 h-4" /> Back to dashboard
       </Link>

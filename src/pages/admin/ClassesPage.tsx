@@ -44,8 +44,11 @@ import {
   classesCreate,
   classesPatch,
   classesDelete,
+  focusAreasGetAll,
   type ClassApi,
 } from "@/lib/api";
+import { LEARNING_TRACK_LABELS } from "@/types";
+import type { LearningTrack } from "@/types";
 
 const AGE_GROUP_OPTIONS = ["6-8", "8-10", "8-13", "10-14", "13-18"];
 
@@ -68,6 +71,12 @@ export const SCHOOL_OR_ORGANISATION_OPTIONS = [
   "Daraja Tech Program",
 ] as const;
 
+const ALL_TRACK_IDS: LearningTrack[] = [
+  "computer_basics", "game_design", "web_design", "app_design", "python", "graphic_design",
+  "robotics", "3d_design", "microbit", "physical_computing", "science_experiments",
+  "financial_literacy", "ai", "blockchain", "esports",
+];
+
 type ClassFormState = {
   name: string;
   program: string;
@@ -77,6 +86,7 @@ type ClassFormState = {
   educatorId: string;
   termId: string;
   capacity: string;
+  trackId: string;
 };
 
 const emptyForm: ClassFormState = {
@@ -88,6 +98,7 @@ const emptyForm: ClassFormState = {
   educatorId: "",
   termId: "",
   capacity: "",
+  trackId: "",
 };
 
 function classToForm(c: ClassApi): ClassFormState {
@@ -100,6 +111,7 @@ function classToForm(c: ClassApi): ClassFormState {
     educatorId: c.educatorId,
     termId: c.termId,
     capacity: c.capacity != null ? String(c.capacity) : "",
+    trackId: c.trackId ?? "",
   };
 }
 
@@ -110,6 +122,8 @@ export default function ClassesPage() {
   const { terms } = useTerms();
   const { educators } = useEducators();
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
+  const [selectedFocusAreaId, setSelectedFocusAreaId] = useState<string | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState<"create" | ClassApi | null>(null);
   const [formState, setFormState] = useState<ClassFormState>(emptyForm);
   const [formSaving, setFormSaving] = useState(false);
@@ -119,13 +133,27 @@ export default function ClassesPage() {
   const apiEnabled = isApiEnabled();
   const isAdmin = currentUser?.role === "admin";
 
+  const { data: focusAreas = [] } = useQuery({
+    queryKey: ["focus-areas"],
+    queryFn: focusAreasGetAll,
+    enabled: apiEnabled,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const { data: apiClasses = [], isLoading, isError } = useQuery({
-    queryKey: ["classes"],
-    queryFn: () => classesGetAll(),
+    queryKey: ["classes", selectedTrackId ?? ""],
+    queryFn: () => classesGetAll(selectedTrackId ? { trackId: selectedTrackId } : {}),
     enabled: apiEnabled,
   });
 
   const classes = apiEnabled ? apiClasses : mockClasses;
+  const tracksForFilter = useMemo(() => {
+    if (selectedFocusAreaId) {
+      const fa = focusAreas.find((f) => f.id === selectedFocusAreaId);
+      return fa?.tracks ?? [];
+    }
+    return focusAreas.flatMap((fa) => fa.tracks);
+  }, [focusAreas, selectedFocusAreaId]);
   const educatorOptions = useMemo(
     () => educators.filter((e) => e.role === "educator"),
     [educators]
@@ -140,9 +168,11 @@ export default function ClassesPage() {
   );
 
   const filteredClasses = useMemo(() => {
-    if (selectedPrograms.size === 0) return classes;
-    return classes.filter((c) => selectedPrograms.has(c.program));
-  }, [classes, selectedPrograms]);
+    let list = classes;
+    if (selectedPrograms.size > 0) list = list.filter((c) => selectedPrograms.has(c.program));
+    if (selectedTrackId) list = list.filter((c) => c.trackId === selectedTrackId);
+    return list;
+  }, [classes, selectedPrograms, selectedTrackId]);
 
   function toggleProgram(program: string) {
     setSelectedPrograms((prev) => {
@@ -188,6 +218,7 @@ export default function ClassesPage() {
       termId,
       capacity: capacity ?? undefined,
       schoolOrOrganisationName: formState.schoolOrOrganisationName.trim() || undefined,
+      trackId: formState.trackId.trim() || undefined,
     };
 
     if (formOpen === "create") {
@@ -239,7 +270,7 @@ export default function ClassesPage() {
 
   if (apiEnabled && isLoading) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-56 mb-2" />
         <Skeleton className="h-5 w-80 mb-6" />
         <Skeleton className="h-10 w-full max-w-md mb-4" />
@@ -254,7 +285,7 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <h1 className="page-title">Classes</h1>
@@ -267,8 +298,8 @@ export default function ClassesPage() {
         )}
       </div>
 
-      <div className="mb-6 rounded-lg border bg-card p-4">
-        <p className="text-sm font-medium text-muted-foreground mb-3">Filter by type of class</p>
+      <div className="mb-6 rounded-lg border bg-card p-4 space-y-4">
+        <p className="text-sm font-medium text-muted-foreground">Filter by type of class</p>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
           {PROGRAM_NAMES.map((program) => (
             <label
@@ -283,6 +314,52 @@ export default function ClassesPage() {
             </label>
           ))}
         </div>
+        {apiEnabled && focusAreas.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+            <span className="text-sm font-medium text-muted-foreground">Focus area → Track:</span>
+            <Select
+              value={selectedFocusAreaId ?? "all"}
+              onValueChange={(v) => {
+                setSelectedFocusAreaId(v === "all" ? null : v);
+                setSelectedTrackId(null);
+              }}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="All focus areas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All focus areas</SelectItem>
+                {focusAreas.map((fa) => (
+                  <SelectItem key={fa.id} value={fa.id}>{fa.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={selectedTrackId ?? "all"}
+              onValueChange={(v) => setSelectedTrackId(v === "all" ? null : v)}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="All tracks" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tracks</SelectItem>
+                {tracksForFilter.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(selectedFocusAreaId !== null || selectedTrackId !== null) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => { setSelectedFocusAreaId(null); setSelectedTrackId(null); }}
+              >
+                Clear focus/track
+              </Button>
+            )}
+          </div>
+        )}
         {selectedPrograms.size > 0 && (
           <Button
             variant="ghost"
@@ -290,7 +367,7 @@ export default function ClassesPage() {
             className="mt-2 text-muted-foreground"
             onClick={() => setSelectedPrograms(new Set())}
           >
-            Clear filter
+            Clear program filter
           </Button>
         )}
       </div>
@@ -333,6 +410,7 @@ export default function ClassesPage() {
                 <th>Class Name</th>
                 <th>School / Organisation</th>
                 <th>Type of class</th>
+                <th>Track</th>
                 <th>Age Group</th>
                 <th>Location</th>
                 <th>Educator</th>
@@ -347,6 +425,7 @@ export default function ClassesPage() {
                   <td className="font-medium">{c.name}</td>
                   <td>{c.schoolOrOrganisationName ?? "—"}</td>
                   <td>{c.program}</td>
+                  <td className="text-muted-foreground text-sm">{c.trackId ? (LEARNING_TRACK_LABELS[c.trackId as LearningTrack] ?? c.trackId) : "—"}</td>
                   <td>{c.ageGroup}</td>
                   <td>{c.location}</td>
                   <td>{getEducatorDisplay(c.educatorId)}</td>
@@ -497,6 +576,29 @@ export default function ClassesPage() {
                   {terms.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="class-track">Learning track (optional)</Label>
+              <Select
+                value={formState.trackId || "none"}
+                onValueChange={(v) => setFormState((s) => ({ ...s, trackId: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger id="class-track">
+                  <SelectValue placeholder="Select track" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {apiEnabled && focusAreas.length > 0
+                    ? focusAreas.flatMap((fa) =>
+                        fa.tracks.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))
+                      )
+                    : ALL_TRACK_IDS.map((id) => (
+                        <SelectItem key={id} value={id}>{LEARNING_TRACK_LABELS[id]}</SelectItem>
+                      ))}
                 </SelectContent>
               </Select>
             </div>

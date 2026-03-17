@@ -53,7 +53,7 @@ export default function ParentInvoiceDetailPage() {
 
   if (!id || !invoice || !allowed) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <div className="rounded-xl border bg-card p-8 max-w-md">
           <p className="font-medium text-muted-foreground">Invoice not found</p>
           <p className="text-sm text-muted-foreground mt-1">This invoice does not exist or you do not have access. Go back to your invoices.</p>
@@ -117,7 +117,7 @@ export default function ParentInvoiceDetailPage() {
   }, [apiEnabled, invoice, payerLabel]);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <div className="mb-4 flex items-center gap-2">
         <Button
           type="button"

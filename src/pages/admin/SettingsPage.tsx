@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -53,6 +60,7 @@ import {
   programsCreate,
   programsPatch,
   programsDelete,
+  focusAreasGetAll,
   type ProgramApi,
   locationsGetAll,
   locationsCreate,
@@ -76,6 +84,8 @@ import {
   type ExpenseCategoryApi,
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { LEARNING_TRACK_LABELS } from "@/types";
+import type { LearningTrack } from "@/types";
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-ZA", {
@@ -95,8 +105,13 @@ type TermFormState = { name: string; startDate: string; endDate: string; isCurre
 const emptyTermForm: TermFormState = { name: "", startDate: "", endDate: "", isCurrent: false };
 
 // ——— Program form ———
-type ProgramFormState = { name: string; description: string };
-const emptyProgramForm: ProgramFormState = { name: "", description: "" };
+const ALL_TRACK_IDS: LearningTrack[] = [
+  "computer_basics", "game_design", "web_design", "app_design", "python", "graphic_design",
+  "robotics", "3d_design", "microbit", "physical_computing", "science_experiments",
+  "financial_literacy", "ai", "blockchain", "esports",
+];
+type ProgramFormState = { name: string; description: string; trackId: string };
+const emptyProgramForm: ProgramFormState = { name: "", description: "", trackId: "" };
 
 // ——— Location form ———
 type LocationFormState = { name: string; address: string };
@@ -134,6 +149,12 @@ export default function SettingsPage() {
     queryKey: ["programs"],
     queryFn: programsGetAll,
     enabled: apiEnabled,
+  });
+  const { data: focusAreas = [] } = useQuery({
+    queryKey: ["focus-areas"],
+    queryFn: focusAreasGetAll,
+    enabled: apiEnabled,
+    staleTime: 10 * 60 * 1000,
   });
   const [programFormOpen, setProgramFormOpen] = useState<"create" | ProgramApi | null>(null);
   const [programFormState, setProgramFormState] = useState<ProgramFormState>(emptyProgramForm);
@@ -256,20 +277,21 @@ export default function SettingsPage() {
     setProgramFormOpen("create");
   }
   function openProgramEdit(p: ProgramApi) {
-    setProgramFormState({ name: p.name, description: p.description ?? "" });
+    setProgramFormState({ name: p.name, description: p.description ?? "", trackId: p.trackId ?? "" });
     setProgramFormOpen(p);
   }
   function handleProgramFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!apiEnabled || !isAdmin) return;
-    const { name, description } = programFormState;
+    const { name, description, trackId } = programFormState;
     if (!name.trim()) {
       toast({ title: "Name required", variant: "destructive" });
       return;
     }
     setProgramFormSaving(true);
+    const trackIdVal = trackId.trim() || null;
     if (programFormOpen === "create") {
-      programsCreate({ name: name.trim(), description: description.trim() || null })
+      programsCreate({ name: name.trim(), description: description.trim() || null, trackId: trackIdVal })
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["programs"] });
           toast({ title: "Program created" });
@@ -278,7 +300,7 @@ export default function SettingsPage() {
         .catch((err) => toastError(toast, "Create failed", err, "Could not create program."))
         .finally(() => setProgramFormSaving(false));
     } else if (typeof programFormOpen === "object") {
-      programsPatch(programFormOpen.id, { name: name.trim(), description: description.trim() || null })
+      programsPatch(programFormOpen.id, { name: name.trim(), description: description.trim() || null, trackId: trackIdVal })
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["programs"] });
           toast({ title: "Program updated" });
@@ -516,7 +538,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
@@ -900,6 +922,29 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="program-desc">Description</Label>
               <Input id="program-desc" value={programFormState.description} onChange={(e) => setProgramFormState((s) => ({ ...s, description: e.target.value }))} placeholder="Optional" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="program-track">Learning track (optional)</Label>
+              <Select
+                value={programFormState.trackId || "none"}
+                onValueChange={(v) => setProgramFormState((s) => ({ ...s, trackId: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger id="program-track">
+                  <SelectValue placeholder="Select track" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {apiEnabled && focusAreas.length > 0
+                    ? focusAreas.flatMap((fa) =>
+                        fa.tracks.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))
+                      )
+                    : ALL_TRACK_IDS.map((id) => (
+                        <SelectItem key={id} value={id}>{LEARNING_TRACK_LABELS[id]}</SelectItem>
+                      ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setProgramFormOpen(null)}>Cancel</Button>

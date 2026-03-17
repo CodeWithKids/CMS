@@ -31,7 +31,7 @@ export default function OrganisationLearnersPage() {
 
   if (!isOrgUser || !organisation) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Organisation not found. Please contact support.</p>
       </div>
     );
@@ -39,7 +39,7 @@ export default function OrganisationLearnersPage() {
 
   if (isLoading) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-48 mb-2" />
         <Skeleton className="h-5 w-80 mb-6" />
         <Skeleton className="h-10 max-w-sm mb-6" />
@@ -49,7 +49,7 @@ export default function OrganisationLearnersPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Our learners</h1>
       <p className="page-subtitle">
         View details of learners linked to {organisation.name}

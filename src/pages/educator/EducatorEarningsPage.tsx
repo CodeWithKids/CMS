@@ -95,7 +95,7 @@ export default function EducatorEarningsPage() {
 
   if (!currentUser) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Please log in to view your earnings.</p>
       </div>
     );
@@ -103,14 +103,14 @@ export default function EducatorEarningsPage() {
 
   if (currentUser.role !== "educator") {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Access denied. This page is for educators only.</p>
       </div>
     );
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <Wallet className="w-7 h-7" /> My earnings
       </h1>

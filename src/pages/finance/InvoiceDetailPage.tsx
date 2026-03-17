@@ -95,7 +95,7 @@ export default function InvoiceDetailPage() {
   const termName = terms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <PageBreadcrumbs
         items={[
           { label: "Finance", href: "/finance/dashboard" },

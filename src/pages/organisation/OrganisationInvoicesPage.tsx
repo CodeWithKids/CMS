@@ -47,7 +47,7 @@ export default function OrganisationInvoicesPage() {
 
   if (!isOrgUser || !organisation) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <div className="rounded-xl border bg-card p-8 max-w-md">
           <p className="font-medium text-muted-foreground">Organisation not found</p>
           <p className="text-sm text-muted-foreground mt-1">Please contact Code With Kids support.</p>
@@ -57,7 +57,7 @@ export default function OrganisationInvoicesPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Invoices & receipts</h1>
       <p className="page-subtitle">
         View invoices issued to {organisation.name}. Open an invoice to see details or download a receipt when paid.

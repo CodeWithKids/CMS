@@ -74,7 +74,7 @@ export default function YearOverviewPage() {
   const currentMonth = new Date().getMonth() + 1;
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Year overview</h1>
       <p className="page-subtitle">
         Monthly income, expenses, and net result by year.

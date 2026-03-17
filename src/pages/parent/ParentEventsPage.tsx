@@ -11,7 +11,7 @@ export default function ParentEventsPage() {
   const upcomingEvents = events;
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Upcoming events</h1>
       <p className="page-subtitle">
         View events and register your children. You can add or remove registrations until the event closes.

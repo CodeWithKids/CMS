@@ -101,7 +101,7 @@ export default function EducatorTasksPage() {
   const detailTask = detailId ? getTaskById(detailId) : null;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <ListTodo className="w-6 h-6" /> My tasks

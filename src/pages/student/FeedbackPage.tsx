@@ -28,7 +28,7 @@ export default function FeedbackPage() {
   const feedbackForSession = (sessionId: string) => getFeedbackForSession(sessionId).find((f) => f.studentId === learnerId);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Session Feedback</h1>
       <p className="page-subtitle">Share your thoughts on recent sessions</p>
 

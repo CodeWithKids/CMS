@@ -71,6 +71,7 @@ export default function PartnershipsListPage() {
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === "admin";
+  const isPartnerships = currentUser?.role === "partnerships";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
@@ -99,7 +100,7 @@ export default function PartnershipsListPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const apiEnabled = isApiEnabled();
-  const canEditDeleteOrgs = apiEnabled && isAdmin;
+  const canEditDeleteOrgs = apiEnabled && (isAdmin || isPartnerships);
 
   const { data: orgPartners = [], isLoading: orgsLoading } = useQuery<OrganisationPartnerApi[]>({
     queryKey: ["partners", "organisations"],
@@ -224,12 +225,14 @@ export default function PartnershipsListPage() {
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Active partnerships</h1>
           <p className="text-muted-foreground">
-            Add and manage all active partnerships. {canEditDeleteOrgs ? "Admins can edit and delete organisation partners below." : "Only Partnership & Communications can edit this list."}
+            Add and manage all active partnerships. {canEditDeleteOrgs
+              ? "Admins and Partnership & Communications can edit and delete partner details below (e.g. to fix registration details)."
+              : "To edit or delete partners, the app must be connected to the API. Then Admins and Partnership & Communications can update details."}
           </p>
         </div>
         {!apiEnabled && (

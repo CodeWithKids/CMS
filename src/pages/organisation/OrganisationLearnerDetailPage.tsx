@@ -64,7 +64,7 @@ export default function OrganisationLearnerDetailPage() {
 
   if (!isOrgUser) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Access denied.</p>
       </div>
     );
@@ -72,7 +72,7 @@ export default function OrganisationLearnerDetailPage() {
 
   if (!learner) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Learner not found or not linked to your organisation.</p>
         <Link to="/organisation/learners" className="text-primary hover:underline text-sm mt-2 inline-block">
           ← Back to learners
@@ -82,7 +82,7 @@ export default function OrganisationLearnerDetailPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <PageBreadcrumbs
         items={[
           { label: "Organisation", href: "/organisation/dashboard" },

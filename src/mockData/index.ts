@@ -21,7 +21,6 @@ import type {
   EducatorSessionExpense,
   InventoryItem,
   SessionReport,
-  AttendanceRecord,
   ClassEnrollment,
 } from "@/types";
 
@@ -126,9 +125,6 @@ export const mockCoachingInvites: CoachingInvite[] = [
   },
 ];
 
-/** In-memory attendance records (can start empty; app uses AttendanceContext for live state). */
-export const mockAttendance: AttendanceRecord[] = [];
-
 // Finance account: use FinanceAccountContext (useFinanceAccount) for live data. Re-export for backwards compatibility.
 export { getFinanceAccountInvoices, getFinanceAccountExpenses } from "./financeAccount";
 
@@ -145,12 +141,6 @@ export const mockEvents: EventEntity[] = [
 export const mockEventRegistrations: EventRegistration[] = [
   { id: "er1", eventId: "e4", learnerId: "l1", registeredAt: "2026-02-01T10:00:00Z" },
 ];
-
-/** Upcoming events: date >= today (ISO date string comparison). */
-export function getUpcomingEvents(): EventEntity[] {
-  const today = new Date().toISOString().slice(0, 10);
-  return mockEvents.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-}
 
 // Helper: get educator name by ID
 export const getEducatorName = (educatorId: string): string => {
@@ -172,9 +162,6 @@ export const getLearnerByUserId = (userId: string): Learner | undefined =>
  */
 export const getOrganisationScopedLearners = (organizationId: string): Learner[] =>
   mockLearners.filter((l) => l.organizationId === organizationId);
-
-/** @deprecated Use getOrganisationScopedLearners for org portal. */
-export const getLearnersByOrganizationId = getOrganisationScopedLearners;
 
 /**
  * Get a learner by id only if they belong to the given organisation.

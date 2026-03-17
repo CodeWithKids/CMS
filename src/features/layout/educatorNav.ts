@@ -8,10 +8,12 @@ import {
   MessageSquare,
   ListTodo,
   Mail,
+  BookOpen,
 } from "lucide-react";
 
 export const educatorNavItems = [
   { label: "Dashboard", to: "/educator/dashboard", iconKey: "dashboard" as const },
+  { label: "My classes", to: "/educator/classes", iconKey: "classes" as const },
   { label: "Schedule", to: "/schedule", iconKey: "calendar" as const },
   { label: "Coaching invites", to: "/educator/coaching-invites", iconKey: "coachingInvites" as const },
   { label: "Tasks", to: "/educator/tasks", iconKey: "tasks" as const },
@@ -24,6 +26,7 @@ export const educatorNavItems = [
 
 export const educatorNavIconMap = {
   dashboard: LayoutDashboard,
+  classes: BookOpen,
   calendar: Calendar,
   coachingInvites: Mail,
   events: CalendarDays,

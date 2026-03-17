@@ -19,7 +19,7 @@ export default function TimetablePage() {
 
   if (currentUser?.role !== "student") {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Only students can view the timetable.</p>
         <Button asChild variant="outline" className="mt-4">
           <Link to="/student/dashboard">Back to dashboard</Link>
@@ -29,7 +29,7 @@ export default function TimetablePage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Timetable</h1>
       <p className="page-subtitle">Your upcoming sessions. Dates and times may be updated by your educator.</p>
 

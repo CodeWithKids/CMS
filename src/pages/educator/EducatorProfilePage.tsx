@@ -172,7 +172,7 @@ export default function EducatorProfilePage() {
 
   if (currentUser?.role !== "educator") {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">This page is for educators.</p>
         <Link to="/educator/dashboard" className="text-primary hover:underline text-sm">← Dashboard</Link>
       </div>
@@ -180,7 +180,7 @@ export default function EducatorProfilePage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <UserCircle className="w-6 h-6" /> Educator profile
       </h1>

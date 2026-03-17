@@ -75,7 +75,7 @@ export default function StudentProfilePage() {
 
   if (!currentUser || currentUser.role !== "student") {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">This page is for students only.</p>
       </div>
     );

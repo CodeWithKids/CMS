@@ -87,7 +87,7 @@ export default function LearnerDetailPage() {
 
   if (id === undefined) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Invalid learner ID.</p>
         <Link to="/admin/learners" className="text-primary hover:underline text-sm">
           ← Back to learners
@@ -98,7 +98,7 @@ export default function LearnerDetailPage() {
 
   if (!profile) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Learner not found.</p>
         <Link to="/admin/learners" className="text-primary hover:underline text-sm">
           ← Back to learners

@@ -72,6 +72,7 @@ const YearOverviewPage = lazy(() => import("@/pages/finance/YearOverviewPage"));
 const EducatorDashboard = lazy(() => import("@/pages/educator/EducatorDashboard"));
 const EducatorSchedulePage = lazy(() => import("@/features/educator/components/EducatorSchedulePage"));
 const EducatorEarningsPage = lazy(() => import("@/pages/educator/EducatorEarningsPage"));
+const EducatorClassesPage = lazy(() => import("@/pages/educator/EducatorClassesPage"));
 const ClassDetailPage = lazy(() => import("@/pages/educator/ClassDetailPage"));
 const AttendancePage = lazy(() => import("@/pages/educator/AttendancePage"));
 const SessionExpensePage = lazy(() => import("@/pages/educator/SessionExpensePage"));
@@ -255,6 +256,7 @@ const App = () => (
               <Route path="/educator/profile" element={<EducatorProfilePage />} />
               <Route path="/educator/earnings" element={<EducatorEarningsPage />} />
               <Route path="/educator/tasks" element={<EducatorTasksPage />} />
+              <Route path="/educator/classes" element={<EducatorClassesPage />} />
               <Route path="/educator/classes/:id" element={<ClassDetailPage />} />
               <Route path="/educator/sessions/:id/lesson-plan" element={<SessionLessonPlanPage />} />
               <Route path="/educator/sessions/:id/attendance" element={<AttendancePage />} />

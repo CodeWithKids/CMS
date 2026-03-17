@@ -240,7 +240,7 @@ export default function SessionReportsPage() {
 
   if (isLoading || (apiEnabled && apiSummariesLoading)) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-64 mb-2" />
         <Skeleton className="h-5 w-96 mb-6" />
         <Skeleton className="h-32 w-full mb-6" />
@@ -250,7 +250,7 @@ export default function SessionReportsPage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <FileText className="w-6 h-6" /> Session reports
       </h1>

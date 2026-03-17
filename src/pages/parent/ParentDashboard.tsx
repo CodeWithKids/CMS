@@ -27,7 +27,7 @@ export default function ParentDashboard() {
   ).length;
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title">Parent Dashboard</h1>
       <p className="page-subtitle">Welcome, {currentUser?.name}</p>
 

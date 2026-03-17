@@ -26,7 +26,7 @@ export default function EducatorLearnerFeedbackPage() {
   }, [educatorId, getSessionsForEducatorByRole, getFeedbackForSession, feedbacks]);
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <h1 className="page-title flex items-center gap-2">
         <MessageSquare className="w-6 h-6" /> Learner feedback
       </h1>

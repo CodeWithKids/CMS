@@ -494,17 +494,18 @@ export interface ProgramApi {
   id: string;
   name: string;
   description?: string | null;
+  trackId?: string | null;
 }
 
 export function programsGetAll(): Promise<ProgramApi[]> {
   return apiFetch<ProgramApi[]>("/v1/programs");
 }
 
-export function programsCreate(body: { name: string; description?: string | null }): Promise<ProgramApi> {
+export function programsCreate(body: { name: string; description?: string | null; trackId?: string | null }): Promise<ProgramApi> {
   return apiFetch<ProgramApi>("/v1/programs", { method: "POST", body });
 }
 
-export function programsPatch(id: string, body: Partial<{ name: string; description: string | null }>): Promise<ProgramApi> {
+export function programsPatch(id: string, body: Partial<{ name: string; description: string | null; trackId: string | null }>): Promise<ProgramApi> {
   return apiFetch<ProgramApi>(`/v1/programs/${id}`, { method: "PATCH", body });
 }
 
@@ -611,6 +612,28 @@ export function expenseCategoriesDelete(id: string): Promise<void> {
   return apiFetch<void>(`/v1/expense-categories/${id}`, { method: "DELETE" });
 }
 
+// ——— Focus areas & learning tracks ———
+export interface LearningTrackApi {
+  id: string;
+  name: string;
+  slug: string;
+  focusAreaId: string;
+  level?: string | null;
+  order: number;
+}
+
+export interface FocusAreaApi {
+  id: string;
+  name: string;
+  slug: string;
+  order: number;
+  tracks: LearningTrackApi[];
+}
+
+export function focusAreasGetAll(): Promise<FocusAreaApi[]> {
+  return apiFetch<FocusAreaApi[]>("/v1/focus-areas");
+}
+
 // ——— Learners ———
 export interface LearnerApi {
   id: string;
@@ -707,13 +730,15 @@ export interface ClassApi {
   learnerIds: string[];
   capacity?: number | null;
   schoolOrOrganisationName?: string | null;
+  trackId?: string | null;
 }
 
-export function classesGetAll(params?: { termId?: string; program?: string; educatorId?: string }): Promise<ClassApi[]> {
+export function classesGetAll(params?: { termId?: string; program?: string; educatorId?: string; trackId?: string }): Promise<ClassApi[]> {
   const q = new URLSearchParams();
   if (params?.termId) q.set("termId", params.termId);
   if (params?.program) q.set("program", params.program);
   if (params?.educatorId) q.set("educatorId", params.educatorId);
+  if (params?.trackId) q.set("trackId", params.trackId);
   const query = q.toString();
   return apiFetch<ClassApi[]>(`/v1/classes${query ? `?${query}` : ""}`);
 }
@@ -754,6 +779,7 @@ export function classesPatch(
     learnerIds?: string[];
     capacity?: number | null;
     schoolOrOrganisationName?: string | null;
+    trackId?: string | null;
   }
 ): Promise<ClassApi> {
   return apiFetch<ClassApi>(`/v1/classes/${id}`, {
@@ -1097,6 +1123,16 @@ export function organisationsGetById(id: string): Promise<OrganisationApi | null
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
   });
+}
+
+/** GET /v1/organisations/:id/learners – learners scoped to this organisation. */
+export function organisationsGetLearners(id: string): Promise<LearnerApi[]> {
+  return apiFetch<LearnerApi[]>(`/v1/organisations/${id}/learners`);
+}
+
+/** GET /v1/organisations/:id/invoices – invoices for this organisation. */
+export function organisationsGetInvoices(id: string): Promise<FinanceInvoiceApi[]> {
+  return apiFetch<FinanceInvoiceApi[]>(`/v1/organisations/${id}/invoices`);
 }
 
 export type OrganisationUpdateBody = {

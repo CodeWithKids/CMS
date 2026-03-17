@@ -296,7 +296,7 @@ export default function SessionReportDetailPage() {
 
   if (apiEnabled && isMissing && apiSessionLoading) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Loading session…</p>
         <Button asChild variant="outline" size="sm" className="mt-4">
           <Link to="/admin/session-reports">Back to session reports</Link>
@@ -320,7 +320,7 @@ export default function SessionReportDetailPage() {
 
   if (apiEnabled && reportIdForApi && apiReportLoading) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Loading report…</p>
         <Button asChild variant="outline" size="sm" className="mt-4">
           <Link to="/admin/session-reports">Back to session reports</Link>
@@ -331,7 +331,7 @@ export default function SessionReportDetailPage() {
 
   if (!report) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <div className="rounded-xl border bg-card p-8 max-w-md">
           <p className="font-medium text-muted-foreground">Report not found</p>
           <p className="text-sm text-muted-foreground mt-1">This session report does not exist or the link is invalid.</p>
@@ -345,7 +345,7 @@ export default function SessionReportDetailPage() {
 
   if (!detailView) {
     return (
-      <div className="page-container">
+      <div className="space-y-6">
         <p className="text-muted-foreground">Loading report…</p>
         <Button asChild variant="outline" size="sm" className="mt-4">
           <Link to="/admin/session-reports">Back to session reports</Link>

@@ -336,7 +336,7 @@ export default function ClassEnrollmentsPage() {
       : null;
 
   return (
-    <div className="page-container">
+    <div className="space-y-6">
       <PageBreadcrumbs
         items={[
           { label: "Admin", href: "/admin/dashboard" },
