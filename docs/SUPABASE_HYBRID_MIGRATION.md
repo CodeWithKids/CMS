@@ -47,6 +47,12 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
    Run through **`commit;`**, then **section 6** for admin/finance learner writes.  
    If you ran learners **before** classes existed, run the learners script again (or only the `learners_select_educator_class_scope` block from that file) so educator read access is applied.
 
+5. **`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`**  
+   Creates `public.class_enrollments` with RLS for admin/finance/educator workflows and learner/parent read scope.
+
+6. **`docs/SUPABASE_ATTENDANCE_RLS.sql`**  
+   Creates `public.attendance_records` with educator-scoped write/read policies and role-scoped access.
+
 ### Dashboard (not SQL)
 
 - **Authentication → Providers**: enable **Email** (or your chosen provider).  
@@ -58,8 +64,9 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 - Terms: Supabase-first in `src/hooks/useTerms.ts` (table + RLS in `docs/SUPABASE_TERMS_RLS.sql`)
 - Learners: Supabase-first list + by-id + admin CRUD in hooks/pages (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql` — include section 6 write policies for create/update/delete)
 - Classes: Supabase-first list + admin CRUD + hooks (`useClasses`, `useClass`); RLS in `docs/SUPABASE_CLASSES_RLS.sql` (include section 6 for writes)
-- Sessions/attendance: pending
-- Finance: pending
+- Class enrollments: Supabase-first context + admin class enrolments page (`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`)
+- Sessions/attendance: Supabase/API-backed persistence in `AttendanceContext` + attendance page (`docs/SUPABASE_ATTENDANCE_RLS.sql`)
+- Finance: in progress (Supabase/API-backed invoice bootstrap in `FinanceContext`; legacy `FinanceAccountContext` now hydrates from finance context first)
 
 ## RLS checklist by slice
 

@@ -14,6 +14,8 @@ import {
   type LearnerApi,
   type OrganisationApi,
 } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToLearner, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
 import type { LearnerEnrolmentType, LearnerProgramType } from "@/types";
 
 export interface UseOrganisationLearnersResult {
@@ -29,6 +31,19 @@ export interface UseOrganisationLearnersResult {
   isLoading?: boolean;
 }
 
+type SupabaseOrganisationRow = {
+  id: string;
+  name: string;
+  type?: string | null;
+  contact_person?: string | null;
+  contactPerson?: string | null;
+  contact_email?: string | null;
+  contactEmail?: string | null;
+  contact_phone?: string | null;
+  contactPhone?: string | null;
+  location?: string | null;
+};
+
 function mapOrgApiToOrganization(api: OrganisationApi | null): Organization | null {
   if (!api) return null;
   return {
@@ -39,6 +54,19 @@ function mapOrgApiToOrganization(api: OrganisationApi | null): Organization | nu
     contactEmail: api.contactEmail ?? undefined,
     contactPhone: api.contactPhone ?? undefined,
     location: api.location,
+  };
+}
+
+function mapSupabaseOrgToOrganization(row: SupabaseOrganisationRow | null): Organization | null {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    type: (row.type as Organization["type"]) ?? "organisation",
+    contactPerson: row.contact_person ?? row.contactPerson ?? "",
+    contactEmail: row.contact_email ?? row.contactEmail ?? undefined,
+    contactPhone: row.contact_phone ?? row.contactPhone ?? undefined,
+    location: row.location ?? "",
   };
 }
 
@@ -74,17 +102,58 @@ export function useOrganisationLearners(): UseOrganisationLearnersResult {
       ? currentUser.organizationId
       : null;
 
-  const apiEnabled = isApiEnabled();
-  const { data: orgApi = null, isLoading: orgLoading } = useQuery({
+  const supabaseEnabled = isSupabaseEnabled();
+  const apiEnabled = !supabaseEnabled && isApiEnabled();
+  const backendEnabled = supabaseEnabled || apiEnabled;
+  const { data: orgData = null, isLoading: orgLoading } = useQuery({
     queryKey: ["organisations", organizationId!],
-    queryFn: () => organisationsGetById(organizationId!),
-    enabled: apiEnabled && !!organizationId,
+    queryFn: async () => {
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("organisations")
+            .select("*")
+            .eq("id", organizationId!)
+            .maybeSingle();
+          if (error) throw error;
+          return mapSupabaseOrgToOrganization((data as SupabaseOrganisationRow | null) ?? null);
+        } catch {
+          if (isApiEnabled()) {
+            const fromApi = await organisationsGetById(organizationId!);
+            return mapOrgApiToOrganization(fromApi);
+          }
+          return null;
+        }
+      }
+      const fromApi = await organisationsGetById(organizationId!);
+      return mapOrgApiToOrganization(fromApi);
+    },
+    enabled: backendEnabled && !!organizationId,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: learnersApi = [], isLoading: learnersLoading } = useQuery({
+  const { data: learnersData = [], isLoading: learnersLoading } = useQuery({
     queryKey: ["organisations", organizationId!, "learners"],
-    queryFn: () => organisationsGetLearners(organizationId!),
-    enabled: apiEnabled && !!organizationId,
+    queryFn: async () => {
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("learners")
+            .select("*")
+            .eq("organization_id", organizationId!);
+          if (error) throw error;
+          return ((data as SupabaseLearnerRow[] | null) ?? []).map(mapSupabaseRowToLearner);
+        } catch {
+          if (isApiEnabled()) {
+            const fromApi = await organisationsGetLearners(organizationId!);
+            return fromApi.map(mapLearnerApiToLearner);
+          }
+          return [];
+        }
+      }
+      const fromApi = await organisationsGetLearners(organizationId!);
+      return fromApi.map(mapLearnerApiToLearner);
+    },
+    enabled: backendEnabled && !!organizationId,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -98,10 +167,10 @@ export function useOrganisationLearners(): UseOrganisationLearnersResult {
       };
     }
 
-    if (apiEnabled) {
+    if (backendEnabled) {
       return {
-        organisation: mapOrgApiToOrganization(orgApi),
-        learners: learnersApi.map(mapLearnerApiToLearner),
+        organisation: orgData ?? getOrganization(organizationId) ?? null,
+        learners: learnersData,
         organizationId,
         isOrgUser: true,
         isLoading: orgLoading || learnersLoading,
@@ -118,9 +187,9 @@ export function useOrganisationLearners(): UseOrganisationLearnersResult {
     };
   }, [
     organizationId,
-    apiEnabled,
-    orgApi,
-    learnersApi,
+    backendEnabled,
+    orgData,
+    learnersData,
     orgLoading,
     learnersLoading,
   ]);

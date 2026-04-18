@@ -29,6 +29,7 @@ import {
   financeGetPayments,
   financeRecordPayment as apiRecordPayment,
 } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -116,6 +117,75 @@ function apiInvoiceToFinanceInvoice(inv: import("@/lib/api").FinanceInvoiceApi):
   };
 }
 
+type SupabaseFinanceInvoiceRow = {
+  id: string;
+  payer_type?: string | null;
+  payerType?: string | null;
+  payer_id?: string | null;
+  payerId?: string | null;
+  learner_id?: string | null;
+  learnerId?: string | null;
+  organisation_id?: string | null;
+  organisationId?: string | null;
+  term_id?: string | null;
+  termId?: string | null;
+  programme_id?: string | null;
+  programmeId?: string | null;
+  track_id?: string | null;
+  trackId?: string | null;
+  gross_amount?: number | null;
+  grossAmount?: number | null;
+  discount_amount?: number | null;
+  discountAmount?: number | null;
+  net_amount?: number | null;
+  netAmount?: number | null;
+  amount_paid?: number | null;
+  amountPaid?: number | null;
+  balance?: number | null;
+  currency?: string | null;
+  due_date?: string | null;
+  dueDate?: string | null;
+  issue_date?: string | null;
+  issueDate?: string | null;
+  status?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+  createdAt?: string | null;
+  created_by?: string | null;
+  createdBy?: string | null;
+  updated_at?: string | null;
+  updatedAt?: string | null;
+  updated_by?: string | null;
+  updatedBy?: string | null;
+};
+
+function supabaseInvoiceToFinanceInvoice(inv: SupabaseFinanceInvoiceRow): FinanceInvoice {
+  return {
+    id: inv.id,
+    payerType: ((inv.payer_type ?? inv.payerType ?? "parent") as FinanceInvoice["payerType"]),
+    payerId: String(inv.payer_id ?? inv.payerId ?? ""),
+    learnerId: (inv.learner_id ?? inv.learnerId ?? undefined) as string | undefined,
+    organisationId: (inv.organisation_id ?? inv.organisationId ?? undefined) as string | undefined,
+    termId: String(inv.term_id ?? inv.termId ?? ""),
+    programmeId: (inv.programme_id ?? inv.programmeId ?? undefined) as string | undefined,
+    trackId: (inv.track_id ?? inv.trackId ?? undefined) as string | undefined,
+    grossAmount: Number(inv.gross_amount ?? inv.grossAmount ?? 0),
+    discountAmount: Number(inv.discount_amount ?? inv.discountAmount ?? 0),
+    netAmount: Number(inv.net_amount ?? inv.netAmount ?? 0),
+    amountPaid: Number(inv.amount_paid ?? inv.amountPaid ?? 0),
+    balance: Number(inv.balance ?? 0),
+    currency: String(inv.currency ?? DEFAULT_FINANCE_CURRENCY),
+    dueDate: String(inv.due_date ?? inv.dueDate ?? ""),
+    issueDate: String(inv.issue_date ?? inv.issueDate ?? ""),
+    status: String(inv.status ?? "draft") as FinanceInvoice["status"],
+    notes: inv.notes ?? undefined,
+    createdAt: String(inv.created_at ?? inv.createdAt ?? new Date().toISOString()),
+    createdBy: String(inv.created_by ?? inv.createdBy ?? "system"),
+    updatedAt: (inv.updated_at ?? inv.updatedAt ?? undefined) as string | undefined,
+    updatedBy: (inv.updated_by ?? inv.updatedBy ?? undefined) as string | undefined,
+  };
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [invoices, setInvoices] = useState<FinanceInvoice[]>(() => [...mockFinanceInvoices]);
   const [payments, setPayments] = useState<Payment[]>(() => [...mockFinancePayments]);
@@ -123,16 +193,58 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>(() => [...mockAdjustmentRequests]);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => [...mockCreditNotes]);
 
-  const useApi = isApiEnabled() && !!getAccessToken();
+  const supabaseEnabled = isSupabaseEnabled();
+  const useApi = !supabaseEnabled && isApiEnabled() && !!getAccessToken();
 
   useEffect(() => {
+    let cancelled = false;
+    if (supabaseEnabled && supabase) {
+      void (async () => {
+        try {
+          const { data, error } = await supabase.from("finance_invoices").select("*");
+          if (error) throw error;
+          const mapped = ((data as SupabaseFinanceInvoiceRow[] | null) ?? []).map(supabaseInvoiceToFinanceInvoice);
+          if (!cancelled) setInvoices(mapped);
+        } catch {
+          if (!useApi) return;
+          try {
+            const list = await financeGetInvoices();
+            if (!cancelled) setInvoices(list.map(apiInvoiceToFinanceInvoice));
+          } catch {
+            // keep fallback
+          }
+        }
+      })();
+      return () => { cancelled = true; };
+    }
     if (!useApi) return;
     financeGetInvoices()
       .then((list) => setInvoices(list.map(apiInvoiceToFinanceInvoice)))
       .catch(() => {});
-  }, [useApi]);
+    return () => { cancelled = true; };
+  }, [useApi, supabaseEnabled]);
 
   const loadPaymentsForInvoice = useCallback(async (invoiceId: string) => {
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase.from("finance_payments").select("*").eq("invoice_id", invoiceId);
+        if (error) throw error;
+        const asPayments: Payment[] = ((data as Record<string, unknown>[] | null) ?? []).map((p) => ({
+          id: String(p.id ?? ""),
+          invoiceId: String(p.invoice_id ?? p.invoiceId ?? invoiceId),
+          amount: Number(p.amount ?? 0),
+          method: String(p.method ?? "other") as Payment["method"],
+          reference: typeof p.reference === "string" ? p.reference : undefined,
+          date: String(p.date ?? ""),
+          recordedBy: String(p.recorded_by ?? p.recordedBy ?? "system"),
+          createdAt: String(p.created_at ?? p.createdAt ?? new Date().toISOString()),
+        }));
+        setPaymentsByInvoice((prev) => ({ ...prev, [invoiceId]: asPayments }));
+        return;
+      } catch {
+        // continue to API fallback
+      }
+    }
     if (!isApiEnabled()) return;
     try {
       const list = await financeGetPayments(invoiceId);
@@ -150,7 +262,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     } catch {
       // keep existing or empty
     }
-  }, []);
+  }, [supabaseEnabled]);
 
   const getInvoice = useCallback(
     (id: string) => {
@@ -205,6 +317,67 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
                     balance: newBalance,
                     status: (newBalance <= 0 ? "paid" : "partially_paid") as FinanceInvoice["status"],
                     updatedAt: new Date().toISOString(),
+                  }
+                : i
+            )
+          );
+        } catch {
+          // caller can show toast
+        }
+        return;
+      }
+      if (supabaseEnabled && supabase) {
+        try {
+          const id = nextPaymentId(payments);
+          const now = new Date().toISOString();
+          const { error } = await supabase.from("finance_payments").insert({
+            id,
+            invoice_id: invoiceId,
+            amount: payload.amount,
+            method: payload.method,
+            reference: payload.reference ?? null,
+            date: payload.date,
+            recorded_by: payload.recordedBy,
+            created_at: now,
+          });
+          if (error) throw error;
+          const newPaid = inv.amountPaid + payload.amount;
+          const newBalance = Math.max(0, inv.netAmount - newPaid);
+          const { error: invErr } = await supabase
+            .from("finance_invoices")
+            .update({
+              amount_paid: newPaid,
+              balance: newBalance,
+              status: newBalance <= 0 ? "paid" : "partially_paid",
+              updated_at: now,
+            })
+            .eq("id", invoiceId);
+          if (invErr) throw invErr;
+          setPaymentsByInvoice((prev) => ({
+            ...prev,
+            [invoiceId]: [
+              ...(prev[invoiceId] ?? []),
+              {
+                id,
+                invoiceId,
+                amount: payload.amount,
+                method: payload.method,
+                reference: payload.reference,
+                date: payload.date,
+                recordedBy: payload.recordedBy,
+                createdAt: now,
+              },
+            ],
+          }));
+          setInvoices((prev) =>
+            prev.map((i) =>
+              i.id === invoiceId
+                ? {
+                    ...i,
+                    amountPaid: newPaid,
+                    balance: newBalance,
+                    status: (newBalance <= 0 ? "paid" : "partially_paid") as FinanceInvoice["status"],
+                    updatedAt: now,
                   }
                 : i
             )

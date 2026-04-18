@@ -4,9 +4,12 @@ import {
   useCallback,
   useMemo,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 import type { Invoice, Expense } from "@/types";
+import type { FinanceInvoice } from "@/types/finance";
+import { useFinance } from "@/context/FinanceContext";
 import {
   INITIAL_FINANCE_ACCOUNT_INVOICES,
   INITIAL_FINANCE_ACCOUNT_EXPENSES,
@@ -30,6 +33,33 @@ interface FinanceAccountContextType {
 
 const FinanceAccountContext = createContext<FinanceAccountContextType | undefined>(undefined);
 
+function mapFinanceInvoiceToLegacy(inv: FinanceInvoice): Invoice {
+  const status: Invoice["status"] =
+    inv.status === "draft"
+      ? "draft"
+      : inv.status === "partially_paid"
+        ? "partially_paid"
+        : inv.status === "paid"
+          ? "paid"
+          : "sent";
+  return {
+    id: inv.id,
+    invoiceNumber: inv.id.toUpperCase(),
+    term: inv.termId,
+    totalAmount: inv.netAmount,
+    status,
+    dueDate: inv.dueDate,
+    source: inv.organisationId ? "organization" : "makerspace",
+    paidAmount: inv.amountPaid > 0 ? inv.amountPaid : undefined,
+    paidDate: undefined,
+    organizationId: inv.organisationId ?? null,
+    learnerId: inv.learnerId ?? null,
+    description: inv.notes ?? null,
+    payerType: inv.organisationId ? "ORGANISATION" : "PARENT",
+    sessionType: inv.organisationId ? "ORGANISATION_SESSION" : "MAKERSPACE",
+  };
+}
+
 function nextInvoiceId(invoices: Invoice[]): string {
   const nums = invoices
     .map((i) => i.id.replace(/\D/g, ""))
@@ -49,8 +79,14 @@ function nextExpenseId(expenses: Expense[]): string {
 }
 
 export function FinanceAccountProvider({ children }: { children: ReactNode }) {
+  const { invoices: financeInvoices } = useFinance();
   const [invoices, setInvoices] = useState<Invoice[]>(() => [...INITIAL_FINANCE_ACCOUNT_INVOICES]);
   const [expenses, setExpenses] = useState<Expense[]>(() => [...INITIAL_FINANCE_ACCOUNT_EXPENSES]);
+
+  useEffect(() => {
+    if (!financeInvoices || financeInvoices.length === 0) return;
+    setInvoices(financeInvoices.map(mapFinanceInvoiceToLegacy));
+  }, [financeInvoices]);
 
   const getInvoices = useCallback(() => invoices, [invoices]);
   const getExpenses = useCallback(() => expenses, [expenses]);

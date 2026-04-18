@@ -33,8 +33,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { isApiEnabled, attendanceGet, attendancePut } from "@/lib/api";
+import { isApiEnabled } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
+import { useClass } from "@/hooks/useClass";
+import { useLearners } from "@/hooks/useLearners";
 
 const MAX_STARS = 3;
 const BADGE_NOTE_MAX = 140;
@@ -57,14 +59,11 @@ function formatDate(iso: string): string {
 export default function AttendancePage() {
   const { id: sessionId } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
-  const { getBySession, setRecord, markAllPresent } = useAttendance();
+  const { getBySession, setRecord, markAllPresent, loadSessionRecords, saveSessionRecords } = useAttendance();
   const { getByLearnerAndSession, addAward } = useBadgeAwards();
   const apiEnabled = isApiEnabled();
-  const { data: apiAttendance = [] } = useQuery({
-    queryKey: ["attendance", sessionId],
-    queryFn: () => attendanceGet(sessionId!),
-    enabled: apiEnabled && !!sessionId,
-  });
+  const supabaseEnabled = isSupabaseEnabled();
+  const backendEnabled = apiEnabled || supabaseEnabled;
   const { getExpenseBySessionAndEducator } = useSessionExpenses();
   const { toast } = useToast();
   const [learnerIdForBadge, setLearnerIdForBadge] = useState<string | null>(null);
@@ -73,21 +72,18 @@ export default function AttendancePage() {
 
   const { getSessionById } = useSessions();
   const session = getSessionById(sessionId ?? "");
-  const cls = session ? getClass(session.classId) : null;
+  const { class: loadedClass } = useClass(session?.classId);
+  const { learners: allLearners } = useLearners();
+  const cls = session
+    ? backendEnabled && loadedClass && "program" in loadedClass
+      ? loadedClass
+      : getClass(session.classId)
+    : null;
+  const learnerMap = new Map(allLearners.map((l) => [l.id, l]));
   useEffect(() => {
-    if (!apiEnabled || !sessionId || apiAttendance.length === 0) return;
-    apiAttendance.forEach((row) => {
-      setRecord({
-        learnerId: row.learnerId,
-        sessionId: row.sessionId,
-        status: row.status as AttendanceStatus,
-        stars: row.stars ?? undefined,
-        notes: row.notes ?? undefined,
-        markedAt: row.markedAt ?? undefined,
-        markedBy: row.markedBy ?? undefined,
-      });
-    });
-  }, [apiEnabled, sessionId, apiAttendance, setRecord]);
+    if (!backendEnabled || !sessionId) return;
+    void loadSessionRecords(sessionId);
+  }, [backendEnabled, sessionId, loadSessionRecords]);
   const educatorId = currentUser?.id ?? "";
   const role = getSessionRoleForUser(session, currentUser);
   const isCoachReadOnly = role === "coach";
@@ -126,28 +122,28 @@ export default function AttendancePage() {
   const handleSaveAttendance = async () => {
     if (!session || !cls) return;
     const now = new Date().toISOString();
+    const sessionRecords = cls.learnerIds.map((learnerId) => {
+      const existing = getRecord(learnerId);
+      return {
+        ...mergeRecord(learnerId, {}),
+        status: (existing?.status ?? "present") as AttendanceStatus,
+        stars: existing?.stars,
+        notes: existing?.notes,
+        markedAt: now,
+      };
+    });
     cls.learnerIds.forEach((learnerId) => {
       setRecord({
-        ...mergeRecord(learnerId, {}),
-        markedAt: now,
+        ...sessionRecords.find((r) => r.learnerId === learnerId)!,
       });
     });
-    if (apiEnabled && sessionId) {
+    if (backendEnabled && sessionId) {
       try {
-        const payload = cls.learnerIds.map((learnerId) => {
-          const rec = getRecord(learnerId) ?? mergeRecord(learnerId, {});
-          return {
-            learnerId,
-            status: rec.status,
-            stars: rec.stars ?? 0,
-            notes: rec.notes ?? undefined,
-          };
-        });
-        await attendancePut(sessionId, payload);
+        await saveSessionRecords(sessionId, sessionRecords);
       } catch {
         toast({
-          title: "Could not save to server",
-          description: "Attendance was saved locally but syncing to the API failed.",
+          title: "Could not save to backend",
+          description: "Attendance was saved locally but syncing failed.",
           variant: "destructive",
         });
         return;
@@ -286,7 +282,7 @@ export default function AttendancePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {cls.learnerIds.map((lid) => {
-            const learner = getLearner(lid);
+            const learner = learnerMap.get(lid) ?? getLearner(lid);
             const rec = getRecord(lid);
             const status = rec?.status ?? "present";
             const name = learner ? `${learner.firstName} ${learner.lastName}` : lid;
@@ -400,7 +396,7 @@ export default function AttendancePage() {
             <DialogTitle>Give badge</DialogTitle>
             <DialogDescription>
               {learnerIdForBadge && (() => {
-                const l = getLearner(learnerIdForBadge);
+                const l = learnerMap.get(learnerIdForBadge) ?? getLearner(learnerIdForBadge);
                 return l ? `${l.firstName} ${l.lastName}` : learnerIdForBadge;
               })()}
             </DialogDescription>

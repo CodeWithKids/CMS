@@ -8,8 +8,6 @@ import {
   getTerm,
   getEducatorName,
   getOrganization,
-  getSessionsForClass,
-  mockLearners,
 } from "@/mockData";
 import {
   getClassTrackLabel,
@@ -58,6 +56,11 @@ import { useEducators } from "@/hooks/useEducators";
 import { classesPatch, isApiEnabled } from "@/lib/api";
 import type { ClassEnrollmentStatus } from "@/types";
 import type { Learner, LearnerProgramType } from "@/types";
+import { useClass } from "@/hooks/useClass";
+import { useLearners } from "@/hooks/useLearners";
+import { useTerms } from "@/hooks/useTerms";
+import { useSessions } from "@/context/SessionsContext";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 
 const STATUS_OPTIONS: { value: ClassEnrollmentStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -97,9 +100,14 @@ export default function ClassEnrollmentsPage() {
   const { getBySession: getBadgesBySession } = useBadgeAwards();
   const { toast } = useToast();
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const { class: loadedClass } = useClass(classId);
+  const { learners: allLearners } = useLearners();
+  const { terms } = useTerms();
+  const { getSessionsForClass } = useSessions();
 
-  const cls = getClass(classId ?? "");
-  const term = cls ? getTerm(cls.termId) : null;
+  const cls = loadedClass && "program" in loadedClass ? loadedClass : getClass(classId ?? "");
+  const term = cls ? terms.find((t) => t.id === cls.termId) ?? getTerm(cls.termId) : null;
   const enrollmentsForClassAndTerm = cls && term ? getEnrollmentsForClass(cls.id, term.id) : [];
   const classSessions = cls && term ? getSessionsForClass(cls.id).filter((s) => s.termId === term.id) : [];
   const classSessionIds = useMemo(() => classSessions.map((s) => s.id), [classSessions]);
@@ -126,12 +134,12 @@ export default function ClassEnrollmentsPage() {
     if (!cls || !term) return;
     const forClassTerm = getEnrollmentsForClass(cls.id, term.id);
     const activeIds = new Set(forClassTerm.filter((e) => e.status === "active").map((e) => e.learnerId));
-    const enrolledNext = mockLearners.reduce(
+    const enrolledNext = allLearners.reduce(
       (acc, l) => ({ ...acc, [l.id]: activeIds.has(l.id) }),
       {} as Record<string, boolean>
     );
     const statusNext: Record<string, ClassEnrollmentStatus> = {};
-    mockLearners.forEach((l) => {
+    allLearners.forEach((l) => {
       statusNext[l.id] = "active";
     });
     forClassTerm.forEach((e) => {
@@ -139,27 +147,27 @@ export default function ClassEnrollmentsPage() {
     });
     setEnrolled(enrolledNext);
     setStatusByLearner(statusNext);
-  }, [cls?.id, term?.id, getEnrollmentsForClass]);
+  }, [cls?.id, term?.id, getEnrollmentsForClass, allLearners]);
 
   const schoolOrgOptions = useMemo(() => {
     const set = new Set<string>();
-    mockLearners.forEach((l) => {
+    allLearners.forEach((l) => {
       const name = getSchoolOrOrgShort(l);
       if (name) set.add(name);
     });
     return Array.from(set).sort();
-  }, []);
+  }, [allLearners]);
 
   const filteredLearners = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return mockLearners.filter((l) => {
+    return allLearners.filter((l) => {
       if (q && !`${l.firstName} ${l.lastName}`.toLowerCase().includes(q) && !(l.school ?? "").toLowerCase().includes(q)) return false;
       if (schoolFilter && getSchoolOrOrgShort(l) !== schoolFilter) return false;
       if (genderFilter && (l.gender ?? "") !== genderFilter) return false;
       if (programTypeFilter && l.programType !== programTypeFilter) return false;
       return true;
     });
-  }, [search, schoolFilter, genderFilter, programTypeFilter]);
+  }, [search, schoolFilter, genderFilter, programTypeFilter, allLearners]);
 
   const effectiveActiveCount = useMemo(
     () =>
@@ -220,19 +228,25 @@ export default function ClassEnrollmentsPage() {
       });
       return;
     }
-    if (!apiEnabled) {
-      toast({
-        title: "API not connected",
-        description: "To persist educator assignments, set VITE_API_URL and ensure the API server is running.",
-      });
-      return;
-    }
     setAssigningEducator(true);
     try {
-      const updated = await classesPatch(cls.id, { educatorId: selectedEducatorId });
+      let updatedEducatorId = selectedEducatorId;
+      if (supabaseEnabled && supabase) {
+        const { error } = await supabase.from("classes").update({ educator_id: selectedEducatorId }).eq("id", cls.id);
+        if (error) throw error;
+      } else if (apiEnabled) {
+        const updated = await classesPatch(cls.id, { educatorId: selectedEducatorId });
+        updatedEducatorId = updated.educatorId;
+      } else {
+        toast({
+          title: "Backend not connected",
+          description: "Enable Supabase or API to persist educator assignments.",
+        });
+        return;
+      }
       const name =
-        getEducatorName(updated.educatorId) ||
-        educators.find((e) => e.id === updated.educatorId)?.name ||
+        getEducatorName(updatedEducatorId) ||
+        educators.find((e) => e.id === updatedEducatorId)?.name ||
         "the educator";
       toast({
         title: "Educator assigned",
@@ -267,11 +281,11 @@ export default function ClassEnrollmentsPage() {
     toast({ title: "Bulk action", description: "Mark selected as Dropped. Click Save to persist." });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!cls || !term) return;
     let added = 0;
     let updated = 0;
-    mockLearners.forEach((learner) => {
+    allLearners.forEach((learner) => {
       const nowEnrolled = enrolled[learner.id];
       const desiredStatus = statusByLearner[learner.id] ?? "active";
       const existing = enrollmentsForClassAndTerm.find((e) => e.learnerId === learner.id);
@@ -291,6 +305,23 @@ export default function ClassEnrollmentsPage() {
         }
       }
     });
+    const activeLearnerIds = allLearners
+      .filter((learner) => enrolled[learner.id] && (statusByLearner[learner.id] ?? "active") === "active")
+      .map((learner) => learner.id);
+    try {
+      if (supabaseEnabled && supabase) {
+        const { error } = await supabase.from("classes").update({ learner_ids: activeLearnerIds }).eq("id", cls.id);
+        if (error) throw error;
+      } else if (apiEnabled) {
+        await classesPatch(cls.id, { learnerIds: activeLearnerIds });
+      }
+    } catch (err) {
+      toast({
+        title: "Could not sync class roster",
+        description: err instanceof Error ? err.message : "Saved enrolments locally only.",
+        variant: "destructive",
+      });
+    }
     if (isOverCapacity) {
       toast({
         title: "Over capacity",
