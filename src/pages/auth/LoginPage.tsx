@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
-import { mockUsers, getLearnerByUserId } from "@/mockData";
+import { getDemoLoginUsers } from "@/lib/demoLoginUsers";
+import { useLearners } from "@/hooks/useLearners";
 import { isApiEnabled } from "@/lib/api";
 import { ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,9 @@ const PARENT_MEMBERSHIP_ERROR =
   "Your parent membership is not active. Please renew your membership to access the portal.";
 
 export default function LoginPage() {
-  const [selectedUserId, setSelectedUserId] = useState(mockUsers[0].id);
+  const demoUsers = useMemo(() => getDemoLoginUsers(), []);
+  const { learners } = useLearners();
+  const [selectedUserId, setSelectedUserId] = useState(() => demoUsers[0]?.id ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,12 +44,16 @@ export default function LoginPage() {
 
   const handleDemoLogin = () => {
     setError(null);
-    const user = mockUsers.find((u) => u.id === selectedUserId);
+    const user = demoUsers.find((u) => u.id === selectedUserId);
     if (!user) return;
 
     if (user.role === "student") {
-      const learner = getLearnerByUserId(user.id);
-      if (!learner || learner.programType !== "MAKERSPACE" || learner.membershipStatus !== "active") {
+      const linkedLearner = learners.find((l) => l.userId === user.id);
+      if (
+        !linkedLearner ||
+        linkedLearner.programType !== "MAKERSPACE" ||
+        linkedLearner.membershipStatus !== "active"
+      ) {
         setError(MAKERSPACE_LOGIN_ERROR);
         return;
       }
@@ -181,7 +188,7 @@ export default function LoginPage() {
                   }}
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {mockUsers.map((u) => (
+                  {demoUsers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.role})
                     </option>

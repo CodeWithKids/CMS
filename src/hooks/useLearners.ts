@@ -23,6 +23,7 @@ function mapApiToLearner(a: LearnerApi): Learner {
     programType: a.programType as "MAKERSPACE" | "SCHOOL_CLUB" | "ORGANISATION",
     membershipStatus: a.membershipStatus ?? undefined,
     userId: a.userId ?? undefined,
+    parentUserId: a.parentUserId ?? undefined,
     parentName: a.parentName ?? undefined,
     parentPhone: a.parentPhone ?? undefined,
     parentEmail: a.parentEmail ?? undefined,

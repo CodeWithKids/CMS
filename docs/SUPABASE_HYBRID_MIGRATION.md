@@ -66,6 +66,12 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 10. **`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`**  
     Creates `public.event_registrations` for learner registrations on events.
 
+11. **`docs/SUPABASE_LEARNERS_PARENT_USER_ID.sql`** (optional, after **`docs/SUPABASE_LEARNERS_RLS.sql`**)  
+    Adds `learners.parent_user_id` (FK to `auth.users`) and replaces the parent **select** policy so parents can see rows where **either** `parent_email` matches the JWT email **or** `parent_user_id = auth.uid()`. Aligns with `useParentChildIds` in the parent portal.
+
+12. **`docs/SUPABASE_ORGANISATIONS_OVERVIEW_TYPE.sql`** (optional, when `public.organisations` already exists)  
+    Adds `organisations.overview_type` (`SCHOOL` | `ORGANISATION` | `MIRADI`) for org portal copy (e.g. attendance card titles) when data is loaded from Supabase.
+
 ### Dashboard (not SQL)
 
 - **Authentication → Providers**: enable **Email** (or your chosen provider).  
@@ -75,7 +81,8 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 
 - Auth: Supabase-first with fallback compatibility in `src/context/AuthContext.tsx` (expects `public.profiles`; SQL in `docs/SUPABASE_PROFILES_RLS.sql`)
 - Terms: Supabase-first in `src/hooks/useTerms.ts` (table + RLS in `docs/SUPABASE_TERMS_RLS.sql`)
-- Learners: Supabase-first list + by-id + admin CRUD in hooks/pages (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql` — include section 6 write policies for create/update/delete)
+- Learners: Supabase-first list + by-id + admin CRUD in hooks/pages (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql` — include section 6 write policies for create/update/delete). Optional: `docs/SUPABASE_LEARNERS_PARENT_USER_ID.sql` for `parent_user_id` + parent RLS.
+- Organisations: optional `overview_type` column via `docs/SUPABASE_ORGANISATIONS_OVERVIEW_TYPE.sql` for partner-portal wording when org rows come from Supabase.
 - Classes: Supabase-first list + admin CRUD + hooks (`useClasses`, `useClass`); RLS in `docs/SUPABASE_CLASSES_RLS.sql` (include section 6 for writes)
 - Class enrollments: Supabase-first context + admin class enrolments page (`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`)
 - Sessions: table + RLS in `docs/SUPABASE_SESSIONS_RLS.sql` (run before attendance)

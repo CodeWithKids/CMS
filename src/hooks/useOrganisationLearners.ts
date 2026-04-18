@@ -16,7 +16,18 @@ import {
 } from "@/lib/api";
 import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 import { mapSupabaseRowToLearner, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
-import type { LearnerEnrolmentType, LearnerProgramType } from "@/types";
+import type { LearnerEnrolmentType, LearnerProgramType, OrganisationOverviewType } from "@/types";
+
+/** Partner-portal copy for attendance / reports (school vs Miradi vs generic). */
+export type OrganisationAttendanceCardVariant = "school" | "miradi" | "partner";
+
+function attendanceCardVariantForOrganisation(org: Organization | null): OrganisationAttendanceCardVariant {
+  if (!org) return "partner";
+  const overview = org.overviewType as OrganisationOverviewType | undefined;
+  if (overview === "MIRADI") return "miradi";
+  if (org.type === "school" || overview === "SCHOOL") return "school";
+  return "partner";
+}
 
 export interface UseOrganisationLearnersResult {
   /** Current user's organisation (null if not an org user or org not found). */
@@ -29,12 +40,16 @@ export interface UseOrganisationLearnersResult {
   isOrgUser: boolean;
   /** True while organisation/learners are loading from API (only when API enabled). */
   isLoading?: boolean;
+  /** For dashboard copy: school vs Miradi vs generic partner. */
+  attendanceCardVariant: OrganisationAttendanceCardVariant;
 }
 
 type SupabaseOrganisationRow = {
   id: string;
   name: string;
   type?: string | null;
+  overview_type?: string | null;
+  overviewType?: string | null;
   contact_person?: string | null;
   contactPerson?: string | null;
   contact_email?: string | null;
@@ -44,12 +59,19 @@ type SupabaseOrganisationRow = {
   location?: string | null;
 };
 
+function parseOverviewType(raw: string | null | undefined): OrganisationOverviewType | undefined {
+  if (raw === "SCHOOL" || raw === "ORGANISATION" || raw === "MIRADI") return raw;
+  return undefined;
+}
+
 function mapOrgApiToOrganization(api: OrganisationApi | null): Organization | null {
   if (!api) return null;
+  const overviewRaw = api.overviewType ?? api.overview_type ?? undefined;
   return {
     id: api.id,
     name: api.name,
     type: api.type as Organization["type"],
+    overviewType: parseOverviewType(overviewRaw ?? undefined),
     contactPerson: api.contactPerson,
     contactEmail: api.contactEmail ?? undefined,
     contactPhone: api.contactPhone ?? undefined,
@@ -59,10 +81,12 @@ function mapOrgApiToOrganization(api: OrganisationApi | null): Organization | nu
 
 function mapSupabaseOrgToOrganization(row: SupabaseOrganisationRow | null): Organization | null {
   if (!row) return null;
+  const overviewRaw = row.overview_type ?? row.overviewType ?? undefined;
   return {
     id: row.id,
     name: row.name,
-    type: (row.type as Organization["type"]) ?? "organisation",
+    type: (row.type as Organization["type"]) ?? "other",
+    overviewType: parseOverviewType(overviewRaw ?? undefined),
     contactPerson: row.contact_person ?? row.contactPerson ?? "",
     contactEmail: row.contact_email ?? row.contactEmail ?? undefined,
     contactPhone: row.contact_phone ?? row.contactPhone ?? undefined,
@@ -81,6 +105,7 @@ function mapLearnerApiToLearner(api: LearnerApi): Learner {
     programType: api.programType as LearnerProgramType,
     membershipStatus: api.membershipStatus as Learner["membershipStatus"],
     userId: api.userId ?? undefined,
+    parentUserId: api.parentUserId ?? undefined,
     parentName: api.parentName ?? undefined,
     parentPhone: api.parentPhone ?? undefined,
     parentEmail: api.parentEmail ?? undefined,
@@ -164,16 +189,19 @@ export function useOrganisationLearners(): UseOrganisationLearnersResult {
         learners: [],
         organizationId: null,
         isOrgUser: false,
+        attendanceCardVariant: "partner" as const,
       };
     }
 
     if (backendEnabled) {
+      const organisation = orgData ?? getOrganization(organizationId) ?? null;
       return {
-        organisation: orgData ?? getOrganization(organizationId) ?? null,
+        organisation,
         learners: learnersData,
         organizationId,
         isOrgUser: true,
         isLoading: orgLoading || learnersLoading,
+        attendanceCardVariant: attendanceCardVariantForOrganisation(organisation),
       };
     }
 
@@ -184,6 +212,7 @@ export function useOrganisationLearners(): UseOrganisationLearnersResult {
       learners,
       organizationId,
       isOrgUser: true,
+      attendanceCardVariant: attendanceCardVariantForOrganisation(organisation),
     };
   }, [
     organizationId,

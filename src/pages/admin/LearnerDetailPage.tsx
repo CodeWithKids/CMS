@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useLearnerAdminProfile } from "@/hooks/useLearnerAdminProfile";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useEnrollments } from "@/context/EnrollmentsContext";
-import { getTerm, getSessionsForTerm, getSession, getClass, getCurrentTerm } from "@/mockData";
-import { mockTerms } from "@/mockData";
+import { useSessions } from "@/context/SessionsContext";
+import { useTerms } from "@/hooks/useTerms";
+import { useClasses } from "@/hooks/useClasses";
 import { BADGE_DEFINITIONS } from "@/constants/badges";
 import { ArrowLeft, User, Award, ClipboardList, Users } from "lucide-react";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
@@ -41,35 +42,76 @@ function badgeLabel(badgeId: string): string {
 export default function LearnerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const profile = useLearnerAdminProfile(id ?? undefined);
-  const { getByLearner } = useAttendance();
+  const { terms, currentTerm } = useTerms();
+  const { sessions, getSessionById } = useSessions();
+  const { classes } = useClasses();
+  const { getByLearner, loadSessionRecords } = useAttendance();
   const { getEnrollmentsForLearner } = useEnrollments();
-  const currentTerm = getCurrentTerm();
-  const [selectedTermId, setSelectedTermId] = useState(
-    currentTerm?.id ?? mockTerms[0]?.id ?? ""
-  );
+  const [selectedTermId, setSelectedTermId] = useState("");
+
+  useEffect(() => {
+    if (terms.length === 0) return;
+    setSelectedTermId((prev) => {
+      if (prev && terms.some((t) => t.id === prev)) return prev;
+      return currentTerm?.id ?? terms[terms.length - 1]?.id ?? terms[0]?.id ?? "";
+    });
+  }, [terms, currentTerm]);
+
   const termOptions = useMemo(
-    () => mockTerms.map((t) => ({ term: t, label: t.name })),
-    []
+    () => terms.map((t) => ({ term: t, label: t.name })),
+    [terms]
   );
+  const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, c.name])), [classes]);
   const attendanceRecords = id ? getByLearner(id) : [];
-  const selectedTerm = getTerm(selectedTermId);
-  const selectedTermSessionIds = selectedTerm
-    ? new Set(getSessionsForTerm(selectedTermId).map((s) => s.id))
-    : new Set<string>();
+  const selectedTerm = terms.find((t) => t.id === selectedTermId);
+  const selectedTermSessionIds = useMemo(
+    () => new Set(sessions.filter((s) => s.termId === selectedTermId).map((s) => s.id)),
+    [sessions, selectedTermId]
+  );
+  const enrollmentsForLearner = id ? getEnrollmentsForLearner(id) : [];
+  const classIdsForSelectedTerm = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of enrollmentsForLearner) {
+      if (e.termId === selectedTermId) set.add(e.classId);
+    }
+    return set;
+  }, [enrollmentsForLearner, selectedTermId]);
+
+  const sessionsToLoadAttendance = useMemo(
+    () =>
+      sessions.filter(
+        (s) => s.termId === selectedTermId && classIdsForSelectedTerm.has(s.classId)
+      ),
+    [sessions, selectedTermId, classIdsForSelectedTerm]
+  );
+
+  const sessionIdsToLoadKey = useMemo(
+    () =>
+      [...sessionsToLoadAttendance]
+        .map((s) => s.id)
+        .sort()
+        .join(","),
+    [sessionsToLoadAttendance]
+  );
+
+  useEffect(() => {
+    if (!id || sessionIdsToLoadKey.length === 0) return;
+    void Promise.all(sessionsToLoadAttendance.map((s) => loadSessionRecords(s.id)));
+  }, [id, sessionIdsToLoadKey, sessionsToLoadAttendance, loadSessionRecords]);
+
   const selectedTermRecords = attendanceRecords.filter((r) =>
     selectedTermSessionIds.has(r.sessionId)
   );
   const recentAttendanceForTerm = useMemo(() => {
     return selectedTermRecords
-      .map((r) => ({ record: r, session: getSession(r.sessionId) }))
+      .map((r) => ({ record: r, session: getSessionById(r.sessionId) }))
       .filter(
-        (x): x is { record: (typeof selectedTermRecords)[0]; session: NonNullable<ReturnType<typeof getSession>> } =>
+        (x): x is { record: (typeof selectedTermRecords)[0]; session: NonNullable<ReturnType<typeof getSessionById>> } =>
           !!x.session
       )
       .sort((a, b) => (b.session.date > a.session.date ? 1 : -1))
       .slice(0, 15)
       .map(({ record, session }) => {
-        const cls = getClass(session.classId);
         const status: "present" | "absent" | "late" =
           record.status === "present" || record.status === "late"
             ? "present"
@@ -80,10 +122,10 @@ export default function LearnerDetailPage() {
           sessionId: session.id,
           date: session.date,
           status,
-          className: cls?.name ?? session.classId,
+          className: classNameById.get(session.classId) ?? session.classId,
         };
       });
-  }, [selectedTermRecords]);
+  }, [selectedTermRecords, getSessionById, classNameById]);
 
   if (id === undefined) {
     return (
@@ -119,7 +161,6 @@ export default function LearnerDetailPage() {
     totalSessionsSelected > 0
       ? Math.round((presentCountSelected / totalSessionsSelected) * 100)
       : 0;
-  const enrollmentsForLearner = getEnrollmentsForLearner(id);
   const enrolledInSelectedTerm = enrollmentsForLearner.some(
     (e) => e.termId === selectedTermId
   );

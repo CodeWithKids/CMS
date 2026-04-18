@@ -12,6 +12,8 @@ type SupabaseOrganisationRow = {
   id: string;
   name: string;
   type?: string | null;
+  overview_type?: string | null;
+  overviewType?: string | null;
   contact_person?: string | null;
   contactPerson?: string | null;
   contact_email?: string | null;
@@ -27,10 +29,16 @@ function getSupabaseClient() {
 }
 
 function mapSupabaseToOrganisation(row: SupabaseOrganisationRow): OrganisationApi {
+  const overviewRaw = row.overview_type ?? row.overviewType ?? undefined;
+  const overviewType =
+    overviewRaw === "SCHOOL" || overviewRaw === "ORGANISATION" || overviewRaw === "MIRADI"
+      ? overviewRaw
+      : undefined;
   return {
     id: row.id,
     name: row.name,
     type: row.type ?? "organisation",
+    overviewType: overviewType ?? null,
     contactPerson: row.contact_person ?? row.contactPerson ?? "",
     contactEmail: row.contact_email ?? row.contactEmail ?? null,
     contactPhone: row.contact_phone ?? row.contactPhone ?? null,

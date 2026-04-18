@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { mockClasses, getEducatorName, getTerm, PROGRAM_NAMES } from "@/mockData";
+import { mockClasses, getTerm, PROGRAM_NAMES } from "@/mockData";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -334,7 +334,7 @@ export default function ClassesPage() {
   }
 
   const getEducatorDisplay = (educatorId: string) =>
-    educatorNameMap[educatorId] ?? getEducatorName(educatorId);
+    educatorNameMap[educatorId] ?? educatorId;
   const getTermDisplay = (termId: string) => termNameMap[termId] ?? getTerm(termId)?.name ?? termId;
 
   if (backendEnabled && isLoading) {

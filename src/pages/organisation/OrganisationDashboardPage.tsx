@@ -1,17 +1,54 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useOrganisationLearners } from "@/hooks/useOrganisationLearners";
+import {
+  useOrganisationLearners,
+  type OrganisationAttendanceCardVariant,
+} from "@/hooks/useOrganisationLearners";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { getInvoicesForOrganisation } from "@/mockData";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
+import { PartnerAttendanceReportsCard } from "@/components/partner/PartnerAttendanceReportsCard";
 import { Users, Building2, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+function attendanceReportsCardCopy(variant: OrganisationAttendanceCardVariant): {
+  title: string;
+  description: string;
+} {
+  switch (variant) {
+    case "miradi":
+      return {
+        title: "Miradi attendance & session reports",
+        description:
+          "Recent sessions with children registered through your Miradi site: who was marked present or late, and submitted session reports from facilitators.",
+      };
+    case "school":
+      return {
+        title: "School attendance & session reports",
+        description:
+          "Recent classes that include your learners: who was marked present or late, and educator session reports when submitted.",
+      };
+    default:
+      return {
+        title: "Attendance & session reports",
+        description:
+          "Recent programme sessions that include your learners: who was marked present or late, and educator session reports when submitted.",
+      };
+  }
+}
+
 export default function OrganisationDashboardPage() {
-  const { organisation, learners, isOrgUser, organizationId } = useOrganisationLearners();
+  const { organisation, learners, isOrgUser, organizationId, attendanceCardVariant } =
+    useOrganisationLearners();
   const { getInvoices } = useFinanceAccount();
   const invoices = organizationId ? getInvoicesForOrganisation(getInvoices(), organizationId) : [];
   const outstandingCount = invoices.filter((i) => i.status !== "paid" && i.status !== "draft").length;
+  const orgLearnerIds = useMemo(() => learners.map((l) => l.id), [learners]);
+  const attendanceCardCopy = useMemo(
+    () => attendanceReportsCardCopy(attendanceCardVariant),
+    [attendanceCardVariant]
+  );
 
   if (!isOrgUser || !organisation) {
     return (
@@ -91,6 +128,12 @@ export default function OrganisationDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <PartnerAttendanceReportsCard
+        learnerIds={orgLearnerIds}
+        title={attendanceCardCopy.title}
+        description={attendanceCardCopy.description}
+      />
     </div>
   );
 }

@@ -1,19 +1,15 @@
 import { useMemo } from "react";
 import type { LearnerAdminProfile, LearnerAdminEnrolmentStatus } from "@/types";
-import {
-  getLearner,
-  getOrganization,
-  getClass,
-  getTerm,
-  getCurrentTerm,
-  getSessionsForTerm,
-  getSession,
-} from "@/mockData";
-import { mockUsers } from "@/mockData";
+import { getDemoLoginUsers } from "@/lib/demoLoginUsers";
 import { getPresetAvatar } from "@/data/presetAvatars";
 import { useEnrollments } from "@/context/EnrollmentsContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
+import { useSessions } from "@/context/SessionsContext";
+import { useLearners } from "@/hooks/useLearners";
+import { useTerms } from "@/hooks/useTerms";
+import { useClasses } from "@/hooks/useClasses";
+import { useOrganisation } from "@/hooks/useOrganisation";
 
 function mapEnrolmentStatus(
   status: "active" | "dropped" | "completed"
@@ -26,15 +22,29 @@ function mapEnrolmentStatus(
 /**
  * Returns the admin profile for a learner (shape for GET /api/admin/learners/:id).
  * Returns null if the learner is not found.
+ *
+ * Data is composed from learners, terms, classes, sessions contexts/hooks plus
+ * attendance, enrolments, and badges. Organisation name uses `useOrganisation`.
+ * Demo avatar for linked accounts uses seeded demo users when auth backends are off.
  */
 export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAdminProfile | null {
+  const { learners } = useLearners();
   const learner = useMemo(
-    () => (learnerId ? getLearner(learnerId) : undefined),
-    [learnerId]
+    () => (learnerId ? learners.find((l) => l.id === learnerId) : undefined),
+    [learnerId, learners]
   );
+
+  const { terms, currentTerm } = useTerms();
+  const { sessions, getSessionById } = useSessions();
+  const { classes } = useClasses();
+  const { organisation } = useOrganisation(learner?.organizationId ?? null);
+
   const { getEnrollmentsForLearner } = useEnrollments();
   const { getByLearner } = useAttendance();
   const { getByLearner: getBadgeAwardsByLearner } = useBadgeAwards();
+
+  const termById = useMemo(() => new Map(terms.map((t) => [t.id, t])), [terms]);
+  const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, c.name])), [classes]);
 
   return useMemo(() => {
     if (!learner || !learnerId) return null;
@@ -49,14 +59,13 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
     const status: LearnerAdminProfile["status"] =
       learner.status === "active" ? "ACTIVE" : "ALUMNI";
 
-    const organisation =
-      learner.organizationId ? getOrganization(learner.organizationId) : undefined;
+    const organisationName = organisation?.name ?? null;
 
     let avatarUrl: string | null = null;
     if (learner.userId) {
-      const user = mockUsers.find((u) => u.id === learner.userId);
-      if (user?.avatarId) {
-        avatarUrl = getPresetAvatar(user.avatarId)?.imageUrl ?? null;
+      const demoUser = getDemoLoginUsers().find((u) => u.id === learner.userId);
+      if (demoUser?.avatarId) {
+        avatarUrl = getPresetAvatar(demoUser.avatarId)?.imageUrl ?? null;
       }
     }
 
@@ -66,9 +75,8 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
       badgesByType[a.badgeId] = (badgesByType[a.badgeId] ?? 0) + 1;
     }
 
-    const currentTerm = getCurrentTerm();
     const currentTermSessionIds = currentTerm
-      ? new Set(getSessionsForTerm(currentTerm.id).map((s) => s.id))
+      ? new Set(sessions.filter((s) => s.termId === currentTerm.id).map((s) => s.id))
       : new Set<string>();
 
     const attendanceRecords = getByLearner(learnerId);
@@ -86,15 +94,14 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
       totalCurrent > 0 ? Math.round((presentCountCurrentTerm / totalCurrent) * 100) : 0;
 
     const withSession = attendanceRecords
-      .map((r) => ({ record: r, session: getSession(r.sessionId) }))
+      .map((r) => ({ record: r, session: getSessionById(r.sessionId) }))
       .filter(
-        (x): x is { record: (typeof attendanceRecords)[0]; session: NonNullable<ReturnType<typeof getSession>> } =>
+        (x): x is { record: (typeof attendanceRecords)[0]; session: NonNullable<ReturnType<typeof getSessionById>> } =>
           !!x.session
       )
       .sort((a, b) => (b.session.date > a.session.date ? 1 : -1));
 
     const recentAttendance = withSession.slice(0, 15).map(({ record, session }) => {
-      const cls = getClass(session.classId);
       const status: "present" | "absent" | "late" =
         record.status === "present" || record.status === "late"
           ? "present"
@@ -105,22 +112,30 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
         sessionId: session.id,
         date: session.date,
         status,
-        className: cls?.name ?? session.classId,
+        className: classNameById.get(session.classId) ?? session.classId,
       };
     });
 
-    const enrollments = getEnrollmentsForLearner(learnerId);
-    const enrolments = enrollments
+    const enrollmentRows = getEnrollmentsForLearner(learnerId);
+    const enrolments = enrollmentRows
       .map((e) => ({
-        term: getTerm(e.termId),
-        cls: getClass(e.classId),
+        term: termById.get(e.termId),
+        className: classNameById.get(e.classId),
         status: e.status,
       }))
-      .filter((x) => x.term && x.cls)
-      .sort((a, b) => (a.term!.startDate > b.term!.startDate ? -1 : 1))
-      .map(({ term, cls, status }) => ({
-        termName: term!.name,
-        className: cls!.name,
+      .filter(
+        (
+          x
+        ): x is {
+          term: NonNullable<ReturnType<typeof termById.get>>;
+          className: string;
+          status: (typeof enrollmentRows)[0]["status"];
+        } => !!x.term && !!x.className
+      )
+      .sort((a, b) => ((a.term.startDate ?? "") > (b.term.startDate ?? "") ? -1 : 1))
+      .map(({ term, className, status }) => ({
+        termName: term.name,
+        className,
         status: mapEnrolmentStatus(status),
       }));
 
@@ -132,7 +147,7 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
       gender: learner.gender ?? null,
 
       schoolName: learner.school ?? null,
-      organisationName: organisation?.name ?? null,
+      organisationName,
       programType,
       status,
 
@@ -158,5 +173,11 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
     getEnrollmentsForLearner,
     getByLearner,
     getBadgeAwardsByLearner,
+    getSessionById,
+    sessions,
+    currentTerm,
+    termById,
+    classNameById,
+    organisation,
   ]);
 }

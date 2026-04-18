@@ -58,7 +58,7 @@ export const mockOrganizations: Organization[] = [
 ];
 
 export const mockLearners: Learner[] = [
-  { id: "l1", firstName: "Patricia", lastName: "Wanja", dateOfBirth: "2014-03-15", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "active", userId: "u4", parentName: "Lucy Njeri", parentPhone: "+254 7XX XXX XXXX", parentEmail: "lucy.njeri@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/patricia_coder/", typingProfileUrl: "https://www.typing.com/student/profile", joinedAt: "2026-01-15" },
+  { id: "l1", firstName: "Patricia", lastName: "Wanja", dateOfBirth: "2014-03-15", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "active", userId: "u4", parentUserId: "u5", parentName: "Lucy Njeri", parentPhone: "+254 7XX XXX XXXX", parentEmail: "lucy.njeri@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/patricia_coder/", typingProfileUrl: "https://www.typing.com/student/profile", joinedAt: "2026-01-15" },
   { id: "l2", firstName: "Maya", lastName: "Patel", dateOfBirth: "2013-07-22", school: "Riverside Academy", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mr. Patel", parentPhone: "+27 83 234 5678", parentEmail: "patel@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/maya_dev/", robloxProfileUrl: "https://www.roblox.com/users/123456789/profile", joinedAt: "2026-01-20" },
   { id: "l3", firstName: "Ethan", lastName: "Williams", dateOfBirth: "2012-11-08", school: "Oakwood School", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mrs. Williams", parentPhone: "+27 84 345 6789", parentEmail: "williams@mail.com", status: "active", gender: "male", joinedAt: "2026-01-22" },
   { id: "l4", firstName: "Zara", lastName: "Nkosi", dateOfBirth: "2015-01-30", school: "Sunshine Primary", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org2", parentName: "Mrs. Nkosi", parentPhone: "", parentEmail: "", status: "active", gender: "female", joinedAt: "2026-01-10" },
@@ -303,11 +303,6 @@ export const getSessionsForStudent = (learnerId: string): Session[] => {
   const classIds = studentClasses.map((c) => c.id);
   return mockSessions.filter((s) => classIds.includes(s.classId));
 };
-
-/** Invoices for a parent: only per-learner invoices. Pass invoices from useFinanceAccount().getInvoices(). */
-export function getInvoicesForParent(invoices: Invoice[], learnerIds: string[]): Invoice[] {
-  return invoices.filter((inv) => inv.learnerId != null && learnerIds.includes(inv.learnerId));
-}
 
 /** Invoices for an organisation. Pass invoices from useFinanceAccount().getInvoices(). */
 export function getInvoicesForOrganisation(invoices: Invoice[], organizationId: string): Invoice[] {

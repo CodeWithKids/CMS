@@ -141,6 +141,8 @@ export interface Learner {
   membershipStatus?: MembershipStatus | null;
   /** FK to auth User; only set for MAKERSPACE learners with an account. */
   userId?: string | null;
+  /** FK to parent profile (auth user); optional. When set, parent portal scopes children by this id. */
+  parentUserId?: string | null;
   parentName?: string;
   parentPhone?: string;
   parentEmail?: string;

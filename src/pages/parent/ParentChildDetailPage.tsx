@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
-import { parentChildMap, getSessionsForStudent, getClass } from "@/mockData";
+import { useEnrollments } from "@/context/EnrollmentsContext";
+import { useSessions } from "@/context/SessionsContext";
 import { useLearners } from "@/hooks/useLearners";
+import { useParentChildIds } from "@/hooks/useParentChildIds";
+import { useClasses } from "@/hooks/useClasses";
 import { User, Calendar, History, ArrowLeft, Clock } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
@@ -20,38 +23,73 @@ export default function ParentChildDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getByLearner } = useAttendance();
+  const { getByLearner, loadSessionRecords } = useAttendance();
+  const { sessions } = useSessions();
+  const { classes } = useClasses();
+  const { getEnrollmentsForLearner } = useEnrollments();
   const { learners } = useLearners();
   const learnerById = useMemo(
     () => new Map(learners.map((learner) => [learner.id, learner])),
     [learners]
   );
-  const parentId = currentUser?.id ?? "u5";
-  const childIds = parentChildMap[parentId] ?? [];
+  const { childIds } = useParentChildIds();
 
   const learner = id ? learnerById.get(id) : undefined;
   const allowed = id != null && childIds.includes(id);
+  const effectiveLearnerId = allowed && id ? id : undefined;
 
-  const sessions = useMemo(() => (id ? getSessionsForStudent(id) : []), [id]);
+  const classIdsForLearner = useMemo(() => {
+    const set = new Set<string>();
+    if (!effectiveLearnerId) return set;
+    for (const e of getEnrollmentsForLearner(effectiveLearnerId)) {
+      set.add(e.classId);
+    }
+    for (const c of classes) {
+      if ((c.learnerIds ?? []).includes(effectiveLearnerId)) set.add(c.id);
+    }
+    return set;
+  }, [effectiveLearnerId, classes, getEnrollmentsForLearner]);
+
+  const sessionsForLearner = useMemo(() => {
+    if (!effectiveLearnerId) return [];
+    return sessions.filter((s) => classIdsForLearner.has(s.classId));
+  }, [effectiveLearnerId, sessions, classIdsForLearner]);
+
+  const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, c.name])), [classes]);
+
+  const sessionIdsKey = useMemo(
+    () =>
+      [...sessionsForLearner]
+        .map((s) => s.id)
+        .sort()
+        .join(","),
+    [sessionsForLearner]
+  );
+
+  useEffect(() => {
+    if (!effectiveLearnerId || sessionIdsKey.length === 0) return;
+    void Promise.all(sessionIdsKey.split(",").map((sid) => loadSessionRecords(sid)));
+  }, [effectiveLearnerId, sessionIdsKey, loadSessionRecords]);
+
   const { upcoming, history: past } = useMemo(() => {
-    const up = sessions.filter((s) => s.date >= today).sort((a, b) => {
+    const up = sessionsForLearner.filter((s) => s.date >= today).sort((a, b) => {
       const d = a.date.localeCompare(b.date);
       return d !== 0 ? d : (a.startTime ?? "").localeCompare(b.startTime ?? "");
     });
-    const pastSessions = sessions.filter((s) => s.date < today).sort((a, b) => {
+    const pastSessions = sessionsForLearner.filter((s) => s.date < today).sort((a, b) => {
       const d = b.date.localeCompare(a.date);
       return d !== 0 ? d : (b.startTime ?? "").localeCompare(a.startTime ?? "");
     });
     return { upcoming: up, history: pastSessions };
-  }, [sessions]);
+  }, [sessionsForLearner]);
 
   const attendanceBySession = useMemo(() => {
-    if (!id) return new Map<string, string>();
-    const records = getByLearner(id);
+    if (!effectiveLearnerId) return new Map<string, string>();
+    const records = getByLearner(effectiveLearnerId);
     const map = new Map<string, string>();
     records.forEach((r) => map.set(r.sessionId, r.status));
     return map;
-  }, [id, getByLearner]);
+  }, [effectiveLearnerId, getByLearner]);
 
   if (!id || !learner || !allowed) {
     return (
@@ -110,11 +148,11 @@ export default function ParentChildDetailPage() {
         ) : (
           <div className="rounded-xl border bg-card divide-y">
             {upcoming.slice(0, 10).map((s) => {
-              const cls = getClass(s.classId);
+              const className = classNameById.get(s.classId) ?? s.classId;
               return (
                 <div key={s.id} className="p-4 flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{cls?.name ?? s.classId}</p>
+                    <p className="font-medium">{className}</p>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(s.date)}
                       {s.startTime != null && s.endTime != null && ` · ${s.startTime} – ${s.endTime}`}
@@ -145,12 +183,12 @@ export default function ParentChildDetailPage() {
         ) : (
           <div className="rounded-xl border bg-card divide-y">
             {past.slice(0, 15).map((s) => {
-              const cls = getClass(s.classId);
+              const className = classNameById.get(s.classId) ?? s.classId;
               const status = attendanceBySession.get(s.id);
               return (
                 <div key={s.id} className="p-4 flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{cls?.name ?? s.classId}</p>
+                    <p className="font-medium">{className}</p>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(s.date)}
                       {s.startTime != null && s.endTime != null && ` · ${s.startTime} – ${s.endTime}`}

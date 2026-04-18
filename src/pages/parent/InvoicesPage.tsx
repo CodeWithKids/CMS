@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMemo } from "react";
-import { useAuth } from "@/context/AuthContext";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { useInvoices } from "@/context/FinanceContext";
 import { isApiEnabled } from "@/lib/api";
-import { parentChildMap, getInvoicesForParent } from "@/mockData";
 import { useLearners } from "@/hooks/useLearners";
+import { useParentChildIds } from "@/hooks/useParentChildIds";
+import { filterInvoicesForParentLearners } from "@/lib/financeParent";
 import { FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function InvoicesPage() {
-  const { currentUser } = useAuth();
   const { getInvoices } = useFinanceAccount();
   const { learners } = useLearners();
   const learnerNameById = useMemo(
@@ -31,9 +30,8 @@ export default function InvoicesPage() {
    // Finance invoices (API-backed when VITE_API_URL is set)
   const financeInvoices = useInvoices({ payerType: "parent" });
   const apiEnabled = isApiEnabled();
-  const parentId = currentUser?.id ?? "u5";
-  const childIds = parentChildMap[parentId] ?? [];
-  const legacyInvoices = getInvoicesForParent(getInvoices(), childIds);
+  const { childIds } = useParentChildIds();
+  const legacyInvoices = filterInvoicesForParentLearners(getInvoices(), childIds);
   const apiInvoices = useMemo(
     () =>
       financeInvoices.filter(

@@ -1,16 +1,19 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
+import { useEnrollments } from "@/context/EnrollmentsContext";
+import { useSessions } from "@/context/SessionsContext";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
-import { parentChildMap, getTodaySessionsForStudent, getSessionsForStudent, getClass, getInvoicesForParent } from "@/mockData";
 import { useLearners } from "@/hooks/useLearners";
+import { useParentChildIds } from "@/hooks/useParentChildIds";
+import { filterInvoicesForParentLearners } from "@/lib/financeParent";
+import { useClasses } from "@/hooks/useClasses";
 import { User, Clock, ChevronRight, FileText } from "lucide-react";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
+import { PartnerAttendanceReportsCard } from "@/components/partner/PartnerAttendanceReportsCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { isApiEnabled, attendanceGet } from "@/lib/api";
 
@@ -18,16 +21,65 @@ const today = new Date().toISOString().split("T")[0];
 
 export default function ParentDashboard() {
   const { currentUser } = useAuth();
-  const { getByLearner } = useAttendance();
+  const { getByLearner, loadSessionRecords } = useAttendance();
+  const { sessions } = useSessions();
+  const { classes } = useClasses();
+  const { getEnrollmentsForLearner } = useEnrollments();
   const { getInvoices } = useFinanceAccount();
   const { learners } = useLearners();
   const learnerById = useMemo(
     () => new Map(learners.map((learner) => [learner.id, learner])),
     [learners]
   );
-  const parentId = currentUser?.id ?? "u5";
-  const childIds = parentChildMap[parentId] ?? [];
-  const invoices = getInvoicesForParent(getInvoices(), childIds);
+  const { childIds } = useParentChildIds();
+
+  const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, c.name])), [classes]);
+
+  const classIdsByChild = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const childId of childIds) {
+      const set = new Set<string>();
+      for (const e of getEnrollmentsForLearner(childId)) {
+        set.add(e.classId);
+      }
+      for (const c of classes) {
+        if ((c.learnerIds ?? []).includes(childId)) set.add(c.id);
+      }
+      map.set(childId, set);
+    }
+    return map;
+  }, [childIds, classes, getEnrollmentsForLearner]);
+
+  const sessionsByChild = useMemo(() => {
+    const map = new Map<string, typeof sessions>();
+    for (const childId of childIds) {
+      const classIds = classIdsByChild.get(childId) ?? new Set<string>();
+      map.set(
+        childId,
+        sessions.filter((s) => classIds.has(s.classId))
+      );
+    }
+    return map;
+  }, [childIds, sessions, classIdsByChild]);
+
+  const attendancePrefetchSessionIdsKey = useMemo(() => {
+    const ids = new Set<string>();
+    for (const childId of childIds) {
+      for (const s of sessionsByChild.get(childId) ?? []) {
+        if (s.date <= today) ids.add(s.id);
+      }
+    }
+    return [...ids].sort().join(",");
+  }, [childIds, sessionsByChild]);
+
+  useEffect(() => {
+    if (attendancePrefetchSessionIdsKey.length === 0) return;
+    void Promise.all(
+      attendancePrefetchSessionIdsKey.split(",").map((sid) => loadSessionRecords(sid))
+    );
+  }, [attendancePrefetchSessionIdsKey, loadSessionRecords]);
+
+  const invoices = filterInvoicesForParentLearners(getInvoices(), childIds);
   const outstandingCount = invoices.filter(
     (i) => i.status !== "paid" && i.status !== "draft"
   ).length;
@@ -68,7 +120,9 @@ export default function ParentDashboard() {
         {childIds.map((childId) => {
           const learner = learnerById.get(childId);
           if (!learner) return null;
-          const todaySessions = getTodaySessionsForStudent(childId);
+          const learnerSessions = sessionsByChild.get(childId) ?? [];
+          const todaySessions = learnerSessions.filter((s) => s.date === today);
+          const sessionsUpToToday = learnerSessions.filter((s) => s.date <= today);
 
           return (
             <div key={childId} className="bg-card rounded-xl border p-5">
@@ -92,7 +146,11 @@ export default function ParentDashboard() {
 
               {/* Attendance summary from real data */}
               <div className="p-3 rounded-lg bg-muted/50 mb-3">
-                <AttendanceSummaryLine learnerId={childId} getByLearner={getByLearner} />
+                <AttendanceSummaryLine
+                  learnerId={childId}
+                  getByLearner={getByLearner}
+                  sessionsUpToToday={sessionsUpToToday}
+                />
               </div>
 
               {/* Today's sessions */}
@@ -104,10 +162,10 @@ export default function ParentDashboard() {
               ) : (
                 <div className="space-y-2">
                   {todaySessions.map((s) => {
-                    const cls = getClass(s.classId);
+                    const className = classNameById.get(s.classId) ?? s.classId;
                     return (
                       <div key={s.id} className="p-2 rounded-lg bg-muted/30 text-sm">
-                        <span className="font-medium">{cls?.name}</span> · {s.startTime} – {s.endTime}
+                        <span className="font-medium">{className}</span> · {s.startTime} – {s.endTime}
                       </div>
                     );
                   })}
@@ -121,6 +179,14 @@ export default function ParentDashboard() {
           <p className="text-muted-foreground">No children linked to your account.</p>
         )}
       </div>
+
+      {childIds.length > 0 && (
+        <PartnerAttendanceReportsCard
+          learnerIds={childIds}
+          title="Attendance & session reports"
+          description="Across your children’s classes: learners marked present or late, and submitted session reports from educators."
+        />
+      )}
     </div>
   );
 }
@@ -128,29 +194,34 @@ export default function ParentDashboard() {
 function AttendanceSummaryLine({
   learnerId,
   getByLearner,
+  sessionsUpToToday,
 }: {
   learnerId: string;
   getByLearner: (learnerId: string) => { sessionId: string; status: string }[];
+  sessionsUpToToday: { id: string; date: string }[];
 }) {
-  const sessions = useMemo(
-    () => getSessionsForStudent(learnerId).filter((s) => s.date <= today),
-    [learnerId]
+  const sessionIdsKey = useMemo(
+    () =>
+      [...sessionsUpToToday]
+        .map((s) => s.id)
+        .sort()
+        .join(","),
+    [sessionsUpToToday]
   );
   const apiEnabled = isApiEnabled();
   const { data: apiRecords = [], isLoading } = useQuery({
-    queryKey: ["parent", "attendance", learnerId, sessions.map((s) => s.id).join(",")],
+    queryKey: ["parent", "attendance", learnerId, sessionIdsKey],
     queryFn: async () => {
-      const all = await Promise.all(
-        sessions.map((s) => attendanceGet(s.id))
-      );
+      const ids = sessionIdsKey.length > 0 ? sessionIdsKey.split(",") : [];
+      const all = await Promise.all(ids.map((sessionId) => attendanceGet(sessionId)));
       return all.flat().filter((r) => r.learnerId === learnerId);
     },
-    enabled: apiEnabled && sessions.length > 0,
+    enabled: apiEnabled && sessionIdsKey.length > 0,
   });
 
   const { total, attended } = useMemo(() => {
     const records = apiEnabled ? apiRecords : getByLearner(learnerId);
-    const sessionIds = new Set(sessions.map((s) => s.id));
+    const sessionIds = new Set(sessionsUpToToday.map((s) => s.id));
     const totalSessions = sessionIds.size;
     const attendedCount = records.filter(
       (r) =>
@@ -158,7 +229,7 @@ function AttendanceSummaryLine({
         (r.status === "present" || r.status === "late")
     ).length;
     return { total: totalSessions, attended: attendedCount };
-  }, [apiEnabled, apiRecords, getByLearner, learnerId, sessions]);
+  }, [apiEnabled, apiRecords, getByLearner, learnerId, sessionsUpToToday]);
 
   if (total === 0) {
     return (

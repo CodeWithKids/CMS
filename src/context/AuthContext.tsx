@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import type { AppUser, UserRole } from "@/types";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import { mockUsers } from "@/mockData";
+import { getDemoLoginUsers } from "@/lib/demoLoginUsers";
 import {
   isApiEnabled,
   authLogin,
@@ -200,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback((userId: string) => {
-    const user = mockUsers.find((u) => u.id === userId);
+    const user = getDemoLoginUsers().find((u) => u.id === userId);
     if (user) setCurrentUser(user);
   }, []);
 
@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!prev) return null;
       const next = { ...prev, ...partial };
       if ("avatarId" in partial) {
-        const u = mockUsers.find((x) => x.id === prev.id);
+        const u = getDemoLoginUsers().find((x) => x.id === prev.id);
         if (u) (u as AppUser).avatarId = partial.avatarId;
       }
       return next;

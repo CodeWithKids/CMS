@@ -25,6 +25,8 @@ export interface SupabaseLearnerRow {
   parentPhone?: string | null;
   parent_email?: string | null;
   parentEmail?: string | null;
+  parent_user_id?: string | null;
+  parentUserId?: string | null;
   organization_id?: string | null;
   organizationId?: string | null;
   status?: string | null;
@@ -52,6 +54,7 @@ export function mapSupabaseRowToLearner(row: SupabaseLearnerRow): Learner {
     programType: (row.program_type ?? row.programType ?? "MAKERSPACE") as Learner["programType"],
     membershipStatus: (row.membership_status ?? row.membershipStatus ?? undefined) as Learner["membershipStatus"],
     userId: row.user_id ?? row.userId ?? undefined,
+    parentUserId: row.parent_user_id ?? row.parentUserId ?? undefined,
     parentName: row.parent_name ?? row.parentName ?? undefined,
     parentPhone: row.parent_phone ?? row.parentPhone ?? undefined,
     parentEmail: row.parent_email ?? row.parentEmail ?? undefined,
@@ -74,6 +77,7 @@ export function mapSupabaseRowToLearnerApi(row: SupabaseLearnerRow): LearnerApi 
     programType: l.programType,
     membershipStatus: l.membershipStatus ?? null,
     userId: l.userId ?? null,
+    parentUserId: l.parentUserId ?? null,
     parentName: l.parentName ?? null,
     parentPhone: l.parentPhone ?? null,
     parentEmail: l.parentEmail ?? null,
@@ -95,6 +99,7 @@ export function mapLearnerToLearnerApi(l: Learner): LearnerApi {
     programType: l.programType,
     membershipStatus: l.membershipStatus ?? null,
     userId: l.userId ?? null,
+    parentUserId: l.parentUserId ?? null,
     parentName: l.parentName ?? null,
     parentPhone: l.parentPhone ?? null,
     parentEmail: l.parentEmail ?? null,
@@ -122,6 +127,7 @@ export type LearnerCreateBody = {
   programType: string;
   membershipStatus?: string | null;
   userId?: string | null;
+  parentUserId?: string | null;
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
@@ -142,6 +148,7 @@ export function learnerCreateBodyToSupabaseRow(id: string, body: LearnerCreateBo
     program_type: body.programType,
     membership_status: body.membershipStatus?.trim() ? body.membershipStatus : null,
     user_id: authUserIdOrNull(body.userId ?? undefined),
+    parent_user_id: authUserIdOrNull(body.parentUserId ?? undefined),
     parent_name: body.parentName?.trim() ? body.parentName : null,
     parent_phone: body.parentPhone?.trim() ? body.parentPhone : null,
     parent_email: body.parentEmail?.trim() ? body.parentEmail : null,
@@ -161,6 +168,7 @@ export type LearnerPatchBody = Partial<{
   programType: string;
   membershipStatus: string | null;
   userId: string | null;
+  parentUserId: string | null;
   parentName: string | null;
   parentPhone: string | null;
   parentEmail: string | null;
@@ -180,6 +188,7 @@ export function learnerPatchBodyToSupabasePatch(body: LearnerPatchBody): Record<
   if (body.programType !== undefined) patch.program_type = body.programType;
   if (body.membershipStatus !== undefined) patch.membership_status = body.membershipStatus;
   if (body.userId !== undefined) patch.user_id = authUserIdOrNull(body.userId ?? undefined);
+  if (body.parentUserId !== undefined) patch.parent_user_id = authUserIdOrNull(body.parentUserId ?? undefined);
   if (body.parentName !== undefined) patch.parent_name = body.parentName;
   if (body.parentPhone !== undefined) patch.parent_phone = body.parentPhone;
   if (body.parentEmail !== undefined) patch.parent_email = body.parentEmail;

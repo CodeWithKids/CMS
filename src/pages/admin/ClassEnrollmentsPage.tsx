@@ -6,7 +6,6 @@ import { useBadgeAwards } from "@/context/BadgeAwardsContext";
 import {
   getClass,
   getTerm,
-  getEducatorName,
   getOrganization,
 } from "@/mockData";
 import {
@@ -244,10 +243,7 @@ export default function ClassEnrollmentsPage() {
         });
         return;
       }
-      const name =
-        getEducatorName(updatedEducatorId) ||
-        educators.find((e) => e.id === updatedEducatorId)?.name ||
-        "the educator";
+      const name = educators.find((e) => e.id === updatedEducatorId)?.name ?? updatedEducatorId;
       toast({
         title: "Educator assigned",
         description: `${name} is now assigned to this class.`,
@@ -409,7 +405,11 @@ export default function ClassEnrollmentsPage() {
                   disabled={educatorsLoading}
                 >
                   <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder={getEducatorName(cls.educatorId) || "Select educator"} />
+                    <SelectValue
+                      placeholder={
+                        educators.find((e) => e.id === cls.educatorId)?.name || "Select educator"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {educators.map((e) => (

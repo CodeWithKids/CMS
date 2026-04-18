@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { useInvoice } from "@/context/FinanceContext";
 import { isApiEnabled } from "@/lib/api";
 import type { Receipt } from "@/types";
-import { parentChildMap, getReceiptForInvoice } from "@/mockData";
+import { getReceiptForInvoice } from "@/mockData";
 import { useLearners } from "@/hooks/useLearners";
+import { useParentChildIds } from "@/hooks/useParentChildIds";
 import { ArrowLeft, CreditCard, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReceiptView } from "@/features/invoices/components/ReceiptView";
@@ -31,15 +31,13 @@ function formatDate(iso: string): string {
 export default function ParentInvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
   const apiEnabled = isApiEnabled();
   const { learners } = useLearners();
   const learnerNameById = useMemo(
     () => new Map(learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])),
     [learners]
   );
-  const parentId = currentUser?.id ?? "u5";
-  const childIds = parentChildMap[parentId] ?? [];
+  const { childIds } = useParentChildIds();
 
   const { getInvoices } = useFinanceAccount();
   const legacyInvoice = id ? getInvoices().find((i) => i.id === id) : undefined;

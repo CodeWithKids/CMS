@@ -648,6 +648,8 @@ export interface LearnerApi {
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
+  /** Parent portal: FK to auth user when stored on the learner row. */
+  parentUserId?: string | null;
   organizationId?: string | null;
   status: string;
   gender?: string | null;
@@ -680,6 +682,7 @@ export function learnersCreate(body: {
   programType: string;
   membershipStatus?: string | null;
   userId?: string | null;
+  parentUserId?: string | null;
   parentName?: string | null;
   parentPhone?: string | null;
   parentEmail?: string | null;
@@ -702,6 +705,7 @@ export function learnersPatch(
     programType: string;
     membershipStatus: string | null;
     userId: string | null;
+    parentUserId: string | null;
     parentName: string | null;
     parentPhone: string | null;
     parentEmail: string | null;
@@ -1112,6 +1116,9 @@ export interface OrganisationApi {
   id: string;
   name: string;
   type: string;
+  /** When the API returns it: SCHOOL | ORGANISATION | MIRADI (camelCase or snake_case on the wire). */
+  overviewType?: string | null;
+  overview_type?: string | null;
   contactPerson: string;
   contactEmail: string | null;
   contactPhone: string | null;
@@ -1138,6 +1145,9 @@ export function organisationsGetInvoices(id: string): Promise<FinanceInvoiceApi[
 export type OrganisationUpdateBody = {
   name?: string;
   type?: string;
+  /** Admin overview bucket when the API accepts it on PATCH. */
+  overviewType?: string | null;
+  overview_type?: string | null;
   contactPerson?: string;
   contactEmail?: string | null;
   contactPhone?: string | null;

@@ -3,8 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import {
   getClass,
   getTerm,
-  getLearner,
-  getEducatorName,
   DEFAULT_TERM_ID,
 } from "@/mockData";
 import { useAuth } from "@/context/AuthContext";
@@ -134,19 +132,20 @@ export default function ClassDetailPage() {
   const activeLearnerIdsThisTerm = enrollmentsThisTerm.filter((e) => e.status === "active").map((e) => e.learnerId);
   const learnerMap = useMemo(() => {
     const map = new Map<string, import("@/types").Learner>();
-    if (classBackendEnabled && cls) {
-      allLearners.filter((l) => cls.learnerIds?.includes(l.id)).forEach((l) => map.set(l.id, l));
-      return map;
+    if (!cls) return map;
+    for (const lid of cls.learnerIds ?? []) {
+      const l = allLearners.find((x) => x.id === lid);
+      if (l) map.set(lid, l);
     }
-    return null;
-  }, [classBackendEnabled, cls, allLearners]);
-  const getLearnerForRow = (learnerId: string) => (learnerMap ? learnerMap.get(learnerId) : getLearner(learnerId));
+    return map;
+  }, [cls, allLearners]);
+  const getLearnerForRow = (learnerId: string) => learnerMap.get(learnerId);
   const educatorNameMap = useMemo(() => {
     const map = new Map<string, string>();
     educators.forEach((e) => map.set(e.id, e.name));
     return map;
   }, [educators]);
-  const getEducatorNameForRow = (educatorId: string) => educatorNameMap.get(educatorId) ?? getEducatorName(educatorId);
+  const getEducatorNameForRow = (educatorId: string) => educatorNameMap.get(educatorId) ?? educatorId;
 
   const { getBySession } = useAttendance();
   const { getBySession: getReportBySession } = useSessionReports();

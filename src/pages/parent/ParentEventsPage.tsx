@@ -1,12 +1,9 @@
-import { useAuth } from "@/context/AuthContext";
-import { parentChildMap } from "@/mockData";
+import { useParentChildIds } from "@/hooks/useParentChildIds";
 import { useEventsList } from "@/features/events/api";
 import { UpcomingEventsWithRegistration } from "@/features/events/components/UpcomingEventsWithRegistration";
 
 export default function ParentEventsPage() {
-  const { currentUser } = useAuth();
-  const parentId = currentUser?.id ?? "u5";
-  const childIds = parentChildMap[parentId] ?? [];
+  const { childIds } = useParentChildIds();
   const { data: events = [] } = useEventsList({ upcomingOnly: true });
   const upcomingEvents = events;
 
