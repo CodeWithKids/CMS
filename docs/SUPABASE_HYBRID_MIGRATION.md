@@ -87,7 +87,7 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 - Learners: Supabase-first list + by-id + admin CRUD in hooks/pages (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql` — include section 6 write policies for create/update/delete). Optional: `docs/SUPABASE_LEARNERS_PARENT_USER_ID.sql` for `parent_user_id` + parent RLS.
 - Organisations: optional `overview_type` column via `docs/SUPABASE_ORGANISATIONS_OVERVIEW_TYPE.sql` for partner-portal wording when org rows come from Supabase.
 - Classes: Supabase-first list + admin CRUD + hooks (`useClasses`, `useClass`); RLS in `docs/SUPABASE_CLASSES_RLS.sql` (include section 6 for writes)
-- Class enrollments: Supabase-first context + admin class enrolments page (`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`)
+- Class enrollments: Supabase-first context + admin class enrollments page (`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`)
 - Sessions: table + RLS in `docs/SUPABASE_SESSIONS_RLS.sql` (run before attendance)
 - Educator badges: Supabase-first reads in `src/hooks/useEducatorBadges.ts` (`docs/SUPABASE_EDUCATOR_BADGES_RLS.sql`; optional until the table exists)
 - Attendance: Supabase/API-backed persistence in `AttendanceContext` + attendance page (`docs/SUPABASE_ATTENDANCE_RLS.sql`)

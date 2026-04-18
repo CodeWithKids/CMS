@@ -1,6 +1,7 @@
 /**
  * Learners from Supabase when configured, otherwise API, otherwise mock.
  */
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Learner } from "@/types";
 import { mockLearners } from "@/mockData";
@@ -19,7 +20,7 @@ function mapApiToLearner(a: LearnerApi): Learner {
     lastName: a.lastName,
     dateOfBirth: a.dateOfBirth,
     school: a.school,
-    enrolmentType: a.enrolmentType as "member" | "partner_org",
+    enrollmentType: a.enrollmentType as "member" | "partner_org",
     programType: a.programType as "MAKERSPACE" | "SCHOOL_CLUB" | "ORGANISATION",
     membershipStatus: a.membershipStatus ?? undefined,
     userId: a.userId ?? undefined,
@@ -36,7 +37,7 @@ function mapApiToLearner(a: LearnerApi): Learner {
 
 function applyLocalLearnerFilters(list: Learner[], params?: UseLearnersParams): Learner[] {
   let filtered = [...list];
-  if (params?.enrolmentType) filtered = filtered.filter((l) => l.enrolmentType === params.enrolmentType);
+  if (params?.enrollmentType) filtered = filtered.filter((l) => l.enrollmentType === params.enrollmentType);
   if (params?.organisationId) filtered = filtered.filter((l) => l.organizationId === params.organisationId);
   if (params?.status) filtered = filtered.filter((l) => l.status === params.status);
   if (params?.search?.trim()) {
@@ -51,11 +52,12 @@ function getSupabaseClient() {
   return supabase;
 }
 
-const LEARNERS_QUERY_KEY = ["learners"];
+/** Single cache key so `invalidateQueries({ queryKey: ["learners"] })` always hits after create/update/delete. */
+export const LEARNERS_QUERY_KEY = ["learners"] as const;
 
 export interface UseLearnersParams {
   search?: string;
-  enrolmentType?: string;
+  enrollmentType?: string;
   organisationId?: string;
   status?: string;
 }
@@ -68,36 +70,45 @@ export function useLearners(params?: UseLearnersParams): {
   const apiEnabled = !supabaseEnabled && isApiEnabled();
 
   const query = useQuery({
-    queryKey: [...LEARNERS_QUERY_KEY, params?.search ?? "", params?.enrolmentType ?? "", params?.organisationId ?? "", params?.status ?? ""],
+    queryKey: [...LEARNERS_QUERY_KEY],
     queryFn: async () => {
       if (supabaseEnabled) {
         const client = getSupabaseClient();
         try {
           const { data, error } = await client.from("learners").select("*");
           if (error) throw error;
-          const mapped = ((data as SupabaseLearnerRow[] | null) ?? []).map(mapSupabaseRowToLearner);
-          return applyLocalLearnerFilters(mapped, params);
+          return ((data as SupabaseLearnerRow[] | null) ?? []).map(mapSupabaseRowToLearner);
         } catch (e) {
           if (isApiEnabled()) {
-            const list = await learnersGetAll(params);
+            const list = await learnersGetAll();
             return list.map(mapApiToLearner);
           }
           throw e;
         }
       }
 
-      const list = await learnersGetAll(params);
+      const list = await learnersGetAll();
       return list.map(mapApiToLearner);
     },
     enabled: supabaseEnabled || apiEnabled,
     staleTime: 2 * 60 * 1000,
   });
 
+  const learners = useMemo(
+    () => applyLocalLearnerFilters(query.data ?? [], params),
+    [
+      query.data,
+      params?.search,
+      params?.enrollmentType,
+      params?.organisationId,
+      params?.status,
+    ]
+  );
+
   if (!supabaseEnabled && !apiEnabled) {
     const list = applyLocalLearnerFilters(mockLearners, params);
     return { learners: list, isLoading: false };
   }
 
-  const list = query.data ?? [];
-  return { learners: list, isLoading: query.isLoading };
+  return { learners, isLoading: query.isLoading };
 }

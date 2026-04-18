@@ -698,7 +698,7 @@ function LearnerPaymentRow({ row }: { row: LearnerPaymentSummary }) {
         </Link>
       </TableCell>
       <TableCell>
-        <Badge variant="outline">{row.enrolmentType === "member" ? "Member" : "Partner org"}</Badge>
+        <Badge variant="outline">{row.enrollmentType === "member" ? "Member" : "Partner org"}</Badge>
       </TableCell>
       <TableCell>{row.payerLabel}</TableCell>
       <TableCell>{row.payerPhone || "—"}</TableCell>

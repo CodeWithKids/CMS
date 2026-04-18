@@ -11,6 +11,8 @@ export interface SupabaseLearnerRow {
   date_of_birth?: string | null;
   dateOfBirth?: string | null;
   school?: string | null;
+  enrollment_type?: string | null;
+  enrollmentType?: string | null;
   enrolment_type?: string | null;
   enrolmentType?: string | null;
   program_type?: string | null;
@@ -50,7 +52,11 @@ export function mapSupabaseRowToLearner(row: SupabaseLearnerRow): Learner {
     lastName: row.last_name ?? row.lastName ?? "",
     dateOfBirth: row.date_of_birth ?? row.dateOfBirth ?? "",
     school: row.school ?? "",
-    enrolmentType: (row.enrolment_type ?? row.enrolmentType ?? "member") as Learner["enrolmentType"],
+    enrollmentType: (row.enrollment_type ??
+      row.enrollmentType ??
+      row.enrolment_type ??
+      row.enrolmentType ??
+      "member") as Learner["enrollmentType"],
     programType: (row.program_type ?? row.programType ?? "MAKERSPACE") as Learner["programType"],
     membershipStatus: (row.membership_status ?? row.membershipStatus ?? undefined) as Learner["membershipStatus"],
     userId: row.user_id ?? row.userId ?? undefined,
@@ -73,7 +79,7 @@ export function mapSupabaseRowToLearnerApi(row: SupabaseLearnerRow): LearnerApi 
     lastName: l.lastName,
     dateOfBirth: l.dateOfBirth,
     school: l.school,
-    enrolmentType: l.enrolmentType,
+    enrollmentType: l.enrollmentType,
     programType: l.programType,
     membershipStatus: l.membershipStatus ?? null,
     userId: l.userId ?? null,
@@ -95,7 +101,7 @@ export function mapLearnerToLearnerApi(l: Learner): LearnerApi {
     lastName: l.lastName,
     dateOfBirth: l.dateOfBirth,
     school: l.school,
-    enrolmentType: l.enrolmentType,
+    enrollmentType: l.enrollmentType,
     programType: l.programType,
     membershipStatus: l.membershipStatus ?? null,
     userId: l.userId ?? null,
@@ -123,7 +129,7 @@ export type LearnerCreateBody = {
   lastName: string;
   dateOfBirth: string;
   school: string;
-  enrolmentType: string;
+  enrollmentType: string;
   programType: string;
   membershipStatus?: string | null;
   userId?: string | null;
@@ -144,7 +150,7 @@ export function learnerCreateBodyToSupabaseRow(id: string, body: LearnerCreateBo
     last_name: body.lastName,
     date_of_birth: body.dateOfBirth,
     school: body.school,
-    enrolment_type: body.enrolmentType,
+    enrollment_type: body.enrollmentType,
     program_type: body.programType,
     membership_status: body.membershipStatus?.trim() ? body.membershipStatus : null,
     user_id: authUserIdOrNull(body.userId ?? undefined),
@@ -164,7 +170,7 @@ export type LearnerPatchBody = Partial<{
   lastName: string;
   dateOfBirth: string;
   school: string;
-  enrolmentType: string;
+  enrollmentType: string;
   programType: string;
   membershipStatus: string | null;
   userId: string | null;
@@ -184,7 +190,7 @@ export function learnerPatchBodyToSupabasePatch(body: LearnerPatchBody): Record<
   if (body.lastName !== undefined) patch.last_name = body.lastName;
   if (body.dateOfBirth !== undefined) patch.date_of_birth = body.dateOfBirth;
   if (body.school !== undefined) patch.school = body.school;
-  if (body.enrolmentType !== undefined) patch.enrolment_type = body.enrolmentType;
+  if (body.enrollmentType !== undefined) patch.enrollment_type = body.enrollmentType;
   if (body.programType !== undefined) patch.program_type = body.programType;
   if (body.membershipStatus !== undefined) patch.membership_status = body.membershipStatus;
   if (body.userId !== undefined) patch.user_id = authUserIdOrNull(body.userId ?? undefined);

@@ -66,7 +66,7 @@ CWK Hub is primarily a logged‑in app. SEO is only critical for public pages an
 - Do NOT over‑complicate CWK Hub with full marketing‑site SEO if a separate site exists.
 
 ### 2.2 If doing SEO inside the SPA
-For any public routes inside CWK Hub (e.g. shared enrolment pages, docs):
+For any public routes inside CWK Hub (e.g. shared enrollment pages, docs):
 
 - Use SSR or static generation for public routes when possible, so HTML contains content and meta tags at render time.
 - Manage meta tags per route:
@@ -79,7 +79,7 @@ For any public routes inside CWK Hub (e.g. shared enrolment pages, docs):
 
 ### 2.3 For CWK Hub specifically (logged‑in app)
 - SEO priority is low, but we must:
-  - Set proper titles and share tags for any public "invitation" or "share" pages (e.g. class enrolment links).
+  - Set proper titles and share tags for any public "invitation" or "share" pages (e.g. class enrollment links).
   - Use clean URLs for deep links such as `/class/:id/attendance` so educators can share links internally.
 
 When adding routes or pages, think: "Is this public and shareable?" If yes, enforce good metadata and clean URLs.

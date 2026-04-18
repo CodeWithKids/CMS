@@ -104,7 +104,7 @@ On `/educator/dashboard` they see a **teaching cockpit**.
 When an educator opens **Class detail** (`/educator/classes/:id`):
 
 1. They see class info: name, program, age group, location, learners this term.
-2. Enrolment by term: list of learners with status (active / completed / dropped).
+2. Enrollment by term: list of learners with status (active / completed / dropped).
 3. Attendance summary: average attendance, low‑attendance alerts.
 4. **Sessions table** for this class, each row showing:
    - Date, time, topic, learning track.

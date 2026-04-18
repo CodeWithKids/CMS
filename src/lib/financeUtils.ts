@@ -56,16 +56,16 @@ export function invoicesToIncomeEntries(invoices: Invoice[]): IncomeEntry[] {
   return entries;
 }
 
-export interface RevenueByEnrolmentType {
+export interface RevenueByEnrollmentType {
   member: number;
   partner_org: number;
 }
 
 /** Collected revenue (paid amounts) broken down by learner vs org. Org-level invoices (school_club, organisation) count as partner_org. */
-export function getRevenueByEnrolmentType(
+export function getRevenueByEnrollmentType(
   invoices: Invoice[],
   learners: Learner[]
-): RevenueByEnrolmentType {
+): RevenueByEnrollmentType {
   const learnerMap = new Map(learners.map((l) => [l.id, l]));
   let member = 0;
   let partner_org = 0;
@@ -76,7 +76,7 @@ export function getRevenueByEnrolmentType(
       partner_org += paid; // school/org billed as one client
     } else if (inv.learnerId != null) {
       const learner = learnerMap.get(inv.learnerId);
-      if (learner?.enrolmentType === "partner_org") partner_org += paid;
+      if (learner?.enrollmentType === "partner_org") partner_org += paid;
       else member += paid;
     }
   }
@@ -145,7 +145,7 @@ export interface LearnerPaymentSummary {
   learnerId: string;
   learnerName: string;
   /** "member" = parent pays; "partner_org" = organisation pays */
-  enrolmentType: Learner["enrolmentType"];
+  enrollmentType: Learner["enrollmentType"];
   /** For member: parent name; for partner_org: organisation name */
   payerLabel: string;
   payerPhone: string;
@@ -182,14 +182,14 @@ export function getLearnersWithPendingPayments(
   for (const learner of learners) {
     const summary = byLearner.get(learner.id);
     if (!summary || summary.pendingAmount <= 0) continue;
-    const isPartner = learner.enrolmentType === "partner_org";
+    const isPartner = learner.enrollmentType === "partner_org";
     const org = isPartner && learner.organizationId && getOrganization
       ? getOrganization(learner.organizationId)
       : undefined;
     result.push({
       learnerId: learner.id,
       learnerName: `${learner.firstName} ${learner.lastName}`,
-      enrolmentType: learner.enrolmentType,
+      enrollmentType: learner.enrollmentType,
       payerLabel: isPartner && org ? org.name : (learner.parentName ?? "—"),
       payerPhone: isPartner && org ? (org.contactPhone ?? "") : (learner.parentPhone ?? ""),
       payerEmail: isPartner && org ? (org.contactEmail ?? "") : (learner.parentEmail ?? ""),

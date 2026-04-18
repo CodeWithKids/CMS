@@ -109,7 +109,7 @@ This document describes the **metrics (KPIs)** currently surfaced in CWK Hub per
 | Objective | Key results |
 |-----------|-------------|
 | **O1:** Execute effective marketing campaigns | KR1: N campaigns run per quarter (by type: social, email, event); KR2: X% of campaigns linked to a partnership where relevant; KR3: Campaign status and dates always up to date in CWK Hub |
-| **O2:** Support enrolment and awareness | KR1: Campaigns aligned to term start and key events; KR2: Clear reporting on campaign status for leadership |
+| **O2:** Support enrollment and awareness | KR1: Campaigns aligned to term start and key events; KR2: Clear reporting on campaign status for leadership |
 
 ---
 

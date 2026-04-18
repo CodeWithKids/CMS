@@ -155,7 +155,7 @@ export default function OrganisationLearnerDetailPage() {
             {!enrolledInSelectedTerm ? (
               <>
                 <p className="text-muted-foreground">Not enrolled this term.</p>
-                <p className="text-xs text-muted-foreground mt-1">Enrolment varies by term; check enrolment history below for other terms.</p>
+                <p className="text-xs text-muted-foreground mt-1">Enrollment varies by term; check enrollment history below for other terms.</p>
               </>
             ) : totalSessions > 0 ? (
               <>
@@ -174,12 +174,12 @@ export default function OrganisationLearnerDetailPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="w-5 h-5 text-primary" /> Enrolment history
+            <Users className="w-5 h-5 text-primary" /> Enrollment history
           </CardTitle>
         </CardHeader>
         <CardContent>
           {enrollmentWithDetails.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No enrolment records yet.</p>
+            <p className="text-sm text-muted-foreground">No enrollment records yet.</p>
           ) : (
             <ul className="divide-y divide-border">
               {enrollmentWithDetails.map(({ enrollment, term, cls }) => (

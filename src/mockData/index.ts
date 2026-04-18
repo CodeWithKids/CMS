@@ -58,12 +58,12 @@ export const mockOrganizations: Organization[] = [
 ];
 
 export const mockLearners: Learner[] = [
-  { id: "l1", firstName: "Patricia", lastName: "Wanja", dateOfBirth: "2014-03-15", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "active", userId: "u4", parentUserId: "u5", parentName: "Lucy Njeri", parentPhone: "+254 7XX XXX XXXX", parentEmail: "lucy.njeri@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/patricia_coder/", typingProfileUrl: "https://www.typing.com/student/profile", joinedAt: "2026-01-15" },
-  { id: "l2", firstName: "Maya", lastName: "Patel", dateOfBirth: "2013-07-22", school: "Riverside Academy", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mr. Patel", parentPhone: "+27 83 234 5678", parentEmail: "patel@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/maya_dev/", robloxProfileUrl: "https://www.roblox.com/users/123456789/profile", joinedAt: "2026-01-20" },
-  { id: "l3", firstName: "Ethan", lastName: "Williams", dateOfBirth: "2012-11-08", school: "Oakwood School", enrolmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mrs. Williams", parentPhone: "+27 84 345 6789", parentEmail: "williams@mail.com", status: "active", gender: "male", joinedAt: "2026-01-22" },
-  { id: "l4", firstName: "Zara", lastName: "Nkosi", dateOfBirth: "2015-01-30", school: "Sunshine Primary", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org2", parentName: "Mrs. Nkosi", parentPhone: "", parentEmail: "", status: "active", gender: "female", joinedAt: "2026-01-10" },
-  { id: "l5", firstName: "Liam", lastName: "Brown", dateOfBirth: "2011-09-12", school: "Greenfield Primary", enrolmentType: "member", programType: "MAKERSPACE", membershipStatus: "expired", userId: null, parentName: "Mr. Brown", parentPhone: "+27 86 567 8901", parentEmail: "brown@mail.com", status: "alumni", gender: "male", joinedAt: "2026-01-05" },
-  { id: "l6", firstName: "Sofia", lastName: "Garcia", dateOfBirth: "2014-05-18", school: "Riverside Academy", enrolmentType: "partner_org", programType: "ORGANISATION", organizationId: "org3", status: "active", gender: "female", joinedAt: "2026-01-18" },
+  { id: "l1", firstName: "Patricia", lastName: "Wanja", dateOfBirth: "2014-03-15", school: "Greenfield Primary", enrollmentType: "member", programType: "MAKERSPACE", membershipStatus: "active", userId: "u4", parentUserId: "u5", parentName: "Lucy Njeri", parentPhone: "+254 7XX XXX XXXX", parentEmail: "lucy.njeri@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/patricia_coder/", typingProfileUrl: "https://www.typing.com/student/profile", joinedAt: "2026-01-15" },
+  { id: "l2", firstName: "Maya", lastName: "Patel", dateOfBirth: "2013-07-22", school: "Riverside Academy", enrollmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mr. Patel", parentPhone: "+27 83 234 5678", parentEmail: "patel@mail.com", status: "active", gender: "female", scratchProfileUrl: "https://scratch.mit.edu/users/maya_dev/", robloxProfileUrl: "https://www.roblox.com/users/123456789/profile", joinedAt: "2026-01-20" },
+  { id: "l3", firstName: "Ethan", lastName: "Williams", dateOfBirth: "2012-11-08", school: "Oakwood School", enrollmentType: "member", programType: "SCHOOL_CLUB", parentName: "Mrs. Williams", parentPhone: "+27 84 345 6789", parentEmail: "williams@mail.com", status: "active", gender: "male", joinedAt: "2026-01-22" },
+  { id: "l4", firstName: "Zara", lastName: "Nkosi", dateOfBirth: "2015-01-30", school: "Sunshine Primary", enrollmentType: "partner_org", programType: "ORGANISATION", organizationId: "org2", parentName: "Mrs. Nkosi", parentPhone: "", parentEmail: "", status: "active", gender: "female", joinedAt: "2026-01-10" },
+  { id: "l5", firstName: "Liam", lastName: "Brown", dateOfBirth: "2011-09-12", school: "Greenfield Primary", enrollmentType: "member", programType: "MAKERSPACE", membershipStatus: "expired", userId: null, parentName: "Mr. Brown", parentPhone: "+27 86 567 8901", parentEmail: "brown@mail.com", status: "alumni", gender: "male", joinedAt: "2026-01-05" },
+  { id: "l6", firstName: "Sofia", lastName: "Garcia", dateOfBirth: "2014-05-18", school: "Riverside Academy", enrollmentType: "partner_org", programType: "ORGANISATION", organizationId: "org3", status: "active", gender: "female", joinedAt: "2026-01-18" },
 ];
 
 /** Type of class / session category. Used for class program and filters. Add more as needed. */
@@ -202,7 +202,7 @@ export const getLearnersForClass = (classId: string): Learner[] => {
   return cls.learnerIds.map((lid) => mockLearners.find((l) => l.id === lid)).filter((l): l is Learner => !!l);
 };
 
-// ——— Term-based enrolments ———
+// ——— Term-based enrollments ———
 export const getTerm = (id: string): Term | undefined =>
   mockTerms.find((t) => t.id === id);
 
@@ -470,7 +470,7 @@ export const mockTerms: Term[] = [
   { id: "t3", name: "Term 3 2026", year: 2026, startDate: "2026-08-15", endDate: "2026-09-26" },
 ];
 
-/** Term-based enrolments. Who is in which class per term; status tracks active/dropped/completed for retention. */
+/** Term-based enrollments. Who is in which class per term; status tracks active/dropped/completed for retention. */
 export const mockClassEnrollments: ClassEnrollment[] = [
   // Term 1 2026: mirror current class.learnerIds
   { id: "ce1", classId: "c1", learnerId: "l1", termId: "t1", status: "active" },

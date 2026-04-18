@@ -9,7 +9,7 @@ This document lists improvements to complete on the frontend **before** (or in p
 | Item | What to do |
 |------|------------|
 | **Document title** | In `index.html`, the comment says "TODO: Set the document title". The `<title>` is already "Code With Kids LMS"; consider aligning with branding (e.g. "CWK Hub") and removing the TODO. |
-| **Admin learner detail – term selector** | Add a **term selector** (Term 1, Term 2, Term 3) on `/admin/learners/:id`, like the organisation learner detail page, so admin can view attendance and enrolment per term, not only current term. |
+| **Admin learner detail – term selector** | Add a **term selector** (Term 1, Term 2, Term 3) on `/admin/learners/:id`, like the organisation learner detail page, so admin can view attendance and enrollment per term, not only current term. |
 | **Inventory list – checkout status** | On `/inventory`, for items with `status === "checked_out"`, show **"Checked out by [Name] since [date]"** (and optional due date). Use secondary text or a badge so status is obvious. |
 | **Educator sidebar** | Per Educator Sidebar Navigation prompt: streamline to Dashboard, Schedule, Team schedules, Profile, Earnings, Inventory; remove "My classes" and "My devices" from sidebar and add a short line on the Dashboard: *"Your classes and devices are below."* |
 
@@ -35,8 +35,8 @@ Use shadcn **AlertDialog** before any action that removes or deletes data. You a
 - Deleting or removing **availability blocks** (educator schedule).
 - **Removing a coach** from a session.
 - **Returning a device** (inventory).
-- **Dropping a learner** from a class (class enrolments).
-- Any **delete** or **remove** in admin/finance (e.g. expense, enrolment).
+- **Dropping a learner** from a class (class enrollments).
+- Any **delete** or **remove** in admin/finance (e.g. expense, enrollment).
 
 Confirm with a short message and **Cancel** / **Confirm**; run the action only after confirm.
 
@@ -69,7 +69,7 @@ Items 2–4 and 6–9 depend on 1 (coach on sessions and role helper). Do 1 firs
 | **Account approvals** | Approve/reject buttons with confirmation and success feedback; optional bulk approve. |
 | **Session reports** | "Send reminder" is toast-only; leave a placeholder or comment for "wire to email/API when backend ready." Coach feedback on report detail when that feature exists. |
 | **Finance** | Single finance "home" or dashboard section linking to educator payments, expenses, session expenses, invoices. Income categorisation (session type, org, programme, payer) for reporting. |
-| **Breadcrumbs** | Optional breadcrumbs on deep pages (e.g. Learners → [Name], Classes → [Class] → Enrolments) for easier navigation. |
+| **Breadcrumbs** | Optional breadcrumbs on deep pages (e.g. Learners → [Name], Classes → [Class] → Enrollments) for easier navigation. |
 
 ---
 
@@ -117,7 +117,7 @@ After that, the frontend will be in good shape to swap mock data for API calls w
 
 - **Quick wins:** Done — document title (CWK Hub), admin learner term selector, inventory checkout text (with due date), educator dashboard line already present; educator nav already streamlined.
 - **Loading/empty/error:** Done — admin dashboard and educator dashboard show skeletons briefly and have error banner + retry; learners list has error banner and improved empty-state copy.
-- **Confirmations:** Done — availability block remove, coach remove, return device already had AlertDialogs; added confirmation for “Mark as dropped” on class enrolments.
+- **Confirmations:** Done — availability block remove, coach remove, return device already had AlertDialogs; added confirmation for “Mark as dropped” on class enrollments.
 - **Admin polish:** Done — “Pending actions” summary on admin dashboard (session reports missing count + account approvals count with links).
 - **Route lazy-loading:** Done — Admin, Finance, and Educator dashboard routes are lazy-loaded; `Suspense` with “Loading…” fallback wraps `Routes`.
 - **Educator hardening:** Coach on sessions and `getSessionRoleForUser` already implemented; coach feedback, full lesson plan editor, notes, computed badges, hours by term, and breadcrumbs remain as optional/future work.

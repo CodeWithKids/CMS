@@ -80,7 +80,7 @@ router.get("/learners", requireAuth, async (req: Request, res: Response) => {
       lastName: l.lastName,
       school: l.school,
       programType: l.programType,
-      enrollmentType: l.enrolmentType,
+      enrollmentType: l.enrollmentType,
       organizationId: l.organizationId ?? null,
       parentEmail: l.parentEmail ?? null,
       parentPhone: l.parentPhone ?? null,

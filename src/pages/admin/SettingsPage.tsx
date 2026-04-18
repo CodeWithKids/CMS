@@ -83,6 +83,32 @@ import {
   expenseCategoriesDelete,
   type ExpenseCategoryApi,
 } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
+import {
+  supabaseTermsCreate,
+  supabaseTermsPatch,
+  supabaseTermsDelete,
+  supabaseProgramsList,
+  supabaseProgramsCreate,
+  supabaseProgramsPatch,
+  supabaseProgramsDelete,
+  supabaseLocationsList,
+  supabaseLocationsCreate,
+  supabaseLocationsPatch,
+  supabaseLocationsDelete,
+  supabaseAgeGroupsList,
+  supabaseAgeGroupsCreate,
+  supabaseAgeGroupsPatch,
+  supabaseAgeGroupsDelete,
+  supabaseIncomeSourcesList,
+  supabaseIncomeSourcesCreate,
+  supabaseIncomeSourcesPatch,
+  supabaseIncomeSourcesDelete,
+  supabaseExpenseCategoriesList,
+  supabaseExpenseCategoriesCreate,
+  supabaseExpenseCategoriesPatch,
+  supabaseExpenseCategoriesDelete,
+} from "@/lib/settingsReferenceDataSupabase";
 import { useToast } from "@/hooks/use-toast";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { LearningTrack } from "@/types";
@@ -96,8 +122,18 @@ function formatDate(iso: string): string {
 }
 
 function toastError(toast: ReturnType<typeof useToast>["toast"], title: string, err: unknown, fallback: string) {
-  const msg = err && typeof err === "object" && "body" in err && (err as { body?: { message?: string } }).body?.message;
-  toast({ title, description: msg ?? fallback, variant: "destructive" });
+  let msg: string | undefined;
+  if (err && typeof err === "object") {
+    const o = err as Record<string, unknown>;
+    const body = o.body;
+    if (body && typeof body === "object" && "message" in body) {
+      const m = (body as { message?: unknown }).message;
+      if (typeof m === "string") msg = m;
+    }
+    if (!msg && typeof o.message === "string") msg = o.message;
+  }
+  const description = msg?.trim() ? msg : fallback;
+  toast({ title, description, variant: "destructive" });
 }
 
 // ——— Term form ———
@@ -135,6 +171,8 @@ export default function SettingsPage() {
   const { currentUser } = useAuth();
   const { terms, currentTerm, isLoading: termsLoading } = useTerms();
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const settingsLive = apiEnabled || supabaseEnabled;
   const isAdmin = currentUser?.role === "admin";
 
   // Terms state
@@ -147,8 +185,8 @@ export default function SettingsPage() {
   // Programs
   const { data: programsList = [], isLoading: programsLoading } = useQuery({
     queryKey: ["programs"],
-    queryFn: programsGetAll,
-    enabled: apiEnabled,
+    queryFn: () => (supabaseEnabled ? supabaseProgramsList() : programsGetAll()),
+    enabled: settingsLive,
   });
   const { data: focusAreas = [] } = useQuery({
     queryKey: ["focus-areas"],
@@ -165,8 +203,8 @@ export default function SettingsPage() {
   // Locations
   const { data: locationsList = [], isLoading: locationsLoading } = useQuery({
     queryKey: ["locations"],
-    queryFn: locationsGetAll,
-    enabled: apiEnabled,
+    queryFn: () => (supabaseEnabled ? supabaseLocationsList() : locationsGetAll()),
+    enabled: settingsLive,
   });
   const [locationFormOpen, setLocationFormOpen] = useState<"create" | LocationApi | null>(null);
   const [locationFormState, setLocationFormState] = useState<LocationFormState>(emptyLocationForm);
@@ -177,8 +215,8 @@ export default function SettingsPage() {
   // Age groups
   const { data: ageGroupsList = [], isLoading: ageGroupsLoading } = useQuery({
     queryKey: ["ageGroups"],
-    queryFn: ageGroupsGetAll,
-    enabled: apiEnabled,
+    queryFn: () => (supabaseEnabled ? supabaseAgeGroupsList() : ageGroupsGetAll()),
+    enabled: settingsLive,
   });
   const [ageGroupFormOpen, setAgeGroupFormOpen] = useState<"create" | AgeGroupApi | null>(null);
   const [ageGroupFormState, setAgeGroupFormState] = useState<AgeGroupFormState>(emptyAgeGroupForm);
@@ -189,8 +227,8 @@ export default function SettingsPage() {
   // Income sources
   const { data: incomeSourcesList = [], isLoading: incomeSourcesLoading } = useQuery({
     queryKey: ["incomeSources"],
-    queryFn: incomeSourcesGetAll,
-    enabled: apiEnabled,
+    queryFn: () => (supabaseEnabled ? supabaseIncomeSourcesList() : incomeSourcesGetAll()),
+    enabled: settingsLive,
   });
   const [incomeSourceFormOpen, setIncomeSourceFormOpen] = useState<"create" | IncomeSourceApi | null>(null);
   const [incomeSourceFormState, setIncomeSourceFormState] = useState<IncomeSourceFormState>(emptyIncomeSourceForm);
@@ -201,8 +239,8 @@ export default function SettingsPage() {
   // Expense categories
   const { data: expenseCategoriesList = [], isLoading: expenseCategoriesLoading } = useQuery({
     queryKey: ["expenseCategories"],
-    queryFn: expenseCategoriesGetAll,
-    enabled: apiEnabled,
+    queryFn: () => (supabaseEnabled ? supabaseExpenseCategoriesList() : expenseCategoriesGetAll()),
+    enabled: settingsLive,
   });
   const [expenseCategoryFormOpen, setExpenseCategoryFormOpen] = useState<"create" | ExpenseCategoryApi | null>(null);
   const [expenseCategoryFormState, setExpenseCategoryFormState] = useState<ExpenseCategoryFormState>(emptyExpenseCategoryForm);
@@ -210,12 +248,12 @@ export default function SettingsPage() {
   const [expenseCategoryDeleteTarget, setExpenseCategoryDeleteTarget] = useState<ExpenseCategoryApi | null>(null);
   const [expenseCategoryDeleteLoading, setExpenseCategoryDeleteLoading] = useState(false);
 
-  const termsList = apiEnabled ? (terms ?? []).map((t) => ({ id: t.id, name: t.name, startDate: t.startDate, endDate: t.endDate })) : mockTerms;
-  const programsDisplay = apiEnabled ? programsList : mockPrograms;
-  const locationsDisplay = apiEnabled ? locationsList : mockLocations;
-  const ageGroupsDisplay = apiEnabled ? ageGroupsList : mockAgeGroups;
-  const incomeSourcesDisplay = apiEnabled ? incomeSourcesList : mockIncomeSources;
-  const expenseCategoriesDisplay = apiEnabled ? expenseCategoriesList : mockExpenseCategories;
+  const termsList = settingsLive ? (terms ?? []).map((t) => ({ id: t.id, name: t.name, startDate: t.startDate, endDate: t.endDate })) : mockTerms;
+  const programsDisplay = settingsLive ? programsList : mockPrograms;
+  const locationsDisplay = settingsLive ? locationsList : mockLocations;
+  const ageGroupsDisplay = settingsLive ? ageGroupsList : mockAgeGroups;
+  const incomeSourcesDisplay = settingsLive ? incomeSourcesList : mockIncomeSources;
+  const expenseCategoriesDisplay = settingsLive ? expenseCategoriesList : mockExpenseCategories;
 
   // ——— Term handlers ———
   function openTermCreate() {
@@ -228,47 +266,59 @@ export default function SettingsPage() {
   }
   function handleTermFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!settingsLive || !isAdmin) return;
     const { name, startDate, endDate, isCurrent } = termFormState;
     if (!name.trim() || !startDate || !endDate) {
       toast({ title: "Missing fields", description: "Name, start date, and end date are required.", variant: "destructive" });
       return;
     }
     setTermFormSaving(true);
-    if (termFormOpen === "create") {
-      termsCreate({ name: name.trim(), startDate, endDate, isCurrent })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["terms"] });
-          queryClient.invalidateQueries({ queryKey: ["terms", "current"] });
-          toast({ title: "Term created" });
-          setTermFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Create failed", err, "Could not create term."))
-        .finally(() => setTermFormSaving(false));
-    } else if (typeof termFormOpen === "object" && termFormOpen.id) {
-      termsPatch(termFormOpen.id, { name: name.trim(), startDate, endDate, isCurrent })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["terms"] });
-          queryClient.invalidateQueries({ queryKey: ["terms", "current"] });
-          toast({ title: "Term updated" });
-          setTermFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Update failed", err, "Could not update term."))
-        .finally(() => setTermFormSaving(false));
-    }
+    void (async () => {
+      try {
+        if (supabaseEnabled) {
+          if (termFormOpen === "create") {
+            await supabaseTermsCreate({ name: name.trim(), startDate, endDate, isCurrent });
+          } else if (typeof termFormOpen === "object" && termFormOpen.id) {
+            await supabaseTermsPatch(termFormOpen.id, { name: name.trim(), startDate, endDate, isCurrent });
+          }
+        } else if (termFormOpen === "create") {
+          await termsCreate({ name: name.trim(), startDate, endDate, isCurrent });
+        } else if (typeof termFormOpen === "object" && termFormOpen.id) {
+          await termsPatch(termFormOpen.id, { name: name.trim(), startDate, endDate, isCurrent });
+        }
+        queryClient.invalidateQueries({ queryKey: ["terms"] });
+        queryClient.invalidateQueries({ queryKey: ["terms", "current"] });
+        toast({ title: termFormOpen === "create" ? "Term created" : "Term updated" });
+        setTermFormOpen(null);
+      } catch (err) {
+        toastError(
+          toast,
+          termFormOpen === "create" ? "Create failed" : "Update failed",
+          err,
+          termFormOpen === "create" ? "Could not create term." : "Could not update term."
+        );
+      } finally {
+        setTermFormSaving(false);
+      }
+    })();
   }
   function handleTermDelete() {
-    if (!termDeleteTarget || !apiEnabled) return;
+    if (!termDeleteTarget || !settingsLive) return;
     setTermDeleteLoading(true);
-    termsDelete(termDeleteTarget.id)
-      .then(() => {
+    void (async () => {
+      try {
+        if (supabaseEnabled) await supabaseTermsDelete(termDeleteTarget.id);
+        else await termsDelete(termDeleteTarget.id);
         queryClient.invalidateQueries({ queryKey: ["terms"] });
         queryClient.invalidateQueries({ queryKey: ["terms", "current"] });
         toast({ title: "Term deleted" });
         setTermDeleteTarget(null);
-      })
-      .catch((err) => toastError(toast, "Delete failed", err, "Could not delete term."))
-      .finally(() => setTermDeleteLoading(false));
+      } catch (err) {
+        toastError(toast, "Delete failed", err, "Could not delete term.");
+      } finally {
+        setTermDeleteLoading(false);
+      }
+    })();
   }
 
   // ——— Program handlers ———
@@ -282,7 +332,7 @@ export default function SettingsPage() {
   }
   function handleProgramFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!settingsLive || !isAdmin) return;
     const { name, description, trackId } = programFormState;
     if (!name.trim()) {
       toast({ title: "Name required", variant: "destructive" });
@@ -290,37 +340,50 @@ export default function SettingsPage() {
     }
     setProgramFormSaving(true);
     const trackIdVal = trackId.trim() || null;
-    if (programFormOpen === "create") {
-      programsCreate({ name: name.trim(), description: description.trim() || null, trackId: trackIdVal })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["programs"] });
-          toast({ title: "Program created" });
-          setProgramFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Create failed", err, "Could not create program."))
-        .finally(() => setProgramFormSaving(false));
-    } else if (typeof programFormOpen === "object") {
-      programsPatch(programFormOpen.id, { name: name.trim(), description: description.trim() || null, trackId: trackIdVal })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["programs"] });
-          toast({ title: "Program updated" });
-          setProgramFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Update failed", err, "Could not update program."))
-        .finally(() => setProgramFormSaving(false));
-    }
+    void (async () => {
+      try {
+        if (supabaseEnabled) {
+          if (programFormOpen === "create") {
+            await supabaseProgramsCreate({ name: name.trim(), description: description.trim() || null, trackId: trackIdVal });
+          } else if (typeof programFormOpen === "object") {
+            await supabaseProgramsPatch(programFormOpen.id, { name: name.trim(), description: description.trim() || null, trackId: trackIdVal });
+          }
+        } else if (programFormOpen === "create") {
+          await programsCreate({ name: name.trim(), description: description.trim() || null, trackId: trackIdVal });
+        } else if (typeof programFormOpen === "object") {
+          await programsPatch(programFormOpen.id, { name: name.trim(), description: description.trim() || null, trackId: trackIdVal });
+        }
+        queryClient.invalidateQueries({ queryKey: ["programs"] });
+        toast({ title: programFormOpen === "create" ? "Program created" : "Program updated" });
+        setProgramFormOpen(null);
+      } catch (err) {
+        toastError(
+          toast,
+          programFormOpen === "create" ? "Create failed" : "Update failed",
+          err,
+          programFormOpen === "create" ? "Could not create program." : "Could not update program."
+        );
+      } finally {
+        setProgramFormSaving(false);
+      }
+    })();
   }
   function handleProgramDelete() {
-    if (!programDeleteTarget || !apiEnabled) return;
+    if (!programDeleteTarget || !settingsLive) return;
     setProgramDeleteLoading(true);
-    programsDelete(programDeleteTarget.id)
-      .then(() => {
+    void (async () => {
+      try {
+        if (supabaseEnabled) await supabaseProgramsDelete(programDeleteTarget.id);
+        else await programsDelete(programDeleteTarget.id);
         queryClient.invalidateQueries({ queryKey: ["programs"] });
         toast({ title: "Program deleted" });
         setProgramDeleteTarget(null);
-      })
-      .catch((err) => toastError(toast, "Delete failed", err, "Could not delete program."))
-      .finally(() => setProgramDeleteLoading(false));
+      } catch (err) {
+        toastError(toast, "Delete failed", err, "Could not delete program.");
+      } finally {
+        setProgramDeleteLoading(false);
+      }
+    })();
   }
 
   // ——— Location handlers ———
@@ -334,44 +397,57 @@ export default function SettingsPage() {
   }
   function handleLocationFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!settingsLive || !isAdmin) return;
     const { name, address } = locationFormState;
     if (!name.trim()) {
       toast({ title: "Name required", variant: "destructive" });
       return;
     }
     setLocationFormSaving(true);
-    if (locationFormOpen === "create") {
-      locationsCreate({ name: name.trim(), address: address.trim() || null })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["locations"] });
-          toast({ title: "Location created" });
-          setLocationFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Create failed", err, "Could not create location."))
-        .finally(() => setLocationFormSaving(false));
-    } else if (typeof locationFormOpen === "object") {
-      locationsPatch(locationFormOpen.id, { name: name.trim(), address: address.trim() || null })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["locations"] });
-          toast({ title: "Location updated" });
-          setLocationFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Update failed", err, "Could not update location."))
-        .finally(() => setLocationFormSaving(false));
-    }
+    void (async () => {
+      try {
+        if (supabaseEnabled) {
+          if (locationFormOpen === "create") {
+            await supabaseLocationsCreate({ name: name.trim(), address: address.trim() || null });
+          } else if (typeof locationFormOpen === "object") {
+            await supabaseLocationsPatch(locationFormOpen.id, { name: name.trim(), address: address.trim() || null });
+          }
+        } else if (locationFormOpen === "create") {
+          await locationsCreate({ name: name.trim(), address: address.trim() || null });
+        } else if (typeof locationFormOpen === "object") {
+          await locationsPatch(locationFormOpen.id, { name: name.trim(), address: address.trim() || null });
+        }
+        queryClient.invalidateQueries({ queryKey: ["locations"] });
+        toast({ title: locationFormOpen === "create" ? "Location created" : "Location updated" });
+        setLocationFormOpen(null);
+      } catch (err) {
+        toastError(
+          toast,
+          locationFormOpen === "create" ? "Create failed" : "Update failed",
+          err,
+          locationFormOpen === "create" ? "Could not create location." : "Could not update location."
+        );
+      } finally {
+        setLocationFormSaving(false);
+      }
+    })();
   }
   function handleLocationDelete() {
-    if (!locationDeleteTarget || !apiEnabled) return;
+    if (!locationDeleteTarget || !settingsLive) return;
     setLocationDeleteLoading(true);
-    locationsDelete(locationDeleteTarget.id)
-      .then(() => {
+    void (async () => {
+      try {
+        if (supabaseEnabled) await supabaseLocationsDelete(locationDeleteTarget.id);
+        else await locationsDelete(locationDeleteTarget.id);
         queryClient.invalidateQueries({ queryKey: ["locations"] });
         toast({ title: "Location deleted" });
         setLocationDeleteTarget(null);
-      })
-      .catch((err) => toastError(toast, "Delete failed", err, "Could not delete location."))
-      .finally(() => setLocationDeleteLoading(false));
+      } catch (err) {
+        toastError(toast, "Delete failed", err, "Could not delete location.");
+      } finally {
+        setLocationDeleteLoading(false);
+      }
+    })();
   }
 
   // ——— Age group handlers ———
@@ -389,7 +465,7 @@ export default function SettingsPage() {
   }
   function handleAgeGroupFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!settingsLive || !isAdmin) return;
     const { name, minAge, maxAge } = ageGroupFormState;
     if (!name.trim()) {
       toast({ title: "Name required", variant: "destructive" });
@@ -402,37 +478,50 @@ export default function SettingsPage() {
       return;
     }
     setAgeGroupFormSaving(true);
-    if (ageGroupFormOpen === "create") {
-      ageGroupsCreate({ name: name.trim(), minAge: min ?? undefined, maxAge: max ?? undefined })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["ageGroups"] });
-          toast({ title: "Age group created" });
-          setAgeGroupFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Create failed", err, "Could not create age group."))
-        .finally(() => setAgeGroupFormSaving(false));
-    } else if (typeof ageGroupFormOpen === "object") {
-      ageGroupsPatch(ageGroupFormOpen.id, { name: name.trim(), minAge: min, maxAge: max })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["ageGroups"] });
-          toast({ title: "Age group updated" });
-          setAgeGroupFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Update failed", err, "Could not update age group."))
-        .finally(() => setAgeGroupFormSaving(false));
-    }
+    void (async () => {
+      try {
+        if (supabaseEnabled) {
+          if (ageGroupFormOpen === "create") {
+            await supabaseAgeGroupsCreate({ name: name.trim(), minAge: min, maxAge: max });
+          } else if (typeof ageGroupFormOpen === "object") {
+            await supabaseAgeGroupsPatch(ageGroupFormOpen.id, { name: name.trim(), minAge: min, maxAge: max });
+          }
+        } else if (ageGroupFormOpen === "create") {
+          await ageGroupsCreate({ name: name.trim(), minAge: min ?? undefined, maxAge: max ?? undefined });
+        } else if (typeof ageGroupFormOpen === "object") {
+          await ageGroupsPatch(ageGroupFormOpen.id, { name: name.trim(), minAge: min, maxAge: max });
+        }
+        queryClient.invalidateQueries({ queryKey: ["ageGroups"] });
+        toast({ title: ageGroupFormOpen === "create" ? "Age group created" : "Age group updated" });
+        setAgeGroupFormOpen(null);
+      } catch (err) {
+        toastError(
+          toast,
+          ageGroupFormOpen === "create" ? "Create failed" : "Update failed",
+          err,
+          ageGroupFormOpen === "create" ? "Could not create age group." : "Could not update age group."
+        );
+      } finally {
+        setAgeGroupFormSaving(false);
+      }
+    })();
   }
   function handleAgeGroupDelete() {
-    if (!ageGroupDeleteTarget || !apiEnabled) return;
+    if (!ageGroupDeleteTarget || !settingsLive) return;
     setAgeGroupDeleteLoading(true);
-    ageGroupsDelete(ageGroupDeleteTarget.id)
-      .then(() => {
+    void (async () => {
+      try {
+        if (supabaseEnabled) await supabaseAgeGroupsDelete(ageGroupDeleteTarget.id);
+        else await ageGroupsDelete(ageGroupDeleteTarget.id);
         queryClient.invalidateQueries({ queryKey: ["ageGroups"] });
         toast({ title: "Age group deleted" });
         setAgeGroupDeleteTarget(null);
-      })
-      .catch((err) => toastError(toast, "Delete failed", err, "Could not delete age group."))
-      .finally(() => setAgeGroupDeleteLoading(false));
+      } catch (err) {
+        toastError(toast, "Delete failed", err, "Could not delete age group.");
+      } finally {
+        setAgeGroupDeleteLoading(false);
+      }
+    })();
   }
 
   // ——— Income source handlers ———
@@ -446,44 +535,57 @@ export default function SettingsPage() {
   }
   function handleIncomeSourceFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!settingsLive || !isAdmin) return;
     const { name, code } = incomeSourceFormState;
     if (!name.trim()) {
       toast({ title: "Name required", variant: "destructive" });
       return;
     }
     setIncomeSourceFormSaving(true);
-    if (incomeSourceFormOpen === "create") {
-      incomeSourcesCreate({ name: name.trim(), code: code.trim() || null })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["incomeSources"] });
-          toast({ title: "Income source created" });
-          setIncomeSourceFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Create failed", err, "Could not create income source."))
-        .finally(() => setIncomeSourceFormSaving(false));
-    } else if (typeof incomeSourceFormOpen === "object") {
-      incomeSourcesPatch(incomeSourceFormOpen.id, { name: name.trim(), code: code.trim() || null })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["incomeSources"] });
-          toast({ title: "Income source updated" });
-          setIncomeSourceFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Update failed", err, "Could not update income source."))
-        .finally(() => setIncomeSourceFormSaving(false));
-    }
+    void (async () => {
+      try {
+        if (supabaseEnabled) {
+          if (incomeSourceFormOpen === "create") {
+            await supabaseIncomeSourcesCreate({ name: name.trim(), code: code.trim() || null });
+          } else if (typeof incomeSourceFormOpen === "object") {
+            await supabaseIncomeSourcesPatch(incomeSourceFormOpen.id, { name: name.trim(), code: code.trim() || null });
+          }
+        } else if (incomeSourceFormOpen === "create") {
+          await incomeSourcesCreate({ name: name.trim(), code: code.trim() || null });
+        } else if (typeof incomeSourceFormOpen === "object") {
+          await incomeSourcesPatch(incomeSourceFormOpen.id, { name: name.trim(), code: code.trim() || null });
+        }
+        queryClient.invalidateQueries({ queryKey: ["incomeSources"] });
+        toast({ title: incomeSourceFormOpen === "create" ? "Income source created" : "Income source updated" });
+        setIncomeSourceFormOpen(null);
+      } catch (err) {
+        toastError(
+          toast,
+          incomeSourceFormOpen === "create" ? "Create failed" : "Update failed",
+          err,
+          incomeSourceFormOpen === "create" ? "Could not create income source." : "Could not update income source."
+        );
+      } finally {
+        setIncomeSourceFormSaving(false);
+      }
+    })();
   }
   function handleIncomeSourceDelete() {
-    if (!incomeSourceDeleteTarget || !apiEnabled) return;
+    if (!incomeSourceDeleteTarget || !settingsLive) return;
     setIncomeSourceDeleteLoading(true);
-    incomeSourcesDelete(incomeSourceDeleteTarget.id)
-      .then(() => {
+    void (async () => {
+      try {
+        if (supabaseEnabled) await supabaseIncomeSourcesDelete(incomeSourceDeleteTarget.id);
+        else await incomeSourcesDelete(incomeSourceDeleteTarget.id);
         queryClient.invalidateQueries({ queryKey: ["incomeSources"] });
         toast({ title: "Income source deleted" });
         setIncomeSourceDeleteTarget(null);
-      })
-      .catch((err) => toastError(toast, "Delete failed", err, "Could not delete income source."))
-      .finally(() => setIncomeSourceDeleteLoading(false));
+      } catch (err) {
+        toastError(toast, "Delete failed", err, "Could not delete income source.");
+      } finally {
+        setIncomeSourceDeleteLoading(false);
+      }
+    })();
   }
 
   // ——— Expense category handlers ———
@@ -497,44 +599,57 @@ export default function SettingsPage() {
   }
   function handleExpenseCategoryFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!settingsLive || !isAdmin) return;
     const { name, code } = expenseCategoryFormState;
     if (!name.trim()) {
       toast({ title: "Name required", variant: "destructive" });
       return;
     }
     setExpenseCategoryFormSaving(true);
-    if (expenseCategoryFormOpen === "create") {
-      expenseCategoriesCreate({ name: name.trim(), code: code.trim() || null })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["expenseCategories"] });
-          toast({ title: "Expense category created" });
-          setExpenseCategoryFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Create failed", err, "Could not create expense category."))
-        .finally(() => setExpenseCategoryFormSaving(false));
-    } else if (typeof expenseCategoryFormOpen === "object") {
-      expenseCategoriesPatch(expenseCategoryFormOpen.id, { name: name.trim(), code: code.trim() || null })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["expenseCategories"] });
-          toast({ title: "Expense category updated" });
-          setExpenseCategoryFormOpen(null);
-        })
-        .catch((err) => toastError(toast, "Update failed", err, "Could not update expense category."))
-        .finally(() => setExpenseCategoryFormSaving(false));
-    }
+    void (async () => {
+      try {
+        if (supabaseEnabled) {
+          if (expenseCategoryFormOpen === "create") {
+            await supabaseExpenseCategoriesCreate({ name: name.trim(), code: code.trim() || null });
+          } else if (typeof expenseCategoryFormOpen === "object") {
+            await supabaseExpenseCategoriesPatch(expenseCategoryFormOpen.id, { name: name.trim(), code: code.trim() || null });
+          }
+        } else if (expenseCategoryFormOpen === "create") {
+          await expenseCategoriesCreate({ name: name.trim(), code: code.trim() || null });
+        } else if (typeof expenseCategoryFormOpen === "object") {
+          await expenseCategoriesPatch(expenseCategoryFormOpen.id, { name: name.trim(), code: code.trim() || null });
+        }
+        queryClient.invalidateQueries({ queryKey: ["expenseCategories"] });
+        toast({ title: expenseCategoryFormOpen === "create" ? "Expense category created" : "Expense category updated" });
+        setExpenseCategoryFormOpen(null);
+      } catch (err) {
+        toastError(
+          toast,
+          expenseCategoryFormOpen === "create" ? "Create failed" : "Update failed",
+          err,
+          expenseCategoryFormOpen === "create" ? "Could not create expense category." : "Could not update expense category."
+        );
+      } finally {
+        setExpenseCategoryFormSaving(false);
+      }
+    })();
   }
   function handleExpenseCategoryDelete() {
-    if (!expenseCategoryDeleteTarget || !apiEnabled) return;
+    if (!expenseCategoryDeleteTarget || !settingsLive) return;
     setExpenseCategoryDeleteLoading(true);
-    expenseCategoriesDelete(expenseCategoryDeleteTarget.id)
-      .then(() => {
+    void (async () => {
+      try {
+        if (supabaseEnabled) await supabaseExpenseCategoriesDelete(expenseCategoryDeleteTarget.id);
+        else await expenseCategoriesDelete(expenseCategoryDeleteTarget.id);
         queryClient.invalidateQueries({ queryKey: ["expenseCategories"] });
         toast({ title: "Expense category deleted" });
         setExpenseCategoryDeleteTarget(null);
-      })
-      .catch((err) => toastError(toast, "Delete failed", err, "Could not delete expense category."))
-      .finally(() => setExpenseCategoryDeleteLoading(false));
+      } catch (err) {
+        toastError(toast, "Delete failed", err, "Could not delete expense category.");
+      } finally {
+        setExpenseCategoryDeleteLoading(false);
+      }
+    })();
   }
 
   return (
@@ -542,7 +657,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
-          Programs, terms, locations, age groups, and finance configuration. Admins can add, edit, and delete all items when the API is enabled.
+          Programs, terms, locations, age groups, and finance configuration. Admins can add, edit, and delete all items when the Node API or Supabase backend is enabled.
         </p>
       </div>
 
@@ -563,7 +678,7 @@ export default function SettingsPage() {
                   </CardTitle>
                   <CardDescription>Academic terms and date ranges.</CardDescription>
                 </div>
-                {apiEnabled && isAdmin && (
+                {settingsLive && isAdmin && (
                   <Button onClick={openTermCreate} size="sm" className="gap-2">
                     <Plus className="w-4 h-4" /> Add term
                   </Button>
@@ -571,7 +686,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {termsLoading && apiEnabled ? (
+              {termsLoading && settingsLive ? (
                 <p className="text-sm text-muted-foreground">Loading terms…</p>
               ) : (
                 <Table>
@@ -580,7 +695,7 @@ export default function SettingsPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Start</TableHead>
                       <TableHead>End</TableHead>
-                      {apiEnabled && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      {settingsLive && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -589,7 +704,7 @@ export default function SettingsPage() {
                         <TableCell className="font-medium">{t.name}</TableCell>
                         <TableCell className="text-sm">{formatDate(t.startDate)}</TableCell>
                         <TableCell className="text-sm">{formatDate(t.endDate)}</TableCell>
-                        {apiEnabled && isAdmin && (
+                        {settingsLive && isAdmin && (
                           <TableCell className="space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openTermEdit(t)} title="Edit term">
                               <Pencil className="h-4 w-4" />
@@ -617,7 +732,7 @@ export default function SettingsPage() {
                   </CardTitle>
                   <CardDescription>Learning programs offered.</CardDescription>
                 </div>
-                {apiEnabled && isAdmin && (
+                {settingsLive && isAdmin && (
                   <Button onClick={openProgramCreate} size="sm" className="gap-2">
                     <Plus className="w-4 h-4" /> Add program
                   </Button>
@@ -625,7 +740,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {programsLoading && apiEnabled ? (
+              {programsLoading && settingsLive ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
                 <Table>
@@ -633,7 +748,7 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
-                      {apiEnabled && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      {settingsLive && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -641,7 +756,7 @@ export default function SettingsPage() {
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{p.description ?? "—"}</TableCell>
-                        {apiEnabled && isAdmin && (
+                        {settingsLive && isAdmin && (
                           <TableCell className="space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openProgramEdit(p as ProgramApi)} title="Edit">
                               <Pencil className="h-4 w-4" />
@@ -669,7 +784,7 @@ export default function SettingsPage() {
                   </CardTitle>
                   <CardDescription>Venues and rooms.</CardDescription>
                 </div>
-                {apiEnabled && isAdmin && (
+                {settingsLive && isAdmin && (
                   <Button onClick={openLocationCreate} size="sm" className="gap-2">
                     <Plus className="w-4 h-4" /> Add location
                   </Button>
@@ -677,7 +792,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {locationsLoading && apiEnabled ? (
+              {locationsLoading && settingsLive ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
                 <Table>
@@ -685,7 +800,7 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Address</TableHead>
-                      {apiEnabled && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      {settingsLive && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -693,7 +808,7 @@ export default function SettingsPage() {
                       <TableRow key={loc.id}>
                         <TableCell className="font-medium">{loc.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{loc.address ?? "—"}</TableCell>
-                        {apiEnabled && isAdmin && (
+                        {settingsLive && isAdmin && (
                           <TableCell className="space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openLocationEdit(loc as LocationApi)} title="Edit">
                               <Pencil className="h-4 w-4" />
@@ -721,7 +836,7 @@ export default function SettingsPage() {
                   </CardTitle>
                   <CardDescription>Age ranges for classes.</CardDescription>
                 </div>
-                {apiEnabled && isAdmin && (
+                {settingsLive && isAdmin && (
                   <Button onClick={openAgeGroupCreate} size="sm" className="gap-2">
                     <Plus className="w-4 h-4" /> Add age group
                   </Button>
@@ -729,7 +844,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {ageGroupsLoading && apiEnabled ? (
+              {ageGroupsLoading && settingsLive ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
                 <Table>
@@ -737,7 +852,7 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Age range</TableHead>
-                      {apiEnabled && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      {settingsLive && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -747,7 +862,7 @@ export default function SettingsPage() {
                         <TableCell className="text-sm text-muted-foreground">
                           {ag.minAge != null && ag.maxAge != null ? `${ag.minAge}–${ag.maxAge} years` : "—"}
                         </TableCell>
-                        {apiEnabled && isAdmin && (
+                        {settingsLive && isAdmin && (
                           <TableCell className="space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openAgeGroupEdit(ag as AgeGroupApi)} title="Edit">
                               <Pencil className="h-4 w-4" />
@@ -777,7 +892,7 @@ export default function SettingsPage() {
                   </CardTitle>
                   <CardDescription>Fee structures and income types.</CardDescription>
                 </div>
-                {apiEnabled && isAdmin && (
+                {settingsLive && isAdmin && (
                   <Button onClick={openIncomeSourceCreate} size="sm" className="gap-2">
                     <Plus className="w-4 h-4" /> Add income source
                   </Button>
@@ -785,7 +900,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {incomeSourcesLoading && apiEnabled ? (
+              {incomeSourcesLoading && settingsLive ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
                 <Table>
@@ -793,7 +908,7 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Code</TableHead>
-                      {apiEnabled && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      {settingsLive && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -801,7 +916,7 @@ export default function SettingsPage() {
                       <TableRow key={inc.id}>
                         <TableCell className="font-medium">{inc.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm font-mono">{inc.code ?? "—"}</TableCell>
-                        {apiEnabled && isAdmin && (
+                        {settingsLive && isAdmin && (
                           <TableCell className="space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openIncomeSourceEdit(inc as IncomeSourceApi)} title="Edit">
                               <Pencil className="h-4 w-4" />
@@ -829,7 +944,7 @@ export default function SettingsPage() {
                   </CardTitle>
                   <CardDescription>Categories for expenses.</CardDescription>
                 </div>
-                {apiEnabled && isAdmin && (
+                {settingsLive && isAdmin && (
                   <Button onClick={openExpenseCategoryCreate} size="sm" className="gap-2">
                     <Plus className="w-4 h-4" /> Add category
                   </Button>
@@ -837,7 +952,7 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {expenseCategoriesLoading && apiEnabled ? (
+              {expenseCategoriesLoading && settingsLive ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
                 <Table>
@@ -845,7 +960,7 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Code</TableHead>
-                      {apiEnabled && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      {settingsLive && isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -853,7 +968,7 @@ export default function SettingsPage() {
                       <TableRow key={cat.id}>
                         <TableCell className="font-medium">{cat.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm font-mono">{cat.code ?? "—"}</TableCell>
-                        {apiEnabled && isAdmin && (
+                        {settingsLive && isAdmin && (
                           <TableCell className="space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => openExpenseCategoryEdit(cat as ExpenseCategoryApi)} title="Edit">
                               <Pencil className="h-4 w-4" />

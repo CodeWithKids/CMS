@@ -94,7 +94,7 @@ This document defines the **API contracts** for the domains that power most fron
 
 ### GET `/v1/learners`
 
-**Query:** `search?`, `enrolmentType?` (member | partner_org), `organisationId?`, `status?` (active | alumni).  
+**Query:** `search?`, `enrollmentType?` (member | partner_org), `organisationId?`, `status?` (active | alumni).  
 **Response (200):** Array of `Learner`:
 ```json
 [
@@ -104,7 +104,7 @@ This document defines the **API contracts** for the domains that power most fron
     "lastName": "string",
     "dateOfBirth": "string",
     "school": "string",
-    "enrolmentType": "member | partner_org",
+    "enrollmentType": "member | partner_org",
     "programType": "MAKERSPACE | SCHOOL_CLUB | ORGANISATION",
     "membershipStatus": "active | inactive | expired | null",
     "userId": "string | null",
@@ -129,7 +129,7 @@ This document defines the **API contracts** for the domains that power most fron
 
 ---
 
-## 4. Classes and enrolments
+## 4. Classes and enrollments
 
 ### GET `/v1/classes`
 
@@ -160,10 +160,10 @@ This document defines the **API contracts** for the domains that power most fron
 
 ---
 
-### GET `/v1/classes/:id/enrolments`
+### GET `/v1/classes/:id/enrollments`
 
 **Query:** `termId` (required).  
-**Response (200):** Array of enrolments:
+**Response (200):** Array of enrollments:
 ```json
 [
   {
@@ -178,7 +178,7 @@ This document defines the **API contracts** for the domains that power most fron
 
 ---
 
-### POST `/v1/classes/:id/enrolments`
+### POST `/v1/classes/:id/enrollments`
 
 **Request:**
 ```json
@@ -188,15 +188,15 @@ This document defines the **API contracts** for the domains that power most fron
   "status": "active"
 }
 ```
-**Response (201):** Created enrolment object.  
+**Response (201):** Created enrollment object.  
 **400/422:** Validation or business rule (e.g. class full, duplicate).
 
 ---
 
-### PATCH `/v1/enrolments/:id`
+### PATCH `/v1/enrollments/:id`
 
 **Request:** `{ "status": "active | dropped | completed" }`.  
-**Response (200):** Updated enrolment.
+**Response (200):** Updated enrollment.
 
 ---
 
@@ -224,7 +224,7 @@ This document defines the **API contracts** for the domains that power most fron
   }
 ]
 ```
-**Authorization:** Admin sees all; Educator sees own (lead or assistant); Student sees sessions for their enrolments; Organisation not needed for sessions list (they use learners/invoices).
+**Authorization:** Admin sees all; Educator sees own (lead or assistant); Student sees sessions for their enrollments; Organisation not needed for sessions list (they use learners/invoices).
 
 ---
 
@@ -442,7 +442,7 @@ Backend creates a pending org (and optionally pending user) and notifies admins.
 
 ### GET `/v1/organisations/:id/learners`
 
-**Response (200):** Array of `Learner` linked to this organisation (`organizationId` or enrolments in org-owned classes – define scope consistently).
+**Response (200):** Array of `Learner` linked to this organisation (`organizationId` or enrollments in org-owned classes – define scope consistently).
 
 ---
 
@@ -626,7 +626,7 @@ Parent and organisation events pages; event registration.
 | Auth          | `POST /v1/auth/login`, `GET /v1/auth/me`, `POST /v1/auth/logout` |
 | Terms         | `GET /v1/terms`, `GET /v1/terms/current` |
 | Learners      | `GET /v1/learners`, `GET /v1/learners/:id` |
-| Classes       | `GET /v1/classes`, `GET /v1/classes/:id`, `GET /v1/classes/:id/enrolments`, `POST /v1/classes/:id/enrolments`, `PATCH /v1/enrolments/:id` |
+| Classes       | `GET /v1/classes`, `GET /v1/classes/:id`, `GET /v1/classes/:id/enrollments`, `POST /v1/classes/:id/enrollments`, `PATCH /v1/enrollments/:id` |
 | Sessions      | `GET /v1/sessions`, `GET /v1/sessions/:id`, `GET|PUT /v1/sessions/:id/attendance` |
 | Session reports | `GET /v1/session-reports`, `GET /v1/session-reports/:id`, `GET /v1/session-reports/by-session/:sessionId`, `POST /v1/session-reports`, `PATCH /v1/session-reports/:id`, `POST /v1/session-reports/:id/coach-feedback` |
 | Educators     | `GET /v1/educators`, `GET /v1/educators/:id` |
@@ -639,7 +639,7 @@ Parent and organisation events pages; event registration.
 
 ## Coverage and gaps
 
-**Fully specified (ready for backend):** Auth, Learners, Classes, Enrolments, Sessions, Terms, Session reports, Attendance, Educators, Finance (invoices, payments, adjustments list/detail, session expenses, receipts, expenses, income), Organisations, Admin account approvals. **Events** are specified as optional for MVP.
+**Fully specified (ready for backend):** Auth, Learners, Classes, Enrollments, Sessions, Terms, Session reports, Attendance, Educators, Finance (invoices, payments, adjustments list/detail, session expenses, receipts, expenses, income), Organisations, Admin account approvals. **Events** are specified as optional for MVP.
 
 **Not yet in this contract (can be added when needed):**
 

@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
 import { getDemoLoginUsers } from "@/lib/demoLoginUsers";
 import { useLearners } from "@/hooks/useLearners";
-import { isHybridBackendConfigured } from "@/lib/runtimeBackend";
+import { isHybridBackendConfigured, shouldShowCredentialLoginForm } from "@/lib/runtimeBackend";
 import { ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,8 @@ export default function LoginPage() {
   const { login, loginWithCredentials } = useAuth();
   const navigate = useNavigate();
 
-  const useRealLogin = isHybridBackendConfigured();
+  const showCredentialLogin = shouldShowCredentialLoginForm();
+  const backendConfigured = isHybridBackendConfigured();
 
   useEffect(() => {
     try {
@@ -117,7 +118,15 @@ export default function LoginPage() {
               {sessionExpiredMessage}
             </p>
           )}
-          {useRealLogin ? (
+          {showCredentialLogin && !backendConfigured && (
+            <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 mb-4">
+              Sign-in requires Supabase or API environment variables on this server. Add{" "}
+              <code className="text-xs">VITE_SUPABASE_URL</code> and{" "}
+              <code className="text-xs">VITE_SUPABASE_ANON_KEY</code> (or <code className="text-xs">VITE_API_URL</code>)
+              to your deployment, then redeploy.
+            </p>
+          )}
+          {showCredentialLogin ? (
             <form onSubmit={handleApiLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>

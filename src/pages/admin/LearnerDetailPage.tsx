@@ -320,16 +320,16 @@ export default function LearnerDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Enrolment history */}
+      {/* Enrollment history */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="w-5 h-5" /> Enrolment history
+            <Users className="w-5 h-5" /> Enrollment history
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {profile.enrolments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No enrolment records yet.</p>
+          {profile.enrollments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No enrollment records yet.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -340,7 +340,7 @@ export default function LearnerDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {profile.enrolments.map((e, i) => (
+                {profile.enrollments.map((e, i) => (
                   <TableRow
                     key={`${e.termName}-${e.className}-${i}`}
                     className={e.status === "CURRENT" ? "bg-muted/30" : undefined}

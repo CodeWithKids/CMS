@@ -505,7 +505,7 @@ export default function ClassesPage() {
                   <td>{getTermDisplay(c.termId)}</td>
                   <td>
                     <Button variant="outline" size="sm" asChild>
-                      <Link to={`/admin/classes/${c.id}/enrolments`}>Manage enrolments</Link>
+                      <Link to={`/admin/classes/${c.id}/enrollments`}>Manage enrollments</Link>
                     </Button>
                   </td>
                   {backendEnabled && isAdmin && (

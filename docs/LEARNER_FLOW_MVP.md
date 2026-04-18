@@ -43,7 +43,7 @@ Only learners who are **Makerspace members with active membership** see this flo
 
 ## 2) School club learner – no login
 
-**Who:** A learner whose programme is **School club** (`programType === "SCHOOL_CLUB"`). They may be `enrolmentType: "member"` (parent contact on file) but they do **not** have a user account or membership status.
+**Who:** A learner whose programme is **School club** (`programType === "SCHOOL_CLUB"`). They may be `enrollmentType: "member"` (parent contact on file) but they do **not** have a user account or membership status.
 
 ### 2.1 Experience
 
@@ -59,13 +59,13 @@ Only learners who are **Makerspace members with active membership** see this flo
 
 ## 3) Organisation learner – no login
 
-**Who:** A learner linked to an **organisation** (e.g. church, NGO, other partner) with `programType === "ORGANISATION"`, often `enrolmentType: "partner_org"` and `organizationId` set.
+**Who:** A learner linked to an **organisation** (e.g. church, NGO, other partner) with `programType === "ORGANISATION"`, often `enrollmentType: "partner_org"` and `organizationId` set.
 
 ### 3.1 Experience
 
 1. They do **not** have a CWK Hub login or student account.
 2. They participate in Code With Kids programmes through the **organisation**; the organisation is the partner and typically the **payer** (payer type ORGANISATION).
-3. Their enrolment and sessions are managed by **educators and admins**; the **organisation** may have a portal (organisation role) to see their learners, but the **learner** does not log in as a student.
+3. Their enrollment and sessions are managed by **educators and admins**; the **organisation** may have a portal (organisation role) to see their learners, but the **learner** does not log in as a student.
 4. Contact and consent may be via the organisation rather than direct parent membership.
 
 **Difference from member learner:** No login, no student portal. Experience is through the organisation and staff.

@@ -16,15 +16,21 @@ function parseString(val: unknown): string | undefined {
 
 /** GET /v1/learners */
 router.get("/", async (req: Request, res: Response) => {
-  const { enrolmentType, organisationId, status, search, userId } = req.query;
+  const { organisationId, status, search, userId } = req.query;
+  const enrollmentTypeRaw =
+    typeof req.query.enrollmentType === "string"
+      ? req.query.enrollmentType
+      : typeof req.query.enrolmentType === "string"
+        ? req.query.enrolmentType
+        : undefined;
 
   const where: {
-    enrolmentType?: string;
+    enrollmentType?: string;
     organizationId?: string;
     status?: string;
     userId?: string;
   } = {};
-  if (typeof enrolmentType === "string") where.enrolmentType = enrolmentType;
+  if (typeof enrollmentTypeRaw === "string") where.enrollmentType = enrollmentTypeRaw;
   if (typeof organisationId === "string") where.organizationId = organisationId;
   if (typeof status === "string") where.status = status;
   if (typeof userId === "string") where.userId = userId;
@@ -58,7 +64,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   const lastName = parseString(body.lastName);
   const dateOfBirth = parseString(body.dateOfBirth);
   const school = parseString(body.school);
-  const enrolmentType = parseString(body.enrolmentType);
+  const enrollmentType = parseString(body.enrollmentType) ?? parseString(body.enrolmentType);
   const programType = parseString(body.programType);
   const membershipStatus = parseString(body.membershipStatus);
   const userId = parseString(body.userId);
@@ -70,8 +76,8 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   const gender = parseString(body.gender);
   const joinedAt = parseString(body.joinedAt);
 
-  if (!firstName || !lastName || !dateOfBirth || !school || !enrolmentType || !programType) {
-    sendError(res, 400, "VALIDATION_ERROR", "firstName, lastName, dateOfBirth, school, enrolmentType, and programType are required.");
+  if (!firstName || !lastName || !dateOfBirth || !school || !enrollmentType || !programType) {
+    sendError(res, 400, "VALIDATION_ERROR", "firstName, lastName, dateOfBirth, school, enrollmentType, and programType are required.");
     return;
   }
 
@@ -83,7 +89,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       lastName,
       dateOfBirth,
       school,
-      enrolmentType,
+      enrollmentType,
       programType,
       membershipStatus: membershipStatus ?? undefined,
       userId: userId ?? undefined,
@@ -117,7 +123,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
     lastName?: string;
     dateOfBirth?: string;
     school?: string;
-    enrolmentType?: string;
+    enrollmentType?: string;
     programType?: string;
     membershipStatus?: string | null;
     userId?: string | null;
@@ -133,7 +139,10 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   if (body.lastName !== undefined) data.lastName = parseString(body.lastName) ?? existing.lastName;
   if (body.dateOfBirth !== undefined) data.dateOfBirth = parseString(body.dateOfBirth) ?? existing.dateOfBirth;
   if (body.school !== undefined) data.school = parseString(body.school) ?? existing.school;
-  if (body.enrolmentType !== undefined) data.enrolmentType = parseString(body.enrolmentType) ?? existing.enrolmentType;
+  if (body.enrollmentType !== undefined || body.enrolmentType !== undefined) {
+    data.enrollmentType =
+      parseString(body.enrollmentType) ?? parseString(body.enrolmentType) ?? existing.enrollmentType;
+  }
   if (body.programType !== undefined) data.programType = parseString(body.programType) ?? existing.programType;
   if (body.membershipStatus !== undefined) data.membershipStatus = parseString(body.membershipStatus) ?? null;
   if (body.userId !== undefined) data.userId = body.userId === null || body.userId === "" ? null : (parseString(body.userId) ?? existing.userId);

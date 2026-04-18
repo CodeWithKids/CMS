@@ -13,7 +13,7 @@ import {
   getAttendancePctForLearnerInClass,
   getConflictOtherClassName,
   getBadgeCountInClassSessions,
-} from "@/lib/classEnrolmentsUtils";
+} from "@/lib/classEnrollmentsUtils";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -314,20 +314,20 @@ export default function ClassEnrollmentsPage() {
     } catch (err) {
       toast({
         title: "Could not sync class roster",
-        description: err instanceof Error ? err.message : "Saved enrolments locally only.",
+        description: err instanceof Error ? err.message : "Saved enrollments locally only.",
         variant: "destructive",
       });
     }
     if (isOverCapacity) {
       toast({
         title: "Over capacity",
-        description: "This class is now over capacity. Please review enrolments or adjust capacity.",
+        description: "This class is now over capacity. Please review enrollments or adjust capacity.",
         variant: "destructive",
       });
     }
     toast({
-      title: "Enrolments saved",
-      description: added + updated > 0 ? `Updated ${added + updated} enrolment(s).` : "No changes to save.",
+      title: "Enrollments saved",
+      description: added + updated > 0 ? `Updated ${added + updated} enrollment(s).` : "No changes to save.",
     });
   };
 
@@ -369,7 +369,7 @@ export default function ClassEnrollmentsPage() {
           { label: "Admin", href: "/admin/dashboard" },
           { label: "Classes", href: "/admin/classes" },
           { label: cls.name },
-          { label: "Enrolments" },
+          { label: "Enrollments" },
         ]}
         className="mb-4"
       />
@@ -534,7 +534,7 @@ export default function ClassEnrollmentsPage() {
             {isOverCapacity && (
               <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                This class is now over capacity. Please review enrolments or adjust capacity.
+                This class is now over capacity. Please review enrollments or adjust capacity.
               </div>
             )}
           </div>

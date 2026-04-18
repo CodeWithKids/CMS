@@ -1,5 +1,7 @@
 -- Learners slice: table + RLS policies
 -- Run this in Supabase SQL Editor before enabling the frontend learners hook.
+-- If you already created `learners` with column `enrolment_type`, rename it:
+--   alter table public.learners rename column enrolment_type to enrollment_type;
 
 begin;
 
@@ -10,7 +12,7 @@ create table if not exists public.learners (
   last_name text not null,
   date_of_birth text not null,
   school text not null,
-  enrolment_type text not null check (enrolment_type in ('member', 'partner_org')),
+  enrollment_type text not null check (enrollment_type in ('member', 'partner_org')),
   program_type text not null check (program_type in ('MAKERSPACE', 'SCHOOL_CLUB', 'ORGANISATION')),
   membership_status text null check (membership_status in ('active', 'inactive', 'expired')),
   user_id uuid null references auth.users(id) on delete set null,

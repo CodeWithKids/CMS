@@ -87,7 +87,7 @@ export default function EducatorClassesPage() {
           <BookOpen className="w-7 h-7 text-primary" /> My classes
         </h1>
         <p className="text-muted-foreground mt-1">
-          Classes you lead or coach. Click a class to see enrolment, sessions, and attendance.
+          Classes you lead or coach. Click a class to see enrollment, sessions, and attendance.
         </p>
       </div>
 

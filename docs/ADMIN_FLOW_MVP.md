@@ -105,7 +105,7 @@ The admin sidebar is grouped into three buckets plus core operations:
 1. Admin sees a **full read-only** learner profile:
    - Header: name, programme type (Makerspace / School club / Organisation), status (Active / Alumni), avatar (preset or URL), organisation if linked.
    - Badges earned and attendance summary for the current term (present/absent/late counts, percentage).
-   - Enrolment history: term, class, status (Current / Completed / Withdrawn).
+   - Enrollment history: term, class, status (Current / Completed / Withdrawn).
    - Optional: contact/parent info, notes.
 2. **Back to learners** returns to the list.
 
@@ -114,9 +114,9 @@ The admin sidebar is grouped into three buckets plus core operations:
 ## 8) Classes (`/admin/classes`)
 
 1. Admin opens **Classes** to see all classes (name, programme, term, educator, etc.).
-2. For each class there is **Manage enrolments** → **Class enrolments** (`/admin/classes/:id/enrolments`).
+2. For each class there is **Manage enrollments** → **Class enrollments** (`/admin/classes/:id/enrollments`).
 
-### 8.1 Class enrolments (`/admin/classes/:id/enrolments`)
+### 8.1 Class enrollments (`/admin/classes/:id/enrollments`)
 
 1. Admin sees learners enrolled in that class for the class’s term.
 2. They can perform **bulk actions** (e.g. mark dropped, add learner), with safeguards and filters.
@@ -163,8 +163,8 @@ The admin sidebar is grouped into three buckets plus core operations:
 | HR | `/admin/hr/staff`, `/admin/hr/staff/:id` | Staff list and staff profile. |
 | Finance oversight | `/admin/finance/educator-payments`, `/admin/educator-hours`, `/admin/finance/expenses` | Educator payments, hours, expenses. |
 | System setup | `/admin/account-approvals`, `/admin/settings` | Approve accounts; system settings. |
-| Learners | `/admin/learners`, `/admin/learners/:id` | All learners; full read-only learner profile (badges, attendance, enrolments). |
-| Classes | `/admin/classes`, `/admin/classes/:id/enrolments` | All classes; per-class enrolments with bulk actions. |
+| Learners | `/admin/learners`, `/admin/learners/:id` | All learners; full read-only learner profile (badges, attendance, enrollments). |
+| Classes | `/admin/classes`, `/admin/classes/:id/enrollments` | All classes; per-class enrollments with bulk actions. |
 | Session reports | `/admin/session-reports`, `/admin/session-reports/:id` | List with filters; detail view; send reminder for missing reports. |
 | Schedules | `/admin/schedules` | Team/educator schedule visibility. |
 | Inventory | `/inventory`, `/inventory/new`, `/inventory/:id`, `/inventory/:id/edit` | Full inventory management (admin); educators view/checkout only. |
@@ -193,8 +193,8 @@ These are gaps or enhancements that would make the admin flow more complete or c
 
 ### Learners and classes
 
-- **Learner profile by term**: On admin learner detail, add a **term selector** (like organisation learner detail) so admin can see attendance and enrolment for Term 1, Term 2, Term 3, not only “current term”.
-- **Bulk actions and filters**: Learners list and class enrolments already have or plan filters; ensure filters (e.g. by programme, org, term) are consistent and documented.
+- **Learner profile by term**: On admin learner detail, add a **term selector** (like organisation learner detail) so admin can see attendance and enrollment for Term 1, Term 2, Term 3, not only “current term”.
+- **Bulk actions and filters**: Learners list and class enrollments already have or plan filters; ensure filters (e.g. by programme, org, term) are consistent and documented.
 
 ### Session reports
 
@@ -213,12 +213,12 @@ These are gaps or enhancements that would make the admin flow more complete or c
 ### System setup and approvals
 
 - **Account approvals actions**: Approve/reject buttons with confirmation and clear success feedback; optional bulk approve.
-- **Terms and academic setup**: If terms are managed in Settings, ensure admin can add/edit terms and that class enrolments and reports align with term boundaries.
+- **Terms and academic setup**: If terms are managed in Settings, ensure admin can add/edit terms and that class enrollments and reports align with term boundaries.
 
 ### Consistency and UX
 
-- **Confirmations for destructive actions**: Use `AlertDialog` for delete/remove actions (e.g. remove enrolment, delete expense, return device) across admin (and educator) flows.
-- **Breadcrumbs**: Optional breadcrumbs on deep pages (e.g. Learners → [Name], Classes → [Class] → Enrolments) so admin can navigate back in one click.
+- **Confirmations for destructive actions**: Use `AlertDialog` for delete/remove actions (e.g. remove enrollment, delete expense, return device) across admin (and educator) flows.
+- **Breadcrumbs**: Optional breadcrumbs on deep pages (e.g. Learners → [Name], Classes → [Class] → Enrollments) so admin can navigate back in one click.
 - **Documentation**: Keep this doc and `ORGANISATION_FLOW_MVP.md`, `EDUCATOR_FLOW_MVP.md`, `LEARNER_FLOW_MVP.md` in sync as new admin features ship.
 
 ---

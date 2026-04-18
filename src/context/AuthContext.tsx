@@ -206,6 +206,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginWithCredentials = useCallback(async (email: string, password: string) => {
+    if (!isSupabaseEnabled() && !isApiEnabled()) {
+      return {
+        ok: false as const,
+        error:
+          "Sign-in is not configured for this app build. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, or VITE_API_URL, in your hosting environment and redeploy.",
+      };
+    }
+
     if (isSupabaseEnabled()) {
       try {
         const client = getSupabaseClient();

@@ -52,7 +52,7 @@ export const canvasStages: CanvasStage[] = [
       {
         id: "s1-data-central",
         title: "Centralise learner and session data",
-        description: "Single source of truth for attendance, enrolments, and payments.",
+        description: "Single source of truth for attendance, enrollments, and payments.",
         moment: "RETENTION",
         status: "RUNNING",
         linkPath: "/admin/learners",
@@ -75,7 +75,7 @@ export const canvasStages: CanvasStage[] = [
       },
     ],
     keyQuestions: [
-      "Do we have one place where attendance, payments, and enrolments are linked?",
+      "Do we have one place where attendance, payments, and enrollments are linked?",
       "Can we reliably report on who showed up vs who paid?",
     ],
   },

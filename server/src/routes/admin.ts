@@ -428,7 +428,7 @@ router.get("/overview", requireAuth, async (req: Request, res: Response) => {
   const learnersWithPending: {
     learnerId: string;
     learnerName: string;
-    enrolmentType: string;
+    enrollmentType: string;
     payerLabel: string;
     payerPhone: string;
     payerEmail: string;
@@ -440,12 +440,12 @@ router.get("/overview", requireAuth, async (req: Request, res: Response) => {
   for (const [learnerId, summary] of byLearner) {
     const learner = learnerById.get(learnerId);
     if (!learner) continue;
-    const isPartner = learner.enrolmentType === "partner_org";
+    const isPartner = learner.enrollmentType === "partner_org";
     const org = learner.organizationId ? orgById.get(learner.organizationId) : undefined;
     learnersWithPending.push({
       learnerId,
       learnerName: `${learner.firstName} ${learner.lastName}`,
-      enrolmentType: learner.enrolmentType ?? "member",
+      enrollmentType: learner.enrollmentType ?? "member",
       payerLabel: isPartner && org ? org.name : (learner.parentName ?? "—"),
       payerPhone: isPartner && org ? (org.contactPhone ?? "") : (learner.parentPhone ?? ""),
       payerEmail: isPartner && org ? (org.contactEmail ?? "") : (learner.parentEmail ?? ""),

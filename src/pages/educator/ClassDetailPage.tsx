@@ -187,7 +187,7 @@ export default function ClassDetailPage() {
 
       <div className="bg-card rounded-xl border p-5 mb-6">
         <h2 className="font-semibold flex items-center gap-2 mb-3">
-          <Users className="w-5 h-5 text-primary" /> Enrolment by term
+          <Users className="w-5 h-5 text-primary" /> Enrollment by term
         </h2>
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="text-sm text-muted-foreground">Term:</span>
@@ -207,7 +207,7 @@ export default function ClassDetailPage() {
         </p>
         <ul className="divide-y divide-border rounded-md border">
           {enrollmentsThisTerm.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-muted-foreground">No enrolments for this term.</li>
+            <li className="px-3 py-2 text-sm text-muted-foreground">No enrollments for this term.</li>
           ) : (
             enrollmentsThisTerm.map((e) => {
               const learner = getLearnerForRow(e.learnerId);

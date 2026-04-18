@@ -16,7 +16,7 @@ import {
 } from "@/lib/api";
 import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 import { mapSupabaseRowToLearner, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
-import type { LearnerEnrolmentType, LearnerProgramType, OrganisationOverviewType } from "@/types";
+import type { LearnerEnrollmentType, LearnerProgramType, OrganisationOverviewType } from "@/types";
 
 /** Partner-portal copy for attendance / reports (school vs Miradi vs generic). */
 export type OrganisationAttendanceCardVariant = "school" | "miradi" | "partner";
@@ -101,7 +101,7 @@ function mapLearnerApiToLearner(api: LearnerApi): Learner {
     lastName: api.lastName,
     dateOfBirth: api.dateOfBirth,
     school: api.school,
-    enrolmentType: api.enrolmentType as LearnerEnrolmentType,
+    enrollmentType: api.enrollmentType as LearnerEnrollmentType,
     programType: api.programType as LearnerProgramType,
     membershipStatus: api.membershipStatus as Learner["membershipStatus"],
     userId: api.userId ?? undefined,

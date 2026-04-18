@@ -2,9 +2,9 @@
 
 This document describes the user flow for **organisations** (schools, churches, NGOs, companies, and partners such as Miradi) in the CWK Hub MVP. Organisation users can sign up, log in, and view only the learners linked to their organisation.
 
-**Operating model: terms.** **Schools** work in **terms**: **Term 1**, **Term 2**, and **Term 3** (three terms per year). Other organisation types (churches, NGOs, Miradi, etc.) may also use the same term structure. Organisations can see **learner progress from every term** — they can view attendance, enrolment, and progress for Term 1, Term 2, or Term 3 (and across years), not only the current term.
+**Operating model: terms.** **Schools** work in **terms**: **Term 1**, **Term 2**, and **Term 3** (three terms per year). Other organisation types (churches, NGOs, Miradi, etc.) may also use the same term structure. Organisations can see **learner progress from every term** — they can view attendance, enrollment, and progress for Term 1, Term 2, or Term 3 (and across years), not only the current term.
 
-**Enrolment per term.** In school coding clubs, learners enrol **per term**. Some learners return for every term; others enrol only for certain terms or leave after one. The system tracks enrolment per term (who was in which class for Term 1, Term 2, Term 3), so organisations can see both "returning" learners and those who were only enrolled in specific terms. The **Enrolment history** section on each learner’s profile shows which terms they were enrolled in and the status (e.g. active, completed, dropped).
+**Enrollment per term.** In school coding clubs, learners enroll **per term**. Some learners return for every term; others enroll only for certain terms or leave after one. The system tracks enrollment per term (who was in which class for Term 1, Term 2, Term 3), so organisations can see both "returning" learners and those who were only enrolled in specific terms. The **Enrollment history** section on each learner’s profile shows which terms they were enrolled in and the status (e.g. active, completed, dropped).
 
 ---
 
@@ -99,7 +99,7 @@ This document describes the user flow for **organisations** (schools, churches, 
    **Progress by term (Term 1, Term 2, Term 3)**
    - **Schools** (and other orgs) work in **Term 1**, **Term 2**, and **Term 3**. A **term selector** (dropdown) lets them choose which term to view.
    - **Attendance for selected term**: attendance percentage and “X of Y sessions” for that term; list of session dates and status (Present / Absent / Late), e.g. latest 20 for that term.
-   - **Enrolment history** (all terms): list of enrolments across terms: term name (e.g. Term 1 2025, Term 2 2025, Term 3 2025), class name, enrolment status (e.g. current / completed / withdrawn). This gives visibility into which classes the learner was in for each term.
+   - **Enrollment history** (all terms): list of enrollments across terms: term name (e.g. Term 1 2025, Term 2 2025, Term 3 2025), class name, enrollment status (e.g. current / completed / withdrawn). This gives visibility into which classes the learner was in for each term.
 
 4. User can go **Back to learners** to return to the list.
 
@@ -126,6 +126,6 @@ They do not see admin, educator, finance, student, or parent areas. If they try 
 | Login | `/login` | Sign in → redirect to organisation dashboard. |
 | Dashboard | `/organisation/dashboard` | See org name, type, learner count; link to learners list. |
 | Learners list | `/organisation/learners` | Search and view only learners linked to their organisation. |
-| Learner detail | `/organisation/learners/:id` | View one learner’s badges; **select Term 1, Term 2, or Term 3** to see attendance and progress for that term; enrolment history across all terms (org-scoped). |
+| Learner detail | `/organisation/learners/:id` | View one learner’s badges; **select Term 1, Term 2, or Term 3** to see attendance and progress for that term; enrollment history across all terms (org-scoped). |
 
 **Applies to:** Schools, churches, NGOs, companies, and Miradi (Compassion Churches). All use the same organisation portal; data is always scoped to the logged-in user’s organisation. **Schools** work in Term 1, Term 2, and Term 3 and can see learner progress from every term.

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLearners } from "@/hooks/useLearners";
+import { useLearners, LEARNERS_QUERY_KEY } from "@/hooks/useLearners";
 import { useOrganisation } from "@/hooks/useOrganisation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -47,7 +47,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Learner, LearnerEnrolmentType } from "@/types";
+import type { Learner, LearnerEnrollmentType } from "@/types";
 import { supabase } from "@/lib/supabaseClient";
 import {
   learnerCreateBodyToSupabaseRow,
@@ -66,7 +66,7 @@ type LearnerFormState = {
   lastName: string;
   dateOfBirth: string;
   school: string;
-  enrolmentType: LearnerEnrolmentType;
+  enrollmentType: LearnerEnrollmentType;
   programType: string;
   membershipStatus: string;
   userId: string;
@@ -84,7 +84,7 @@ const emptyForm: LearnerFormState = {
   lastName: "",
   dateOfBirth: "",
   school: "",
-  enrolmentType: "member",
+  enrollmentType: "member",
   programType: "MAKERSPACE",
   membershipStatus: "",
   userId: "",
@@ -103,7 +103,7 @@ function learnerToForm(l: LearnerApi): LearnerFormState {
     lastName: l.lastName,
     dateOfBirth: l.dateOfBirth,
     school: l.school,
-    enrolmentType: l.enrolmentType as LearnerEnrolmentType,
+    enrollmentType: l.enrollmentType as LearnerEnrollmentType,
     programType: l.programType,
     membershipStatus: l.membershipStatus ?? "",
     userId: l.userId ?? "",
@@ -127,7 +127,7 @@ export default function LearnersPage() {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const [search, setSearch] = useState("");
-  const [enrolmentFilter, setEnrolmentFilter] = useState<LearnerEnrolmentType | "all">("all");
+  const [enrollmentFilter, setEnrollmentFilter] = useState<LearnerEnrollmentType | "all">("all");
   const [isError, setIsError] = useState(false);
   const [formOpen, setFormOpen] = useState<"create" | LearnerApi | null>(null);
   const [formState, setFormState] = useState<LearnerFormState>(emptyForm);
@@ -141,7 +141,7 @@ export default function LearnersPage() {
   const isAdmin = currentUser?.role === "admin";
 
   const { learners, isLoading } = useLearners({
-    enrolmentType: enrolmentFilter === "all" ? undefined : enrolmentFilter,
+    enrollmentType: enrollmentFilter === "all" ? undefined : enrollmentFilter,
     search: search.trim() || undefined,
   });
 
@@ -187,9 +187,9 @@ export default function LearnersPage() {
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isAdmin || (!apiEnabled && !supabaseEnabled)) return;
-    const { firstName, lastName, dateOfBirth, school, enrolmentType, programType, status } = formState;
-    if (!firstName.trim() || !lastName.trim() || !dateOfBirth.trim() || !school.trim() || !enrolmentType || !programType) {
-      toast({ title: "Missing fields", description: "First name, last name, date of birth, school, enrolment type, and program type are required.", variant: "destructive" });
+    const { firstName, lastName, dateOfBirth, school, enrollmentType, programType, status } = formState;
+    if (!firstName.trim() || !lastName.trim() || !dateOfBirth.trim() || !school.trim() || !enrollmentType || !programType) {
+      toast({ title: "Missing fields", description: "First name, last name, date of birth, school, enrollment type, and program type are required.", variant: "destructive" });
       return;
     }
 
@@ -199,7 +199,7 @@ export default function LearnersPage() {
       lastName: formState.lastName.trim(),
       dateOfBirth: formState.dateOfBirth.trim(),
       school: formState.school.trim(),
-      enrolmentType: formState.enrolmentType,
+      enrollmentType: formState.enrollmentType,
       programType: formState.programType,
       membershipStatus: formState.membershipStatus.trim() || undefined,
       userId: formState.userId.trim() || undefined,
@@ -212,8 +212,9 @@ export default function LearnersPage() {
       joinedAt: formState.joinedAt.trim() || undefined,
     };
 
-    const finishOk = () => {
-      void queryClient.invalidateQueries({ queryKey: ["learners"] });
+    const finishOk = async () => {
+      await queryClient.invalidateQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
+      await queryClient.refetchQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
       void queryClient.invalidateQueries({ queryKey: ["learner"] });
       setFormOpen(null);
       setFormSaving(false);
@@ -233,13 +234,13 @@ export default function LearnersPage() {
             const { error } = await supabase.from("learners").insert(row);
             if (error) throw error;
             toast({ title: "Learner created" });
-            finishOk();
+            await finishOk();
           } else if (typeof formOpen === "object" && formOpen.id) {
             const patch = learnerPatchBodyToSupabasePatch(payload);
             const { error } = await supabase.from("learners").update(patch).eq("id", formOpen.id);
             if (error) throw error;
             toast({ title: "Learner updated" });
-            finishOk();
+            await finishOk();
           } else {
             setFormSaving(false);
           }
@@ -253,8 +254,9 @@ export default function LearnersPage() {
 
     if (formOpen === "create") {
       learnersCreate(payload)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["learners"] });
+        .then(async () => {
+          await queryClient.invalidateQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
+          await queryClient.refetchQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
           toast({ title: "Learner created" });
           setFormOpen(null);
         })
@@ -265,8 +267,9 @@ export default function LearnersPage() {
         .finally(() => setFormSaving(false));
     } else if (typeof formOpen === "object" && formOpen.id) {
       learnersPatch(formOpen.id, payload)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["learners"] });
+        .then(async () => {
+          await queryClient.invalidateQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
+          await queryClient.refetchQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
           toast({ title: "Learner updated" });
           setFormOpen(null);
         })
@@ -286,7 +289,8 @@ export default function LearnersPage() {
         try {
           const { error } = await supabase.from("learners").delete().eq("id", deleteTarget.id);
           if (error) throw error;
-          await queryClient.invalidateQueries({ queryKey: ["learners"] });
+          await queryClient.invalidateQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
+          await queryClient.refetchQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
           await queryClient.invalidateQueries({ queryKey: ["learner"] });
           toast({ title: "Learner deleted", description: `${deleteTarget.firstName} ${deleteTarget.lastName} has been removed.` });
           setDeleteTarget(null);
@@ -301,8 +305,9 @@ export default function LearnersPage() {
     }
     setDeleteLoading(true);
     learnersDelete(deleteTarget.id)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["learners"] });
+      .then(async () => {
+        await queryClient.invalidateQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
+        await queryClient.refetchQueries({ queryKey: [...LEARNERS_QUERY_KEY] });
         queryClient.invalidateQueries({ queryKey: ["learner"] });
         toast({ title: "Learner deleted", description: `${deleteTarget.firstName} ${deleteTarget.lastName} has been removed.` });
         setDeleteTarget(null);
@@ -369,9 +374,9 @@ export default function LearnersPage() {
             className="w-full pl-9 pr-3 py-2 rounded-lg border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-        <Select value={enrolmentFilter} onValueChange={(v) => setEnrolmentFilter(v as LearnerEnrolmentType | "all")}>
+        <Select value={enrollmentFilter} onValueChange={(v) => setEnrollmentFilter(v as LearnerEnrollmentType | "all")}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Enrolment type" />
+            <SelectValue placeholder="Enrollment type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
@@ -387,7 +392,7 @@ export default function LearnersPage() {
             <tr>
               <th>Name</th>
               <th>School</th>
-              <th>Enrolment</th>
+              <th>Enrollment</th>
               <th>Contact (parent / org)</th>
               <th>Status</th>
               <th></th>
@@ -397,7 +402,7 @@ export default function LearnersPage() {
           <tbody>
             {filtered.map((l) => {
               const contact =
-                l.enrolmentType === "member"
+                l.enrollmentType === "member"
                   ? `${l.parentName ?? "—"} · ${l.parentPhone ?? "—"} · ${l.parentEmail ?? "—"}`
                   : l.organizationId
                     ? null
@@ -407,7 +412,7 @@ export default function LearnersPage() {
                   <td className="font-medium">{l.firstName} {l.lastName}</td>
                   <td>{l.school}</td>
                   <td>
-                    <Badge variant="outline">{l.enrolmentType === "member" ? "Member" : "Partner org"}</Badge>
+                    <Badge variant="outline">{l.enrollmentType === "member" ? "Member" : "Partner org"}</Badge>
                   </td>
                   <td className="text-sm text-muted-foreground max-w-[220px] truncate" title={typeof contact === "string" ? contact : undefined}>
                     {contact !== null ? contact : l.organizationId ? <OrgContactCell orgId={l.organizationId} /> : "—"}
@@ -455,8 +460,8 @@ export default function LearnersPage() {
         <p className="text-sm text-muted-foreground py-6">
           {showBackendSetup
             ? "Configure Supabase or API (see message above) to load learners."
-            : search.trim() || enrolmentFilter !== "all"
-              ? "No learners match your filters. Try changing the search or enrolment type."
+            : search.trim() || enrollmentFilter !== "all"
+              ? "No learners match your filters. Try changing the search or enrollment type."
               : "No learners in the system yet."}
         </p>
       )}
@@ -514,10 +519,10 @@ export default function LearnersPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Enrolment type</Label>
+                <Label>Enrollment type</Label>
                 <Select
-                  value={formState.enrolmentType}
-                  onValueChange={(v) => setFormState((s) => ({ ...s, enrolmentType: v as LearnerEnrolmentType }))}
+                  value={formState.enrollmentType}
+                  onValueChange={(v) => setFormState((s) => ({ ...s, enrollmentType: v as LearnerEnrollmentType }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -596,7 +601,7 @@ export default function LearnersPage() {
               />
             </div>
 
-            {formState.enrolmentType === "partner_org" && (
+            {formState.enrollmentType === "partner_org" && (
               <div className="space-y-2">
                 <Label>Organisation</Label>
                 <Select

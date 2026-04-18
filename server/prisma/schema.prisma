@@ -43,7 +43,7 @@ model Learner {
   lastName        String
   dateOfBirth     String
   school          String
-  enrolmentType   String
+  enrollmentType  String   @map("enrolmentType")
   programType     String
   membershipStatus String?
   userId          String?

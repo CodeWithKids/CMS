@@ -119,7 +119,7 @@ export interface PresetAvatar {
 }
 
 /** Member = direct parent contact; partner_org = school/org pays, learner tagged to organisation. */
-export type LearnerEnrolmentType = "member" | "partner_org";
+export type LearnerEnrollmentType = "member" | "partner_org";
 
 /** Programme context: only MAKERSPACE learners can have user accounts and paid membership. */
 export type LearnerProgramType = "MAKERSPACE" | "SCHOOL_CLUB" | "ORGANISATION";
@@ -134,7 +134,7 @@ export interface Learner {
   dateOfBirth: string;
   school: string;
   /** Member: parent fields filled; partner_org: optional/minimal. */
-  enrolmentType: LearnerEnrolmentType;
+  enrollmentType: LearnerEnrollmentType;
   /** Required. Only MAKERSPACE can have userId and membershipStatus. */
   programType: LearnerProgramType;
   /** Only for MAKERSPACE; must be "active" to log in. */
@@ -169,8 +169,8 @@ export type LearnerAdminProgramType = "MAKERSPACE" | "SCHOOL_CLUB" | "ORGANISATI
 
 export type LearnerAdminStatus = "ACTIVE" | "ALUMNI";
 
-/** Enrolment row status for admin profile. */
-export type LearnerAdminEnrolmentStatus = "CURRENT" | "COMPLETED" | "WITHDRAWN";
+/** Enrollment row status for admin profile. */
+export type LearnerAdminEnrollmentStatus = "CURRENT" | "COMPLETED" | "WITHDRAWN";
 
 export interface LearnerAdminProfile {
   id: string;
@@ -199,10 +199,10 @@ export interface LearnerAdminProfile {
     className: string;
   }[];
 
-  enrolments: {
+  enrollments: {
     termName: string;
     className: string;
-    status: LearnerAdminEnrolmentStatus;
+    status: LearnerAdminEnrollmentStatus;
   }[];
 
   membershipStatus?: "active" | "inactive" | "expired" | null;
@@ -286,7 +286,7 @@ export interface ClassEntity {
   ageGroup: string;
   location: string;
   educatorId: string;
-  /** Term this class runs in. Enrolments for this class + term live in ClassEnrollment. */
+  /** Term this class runs in. Enrollments for this class + term live in ClassEnrollment. */
   termId: string;
   /** Legacy: all learner IDs ever on this class; prefer term-scoped enrollments for "who is in this term". */
   learnerIds: string[];
@@ -297,13 +297,13 @@ export interface ClassEntity {
 /** Alias for prompt/API compatibility. */
 export type Class = ClassEntity;
 
-/** Enrolment status for a learner in a class for a given term. */
+/** Enrollment status for a learner in a class for a given term. */
 export type ClassEnrollmentStatus = "active" | "dropped" | "completed";
 
 /** Alias for prompt/API compatibility. */
 export type EnrollmentStatus = ClassEnrollmentStatus;
 
-/** Term-based enrolment: who is in which class for which term. Enables retention (who returned) and term-scoped attendance/invoices. */
+/** Term-based enrollment: who is in which class for which term. Enables retention (who returned) and term-scoped attendance/invoices. */
 export interface ClassEnrollment {
   id: string;
   classId: string;

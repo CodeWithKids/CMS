@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { SessionExpensesProvider } from "@/context/SessionExpensesContext";
 import { AttendanceProvider } from "@/context/AttendanceContext";
@@ -146,6 +146,11 @@ const LDTasksPage = lazy(() => import("@/pages/ld/LDTasksPage"));
 
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
+function AdminClassEnrollmentsLegacyRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/admin/classes/${id ?? ""}/enrollments`} replace />;
+}
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -234,7 +239,8 @@ const App = () => (
               <Route path="/admin/learners" element={<LearnersPage />} />
               <Route path="/admin/learners/:id" element={<LearnerDetailPage />} />
               <Route path="/admin/classes" element={<ClassesPage />} />
-              <Route path="/admin/classes/:id/enrolments" element={<ClassEnrollmentsPage />} />
+              <Route path="/admin/classes/:id/enrollments" element={<ClassEnrollmentsPage />} />
+              <Route path="/admin/classes/:id/enrolments" element={<AdminClassEnrollmentsLegacyRedirect />} />
               <Route path="/admin/session-reports" element={<SessionReportsPage />} />
               <Route path="/admin/session-reports/:id" element={<SessionReportDetailPage />} />
               <Route path="/admin/schedules" element={<AdminSchedulesPage />} />

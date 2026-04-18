@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { LearnerAdminProfile, LearnerAdminEnrolmentStatus } from "@/types";
+import type { LearnerAdminProfile, LearnerAdminEnrollmentStatus } from "@/types";
 import { getDemoLoginUsers } from "@/lib/demoLoginUsers";
 import { getPresetAvatar } from "@/data/presetAvatars";
 import { useEnrollments } from "@/context/EnrollmentsContext";
@@ -11,9 +11,9 @@ import { useTerms } from "@/hooks/useTerms";
 import { useClasses } from "@/hooks/useClasses";
 import { useOrganisation } from "@/hooks/useOrganisation";
 
-function mapEnrolmentStatus(
+function mapEnrollmentStatus(
   status: "active" | "dropped" | "completed"
-): LearnerAdminEnrolmentStatus {
+): LearnerAdminEnrollmentStatus {
   if (status === "active") return "CURRENT";
   if (status === "completed") return "COMPLETED";
   return "WITHDRAWN";
@@ -24,7 +24,7 @@ function mapEnrolmentStatus(
  * Returns null if the learner is not found.
  *
  * Data is composed from learners, terms, classes, sessions contexts/hooks plus
- * attendance, enrolments, and badges. Organisation name uses `useOrganisation`.
+ * attendance, enrollments, and badges. Organisation name uses `useOrganisation`.
  * Demo avatar for linked accounts uses seeded demo users when auth backends are off.
  */
 export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAdminProfile | null {
@@ -117,7 +117,7 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
     });
 
     const enrollmentRows = getEnrollmentsForLearner(learnerId);
-    const enrolments = enrollmentRows
+    const enrollmentHistory = enrollmentRows
       .map((e) => ({
         term: termById.get(e.termId),
         className: classNameById.get(e.classId),
@@ -136,7 +136,7 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
       .map(({ term, className, status }) => ({
         termName: term.name,
         className,
-        status: mapEnrolmentStatus(status),
+        status: mapEnrollmentStatus(status),
       }));
 
     const profile: LearnerAdminProfile = {
@@ -160,7 +160,7 @@ export function useLearnerAdminProfile(learnerId: string | undefined): LearnerAd
       lateCountCurrentTerm,
       recentAttendance,
 
-      enrolments,
+      enrollments: enrollmentHistory,
 
       membershipStatus: learner.membershipStatus ?? undefined,
       parentName: learner.parentName ?? undefined,

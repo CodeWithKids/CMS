@@ -35,7 +35,7 @@ export interface Term {
   isCurrent: boolean;
 }
 
-export type LearnerEnrolmentType = "member" | "partner_org";
+export type LearnerEnrollmentType = "member" | "partner_org";
 export type LearnerProgramType = "MAKERSPACE" | "SCHOOL_CLUB" | "ORGANISATION";
 
 export interface Learner {
@@ -44,7 +44,7 @@ export interface Learner {
   lastName: string;
   dateOfBirth: string;
   school: string;
-  enrolmentType: LearnerEnrolmentType;
+  enrollmentType: LearnerEnrollmentType;
   programType: LearnerProgramType;
   membershipStatus?: "active" | "inactive" | "expired" | null;
   userId?: string | null;

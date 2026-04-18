@@ -20,6 +20,12 @@ import {
   adminCreateOrganisationAccount,
   ApiError,
 } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
+import {
+  adminCreateTeamMemberSupabase,
+  adminCreateParentSupabase,
+  adminCreateOrganisationAccountSupabase,
+} from "@/lib/adminAccountsSupabase";
 import type { UserRole } from "@/types";
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -116,18 +122,31 @@ export default function CreateTeamMemberPage() {
       return;
     }
     setErrors({});
-    if (!isApiEnabled()) {
-      toast({ title: "API not configured", description: "Enable the API to create accounts.", variant: "destructive" });
+    if (!isSupabaseEnabled() && !isApiEnabled()) {
+      toast({
+        title: "Backend not configured",
+        description: "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, or VITE_API_URL, to create accounts.",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
     try {
-      await adminAccountsCreate({
-        name: teamForm.name.trim(),
-        email: teamForm.email.trim(),
-        role: teamForm.role,
-        password: teamForm.password,
-      });
+      if (isSupabaseEnabled()) {
+        await adminCreateTeamMemberSupabase({
+          name: teamForm.name.trim(),
+          email: teamForm.email.trim(),
+          role: teamForm.role,
+          password: teamForm.password,
+        });
+      } else {
+        await adminAccountsCreate({
+          name: teamForm.name.trim(),
+          email: teamForm.email.trim(),
+          role: teamForm.role,
+          password: teamForm.password,
+        });
+      }
       toast({ title: "Team member created", description: `${teamForm.name} can log in with their email and the password you set.` });
       navigate("/admin/account-approvals");
     } catch (err) {
@@ -148,18 +167,30 @@ export default function CreateTeamMemberPage() {
       return;
     }
     setErrors({});
-    if (!isApiEnabled()) {
-      toast({ title: "API not configured", description: "Enable the API to create accounts.", variant: "destructive" });
+    if (!isSupabaseEnabled() && !isApiEnabled()) {
+      toast({
+        title: "Backend not configured",
+        description: "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, or VITE_API_URL, to create accounts.",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
     try {
-      await adminAccountsCreate({
-        name: parentForm.name.trim(),
-        email: parentForm.email.trim(),
-        role: "parent",
-        password: parentForm.password,
-      });
+      if (isSupabaseEnabled()) {
+        await adminCreateParentSupabase({
+          name: parentForm.name.trim(),
+          email: parentForm.email.trim(),
+          password: parentForm.password,
+        });
+      } else {
+        await adminAccountsCreate({
+          name: parentForm.name.trim(),
+          email: parentForm.email.trim(),
+          role: "parent",
+          password: parentForm.password,
+        });
+      }
       toast({ title: "Parent account created", description: `${parentForm.name} can log in with their email and the password you set.` });
       navigate("/admin/account-approvals");
     } catch (err) {
@@ -180,21 +211,37 @@ export default function CreateTeamMemberPage() {
       return;
     }
     setErrors({});
-    if (!isApiEnabled()) {
-      toast({ title: "API not configured", description: "Enable the API to create accounts.", variant: "destructive" });
+    if (!isSupabaseEnabled() && !isApiEnabled()) {
+      toast({
+        title: "Backend not configured",
+        description: "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, or VITE_API_URL, to create accounts.",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
     try {
-      await adminCreateOrganisationAccount({
-        organisationName: orgForm.organisationName.trim(),
-        type: orgForm.type,
-        contactPerson: orgForm.contactPerson.trim(),
-        contactEmail: orgForm.contactEmail.trim(),
-        contactPhone: orgForm.contactPhone.trim() || undefined,
-        location: orgForm.location.trim() || undefined,
-        password: orgForm.password,
-      });
+      if (isSupabaseEnabled()) {
+        await adminCreateOrganisationAccountSupabase({
+          organisationName: orgForm.organisationName.trim(),
+          type: orgForm.type,
+          contactPerson: orgForm.contactPerson.trim(),
+          contactEmail: orgForm.contactEmail.trim(),
+          contactPhone: orgForm.contactPhone.trim() || undefined,
+          location: orgForm.location.trim() || undefined,
+          password: orgForm.password,
+        });
+      } else {
+        await adminCreateOrganisationAccount({
+          organisationName: orgForm.organisationName.trim(),
+          type: orgForm.type,
+          contactPerson: orgForm.contactPerson.trim(),
+          contactEmail: orgForm.contactEmail.trim(),
+          contactPhone: orgForm.contactPhone.trim() || undefined,
+          location: orgForm.location.trim() || undefined,
+          password: orgForm.password,
+        });
+      }
       toast({
         title: "Organisation account created",
         description:
@@ -221,7 +268,8 @@ export default function CreateTeamMemberPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Create account</h1>
           <p className="text-muted-foreground">
-            Create a team member, parent, or organisation account. They will log in with the email and password you set. To add a learner, use the{" "}
+            Create a team member, parent, or organisation account. With Supabase configured, new users are created in Auth and{" "}
+            <code className="text-xs">profiles</code> (no Node API required). With only the API, creation uses the server. They log in with the email and password you set. To add a learner, use the{" "}
             <Link to="/admin/learners" className="text-primary hover:underline font-medium">Learners</Link> page.
           </p>
         </div>

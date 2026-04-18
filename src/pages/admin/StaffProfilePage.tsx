@@ -379,7 +379,7 @@ export default function StaffProfilePage() {
                   {assignedClasses.map((c) => (
                     <li key={c.id}>
                       <Link
-                        to={`/admin/classes/${c.id}/enrolments`}
+                        to={`/admin/classes/${c.id}/enrollments`}
                         className="text-primary hover:underline text-sm"
                       >
                         {c.name}

@@ -641,7 +641,7 @@ export interface LearnerApi {
   lastName: string;
   dateOfBirth: string;
   school: string;
-  enrolmentType: string;
+  enrollmentType: string;
   programType: string;
   membershipStatus?: string | null;
   userId?: string | null;
@@ -656,10 +656,10 @@ export interface LearnerApi {
   joinedAt?: string | null;
 }
 
-export function learnersGetAll(params?: { search?: string; enrolmentType?: string; organisationId?: string; status?: string }): Promise<LearnerApi[]> {
+export function learnersGetAll(params?: { search?: string; enrollmentType?: string; organisationId?: string; status?: string }): Promise<LearnerApi[]> {
   const q = new URLSearchParams();
   if (params?.search) q.set("search", params.search);
-  if (params?.enrolmentType) q.set("enrolmentType", params.enrolmentType);
+  if (params?.enrollmentType) q.set("enrollmentType", params.enrollmentType);
   if (params?.organisationId) q.set("organisationId", params.organisationId);
   if (params?.status) q.set("status", params.status);
   const query = q.toString();
@@ -678,7 +678,7 @@ export function learnersCreate(body: {
   lastName: string;
   dateOfBirth: string;
   school: string;
-  enrolmentType: string;
+  enrollmentType: string;
   programType: string;
   membershipStatus?: string | null;
   userId?: string | null;
@@ -701,7 +701,7 @@ export function learnersPatch(
     lastName: string;
     dateOfBirth: string;
     school: string;
-    enrolmentType: string;
+    enrollmentType: string;
     programType: string;
     membershipStatus: string | null;
     userId: string | null;
@@ -1087,7 +1087,7 @@ export interface AdminOverviewApi {
   learnersWithPending: {
     learnerId: string;
     learnerName: string;
-    enrolmentType: string;
+    enrollmentType: string;
     payerLabel: string;
     payerPhone: string;
     payerEmail: string;
