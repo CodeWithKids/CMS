@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { getSessionsForStudent, getClass, getEducatorName, getLearnerByUserId } from "@/mockData";
+import { getSessionsForStudent, getClass } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
+import { useEducators } from "@/hooks/useEducators";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 
@@ -8,7 +11,16 @@ const today = new Date().toISOString().split("T")[0];
 
 export default function TimetablePage() {
   const { currentUser } = useAuth();
-  const learner = currentUser?.role === "student" && currentUser?.id ? getLearnerByUserId(currentUser.id) : null;
+  const { learners } = useLearners();
+  const { educators } = useEducators();
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((e) => [e.id, e.name])),
+    [educators]
+  );
+  const learner =
+    currentUser?.role === "student" && currentUser?.id
+      ? learners.find((l) => l.userId === currentUser.id) ?? null
+      : null;
   const learnerId = learner?.id ?? null;
   const sessions = learnerId ? getSessionsForStudent(learnerId) : [];
   const upcoming = [...sessions].filter((s) => s.date >= today).sort((a, b) => {
@@ -64,7 +76,7 @@ export default function TimetablePage() {
                     <td>{s.date}</td>
                     <td>{s.startTime} – {s.endTime}</td>
                     <td className="font-medium">{cls?.name ?? "—"}</td>
-                    <td>{cls ? getEducatorName(cls.educatorId) : "—"}</td>
+                    <td>{cls?.educatorId ? educatorNameById.get(cls.educatorId) ?? cls.educatorId : "—"}</td>
                     <td>{cls?.location ?? "—"}</td>
                   </tr>
                 );

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSessionReports } from "@/context/SessionReportsContext";
@@ -8,7 +8,7 @@ import { useEducators } from "@/hooks/useEducators";
 import { isApiEnabled, sessionReportsGetById, sessionsGetById, classesGetById, attendanceGet } from "@/lib/api";
 import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 import { mapSupabaseRowToClassApi, type SupabaseClassRow } from "@/lib/classesSupabase";
-import { getSession, getClass, getEducatorName } from "@/mockData";
+import { getSession, getClass } from "@/mockData";
 import {
   buildSessionReportSummary,
   buildSessionReportDetailView,
@@ -200,7 +200,10 @@ export default function SessionReportDetailPage() {
   });
 
   const educatorNameMap = useMemo(() => new Map(educators.map((e) => [e.id, e.name])), [educators]);
-  const getEducatorNameForRow = (id: string) => educatorNameMap.get(id) ?? getEducatorName(id);
+  const getEducatorNameForRow = useCallback(
+    (id: string) => educatorNameMap.get(id) ?? id,
+    [educatorNameMap]
+  );
 
   const report = apiEnabled && apiReport
     ? ({
@@ -283,7 +286,7 @@ export default function SessionReportDetailPage() {
       report,
       getSession,
       getClass,
-      getEducatorName,
+      getEducatorNameForRow,
       present
     );
     return buildSessionReportDetailView(
@@ -485,7 +488,7 @@ export default function SessionReportDetailPage() {
             <CardContent className="space-y-3">
               {report.coachFeedback.map((entry) => (
                 <div key={`${entry.educatorId}-${entry.createdAt}`} className="rounded-lg border bg-muted/30 p-3 text-sm">
-                  <p className="font-medium text-muted-foreground mb-1">{getEducatorName(entry.educatorId)}</p>
+                  <p className="font-medium text-muted-foreground mb-1">{getEducatorNameForRow(entry.educatorId)}</p>
                   <p className="whitespace-pre-wrap">{entry.text}</p>
                   {entry.createdAt && (
                     <p className="text-xs text-muted-foreground mt-2">

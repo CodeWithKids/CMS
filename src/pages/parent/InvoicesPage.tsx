@@ -5,7 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { useInvoices } from "@/context/FinanceContext";
 import { isApiEnabled } from "@/lib/api";
-import { parentChildMap, getInvoicesForParent, getLearner } from "@/mockData";
+import { parentChildMap, getInvoicesForParent } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,11 @@ const statusStyles: Record<string, string> = {
 export default function InvoicesPage() {
   const { currentUser } = useAuth();
   const { getInvoices } = useFinanceAccount();
+  const { learners } = useLearners();
+  const learnerNameById = useMemo(
+    () => new Map(learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])),
+    [learners]
+  );
    // Finance invoices (API-backed when VITE_API_URL is set)
   const financeInvoices = useInvoices({ payerType: "parent" });
   const apiEnabled = isApiEnabled();
@@ -79,7 +85,7 @@ export default function InvoicesPage() {
             </thead>
             <tbody>
               {invoices.map((inv) => {
-                const learner = inv.learnerId != null ? getLearner(inv.learnerId) : null;
+                const learnerName = inv.learnerId != null ? learnerNameById.get(inv.learnerId) : null;
                 return (
                   <tr key={inv.id}>
                     <td className="font-medium">
@@ -87,7 +93,7 @@ export default function InvoicesPage() {
                         {inv.invoiceNumber}
                       </Link>
                     </td>
-                    <td>{learner ? `${learner.firstName} ${learner.lastName}` : "—"}</td>
+                    <td>{learnerName ?? "—"}</td>
                     <td>{inv.term}</td>
                     <td>Ksh {inv.totalAmount.toLocaleString()}</td>
                     <td>

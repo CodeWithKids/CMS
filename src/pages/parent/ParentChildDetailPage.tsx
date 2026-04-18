@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
-import { parentChildMap, getLearner, getSessionsForStudent, getClass } from "@/mockData";
+import { parentChildMap, getSessionsForStudent, getClass } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { User, Calendar, History, ArrowLeft, Clock } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
@@ -20,10 +21,15 @@ export default function ParentChildDetailPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { getByLearner } = useAttendance();
+  const { learners } = useLearners();
+  const learnerById = useMemo(
+    () => new Map(learners.map((learner) => [learner.id, learner])),
+    [learners]
+  );
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
 
-  const learner = id ? getLearner(id) : undefined;
+  const learner = id ? learnerById.get(id) : undefined;
   const allowed = id != null && childIds.includes(id);
 
   const sessions = useMemo(() => (id ? getSessionsForStudent(id) : []), [id]);

@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { isApiEnabled, learnersGetById, type LearnerApi } from "@/lib/api";
 import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 import { mapSupabaseRowToLearnerApi, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
-import { getLearner } from "@/mockData";
 
 const LEARNER_QUERY_KEY = ["learner"];
 
@@ -47,14 +46,7 @@ export function useLearner(id: string | null | undefined): {
   });
 
   if (!enabled) {
-    if (!id) return { learner: null, displayName: "—", isLoading: false };
-    const mock = getLearner(id);
-    const learner = mock ? { id: mock.id, firstName: mock.firstName, lastName: mock.lastName } : null;
-    return {
-      learner,
-      displayName: learnerDisplayName(learner),
-      isLoading: false,
-    };
+    return { learner: null, displayName: id ?? "—", isLoading: false };
   }
 
   const learner = query.data ?? null;

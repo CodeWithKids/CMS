@@ -57,6 +57,15 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 7. **`docs/SUPABASE_ATTENDANCE_RLS.sql`**  
    Creates `public.attendance_records` with educator-scoped write/read policies and role-scoped access.
 
+8. **`docs/SUPABASE_FINANCE_ACCOUNT_EXPENSES_RLS.sql`**  
+   Creates `public.finance_account_expenses` for finance expenses pages (`FinanceAccountContext`).
+
+9. **`docs/SUPABASE_INVENTORY_ITEMS_RLS.sql`**  
+   Creates/upgrades `public.inventory_items` for Supabase-first inventory management.
+
+10. **`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`**  
+    Creates `public.event_registrations` for learner registrations on events.
+
 ### Dashboard (not SQL)
 
 - **Authentication → Providers**: enable **Email** (or your chosen provider).  
@@ -71,7 +80,9 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 - Class enrollments: Supabase-first context + admin class enrolments page (`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`)
 - Sessions: table + RLS in `docs/SUPABASE_SESSIONS_RLS.sql` (run before attendance)
 - Attendance: Supabase/API-backed persistence in `AttendanceContext` + attendance page (`docs/SUPABASE_ATTENDANCE_RLS.sql`)
-- Finance: in progress (Supabase/API-backed invoice bootstrap in `FinanceContext`; legacy `FinanceAccountContext` now hydrates from finance context first)
+- Finance: in progress (Supabase/API-backed invoice bootstrap in `FinanceContext`; `FinanceAccountContext` expenses now Supabase-first via `docs/SUPABASE_FINANCE_ACCOUNT_EXPENSES_RLS.sql`)
+- Inventory: Supabase/API-backed with Supabase-first load/write (`docs/SUPABASE_INVENTORY_ITEMS_RLS.sql`)
+- Event registrations: Supabase-first registration persistence (`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`)
 
 ## RLS checklist by slice
 
@@ -117,8 +128,24 @@ Use this checklist before exposing each slice to the client:
 - [ ] Parent/organisation reads are scoped to related invoices only
 - [ ] Any multi-table write is done through RPC/Edge Function if needed
 
+### Inventory
+
+- [ ] `inventory_items` table exists (`docs/SUPABASE_INVENTORY_ITEMS_RLS.sql`)
+- [ ] RLS enabled and tested for admin/finance/educator access
+
+### Event registrations
+
+- [ ] `event_registrations` table exists (`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`)
+- [ ] Parent and organisation registration scope tested against learner visibility rules
+
 ## Operational guardrails
 
 - Never put Supabase secret/service-role keys in frontend env vars.
 - Keep legacy API routes running until the slice is fully moved and verified.
 - Decommission `VITE_API_URL` only after all frontend API calls are migrated.
+
+## Mock removal roadmap (focused)
+
+1. **Finance expenses (highest impact):** complete Supabase-first expenses flow in `FinanceAccountContext`, then migrate remaining finance writes to backend-only paths.
+2. **Inventory:** keep Supabase-first CRUD/check-out/return, then replace remaining mock-name lookups in pages with backend-aware educator/profile data.
+3. **Event registrations:** complete Supabase-first registration lifecycle, then remove any mock-only learner/event joins in UI components.

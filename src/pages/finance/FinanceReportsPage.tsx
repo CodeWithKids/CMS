@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useInvoices, useFinance } from "@/context/FinanceContext";
 import { useSessions } from "@/context/SessionsContext";
 import { useTerms } from "@/hooks/useTerms";
-import { getEducatorName } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
+import { useLearners } from "@/hooks/useLearners";
 import { getOrganization } from "@/mockData";
-import { getLearner } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
 import { calculateEducatorHoursByTerm, filterEducatorHoursByTerm } from "@/utils/educatorHours";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +43,19 @@ export default function FinanceReportsPage() {
   const allInvoices = useInvoices({ termId });
   const { adjustmentRequests } = useFinance();
   const { sessions } = useSessions();
+  const { educators } = useEducators({ role: "educator" });
+  const { learners } = useLearners();
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
+  const learnerNameById = useMemo(
+    () =>
+      new Map(
+        learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`.trim()])
+      ),
+    [learners]
+  );
 
   const incomeByTerm = useMemo(() => {
     const list = allInvoices;
@@ -75,7 +88,7 @@ export default function FinanceReportsPage() {
       const key = inv.payerType === "organisation" ? (inv.organisationId ?? inv.payerId) : inv.payerId;
       let name = key;
       if (inv.payerType === "organisation") name = getOrganization(key)?.name ?? key;
-      else if (inv.learnerId) name = getLearner(inv.learnerId) ? `${getLearner(inv.learnerId)!.firstName} ${getLearner(inv.learnerId)!.lastName}` : key;
+      else if (inv.learnerId) name = learnerNameById.get(inv.learnerId) ?? key;
       const cur = byPayer.get(key) ?? { name, gross: 0, net: 0, paid: 0 };
       byPayer.set(key, {
         name: cur.name,
@@ -85,7 +98,7 @@ export default function FinanceReportsPage() {
       });
     }
     return Array.from(byPayer.values());
-  }, [allInvoices]);
+  }, [allInvoices, learnerNameById]);
 
   const adjustmentsSummary = useMemo(() => {
     const approved = adjustmentRequests.filter((r) => r.status === "approved");
@@ -310,7 +323,7 @@ export default function FinanceReportsPage() {
                 <TableBody>
                   {educatorCostBasis.map((row) => (
                     <TableRow key={row.educatorId}>
-                      <TableCell>{getEducatorName(row.educatorId)}</TableCell>
+                      <TableCell>{educatorNameById.get(row.educatorId) ?? row.educatorId}</TableCell>
                       <TableCell className="text-right">{row.leadHours.toFixed(1)}</TableCell>
                       <TableCell className="text-right">{row.coachingHours.toFixed(1)}</TableCell>
                       <TableCell className="text-right font-medium">{row.totalHours.toFixed(1)}</TableCell>

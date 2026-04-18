@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useInventory } from "@/context/InventoryContext";
-import { getEducatorName } from "@/mockData";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_STATUS_LABELS } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Package, Pencil, LogIn, LogOut } from "lucide-react";
+import { useEducators } from "@/hooks/useEducators";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,7 @@ export default function InventoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const { getItem, canCheckout, canReturn, checkout, returnItem } = useInventory();
+  const { educators } = useEducators();
   const { toast } = useToast();
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
   const item = getItem(id ?? "");
@@ -31,7 +32,15 @@ export default function InventoryDetailPage() {
   const educatorId = currentUser?.id ?? "";
   const showCheckout = item && isEducator && canCheckout(item);
   const showReturn = item && isEducator && canReturn(item, educatorId);
-  const checkedOutToName = item && (item.checkedOutByEducatorId ?? item.assignedEducatorId) ? getEducatorName(item.checkedOutByEducatorId ?? item.assignedEducatorId!) : null;
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((e) => [e.id, e.name])),
+    [educators]
+  );
+  const checkedOutToName =
+    item && (item.checkedOutByEducatorId ?? item.assignedEducatorId)
+      ? educatorNameById.get(item.checkedOutByEducatorId ?? item.assignedEducatorId!) ??
+        (item.checkedOutByEducatorId ?? item.assignedEducatorId)
+      : null;
   const checkedOutAt = item?.checkedOutAt ?? null;
 
   const handleCheckout = () => {
@@ -127,7 +136,7 @@ export default function InventoryDetailPage() {
             {item.assignedEducatorId && (
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Assigned educator</dt>
-                <dd>{getEducatorName(item.assignedEducatorId)}</dd>
+                <dd>{educatorNameById.get(item.assignedEducatorId) ?? item.assignedEducatorId}</dd>
               </div>
             )}
           </dl>

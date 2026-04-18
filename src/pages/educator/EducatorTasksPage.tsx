@@ -6,7 +6,8 @@ import { useSessionReports } from "@/context/SessionReportsContext";
 import { useSessions } from "@/context/SessionsContext";
 import { useTasks, useMyTasks } from "@/features/tasks/context/TasksContext";
 import { canUpdateOwnTaskStatus } from "@/features/tasks/lib/permissions";
-import { getClass, getEducatorName } from "@/mockData";
+import { getClass } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import type { Task, TaskStatus } from "@/types";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import {
@@ -67,9 +68,14 @@ export default function EducatorTasksPage() {
   const { updateTask, getTaskById } = useTasks();
   const { getBySession: getReportBySession } = useSessionReports();
   const { getSessionsForEducatorByRole } = useSessions();
+  const { educators } = useEducators({ role: "educator" });
   const { getUnreadForUser, markAsRead } = useNotifications();
   const { toast } = useToast();
   const [detailId, setDetailId] = useState<string | null>(null);
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
 
   const unreadNotifications = getUnreadForUser(educatorId);
 
@@ -228,7 +234,7 @@ export default function EducatorTasksPage() {
                 >
                   <TableCell className="font-medium">{t.title}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {getEducatorName(t.createdById)}
+                    {educatorNameById.get(t.createdById) ?? t.createdById}
                   </TableCell>
                   <TableCell className="text-sm">
                     {t.trackId ? LEARNING_TRACK_LABELS[t.trackId] : "—"}
@@ -286,7 +292,7 @@ export default function EducatorTasksPage() {
                 )}
                 <div>
                   <p className="text-sm text-muted-foreground">Created by</p>
-                  <p className="text-sm font-medium">{getEducatorName(detailTask.createdById)}</p>
+                  <p className="text-sm font-medium">{educatorNameById.get(detailTask.createdById) ?? detailTask.createdById}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>

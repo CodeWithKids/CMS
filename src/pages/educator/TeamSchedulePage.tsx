@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSchedule } from "@/context/ScheduleContext";
 import { useSessions } from "@/context/SessionsContext";
 import { getClass } from "@/mockData";
-import { mockUsers } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,9 +52,10 @@ export default function TeamSchedulePage() {
   const { currentUser } = useAuth();
   const { getSlotsForEducator } = useSchedule();
   const { getSessionsForEducatorByRole } = useSessions();
+  const { educators } = useEducators({ role: "educator" });
   const otherEducators = useMemo(
-    () => mockUsers.filter((u) => u.role === "educator" && u.id !== currentUser?.id),
-    [currentUser?.id]
+    () => educators.filter((e) => e.id !== currentUser?.id),
+    [currentUser?.id, educators]
   );
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();

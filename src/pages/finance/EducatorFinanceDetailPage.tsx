@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
 import { useTerms } from "@/hooks/useTerms";
-import { getEducatorName, getClass } from "@/mockData";
+import { getClass } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
 import type { Session, SessionType, LearningTrack } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,11 @@ function formatHours(h: number): string {
 export default function EducatorFinanceDetailPage() {
   const { id: educatorId } = useParams<{ id: string }>();
   const { terms: termOptions, currentTerm } = useTerms();
+  const { educators } = useEducators({ role: "educator" });
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
   const [termId, setTermId] = useState("");
 
   useEffect(() => {
@@ -135,7 +141,7 @@ export default function EducatorFinanceDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserCircle className="w-5 h-5" /> {getEducatorName(educatorId)}
+            <UserCircle className="w-5 h-5" /> {educatorNameById.get(educatorId) ?? educatorId}
           </CardTitle>
           <CardDescription>Finance summary: hours and session expenses.</CardDescription>
         </CardHeader>

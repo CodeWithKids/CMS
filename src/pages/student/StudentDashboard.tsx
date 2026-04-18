@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
 import { BADGE_DEFINITIONS } from "@/constants/badges";
-import { getTodaySessionsForStudent, getClass, mockEvents, getLearnerByUserId } from "@/mockData";
+import { getTodaySessionsForStudent, getClass, mockEvents } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { Clock, Calendar, ExternalLink, User, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,14 @@ const platformLinks = [
 
 export default function StudentDashboard() {
   const { currentUser } = useAuth();
-  const learner = currentUser?.role === "student" && currentUser?.id ? getLearnerByUserId(currentUser.id) : null;
+  const { learners } = useLearners();
+  const learner = useMemo(
+    () =>
+      currentUser?.role === "student" && currentUser?.id
+        ? learners.find((l) => l.userId === currentUser.id) ?? null
+        : null,
+    [currentUser?.id, currentUser?.role, learners]
+  );
   const learnerId = learner?.id ?? null;
 
   const todaySessions = learnerId ? getTodaySessionsForStudent(learnerId) : [];

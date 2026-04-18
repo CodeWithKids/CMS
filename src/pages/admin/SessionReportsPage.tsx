@@ -7,8 +7,9 @@ import { useTasks } from "@/features/tasks/context/TasksContext";
 import { useNotifications } from "@/context/NotificationsContext";
 import { useSessionReportsList } from "@/hooks/useSessionReportsList";
 import { isApiEnabled } from "@/lib/api";
-import { getSession, getClass, getEducatorName } from "@/mockData";
+import { getSession, getClass } from "@/mockData";
 import { mockSessions } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import {
   buildSessionReportSummary,
   buildMissingSessionSummary,
@@ -102,6 +103,11 @@ export default function SessionReportsPage() {
   const { createTask } = useTasks();
   const { addNotification } = useNotifications();
   const apiEnabled = isApiEnabled();
+  const { educators } = useEducators();
+  const resolveEducatorName = useMemo(
+    () => (id: string) => educators.find((e) => e.id === id)?.name ?? id,
+    [educators]
+  );
   const { summaries: apiSummaries, isLoading: apiSummariesLoading } = useSessionReportsList({
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
@@ -129,11 +135,11 @@ export default function SessionReportsPage() {
         r,
         getSession,
         getClass,
-        getEducatorName,
+        resolveEducatorName,
         present
       );
     });
-  }, [apiEnabled, list, dateFrom, dateTo, getAttendanceBySession]);
+  }, [apiEnabled, list, dateFrom, dateTo, getAttendanceBySession, resolveEducatorName]);
 
   const missingSummaries = useMemo(() => {
     if (apiEnabled) return [];
@@ -148,10 +154,10 @@ export default function SessionReportsPage() {
       })
       .map((s) => {
         const present = presentCountForSession(s.id, getAttendanceBySession);
-        return buildMissingSessionSummary(s, getClass, getEducatorName, present);
+        return buildMissingSessionSummary(s, getClass, resolveEducatorName, present);
       });
     return out;
-  }, [apiEnabled, getBySession, dateFrom, dateTo, getAttendanceBySession]);
+  }, [apiEnabled, getBySession, dateFrom, dateTo, getAttendanceBySession, resolveEducatorName]);
 
   const allSummaries = useMemo(() => {
     if (apiEnabled) return apiSummaries;

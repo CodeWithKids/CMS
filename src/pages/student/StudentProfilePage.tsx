@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
-import { getLearnerByUserId } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { BADGE_DEFINITIONS } from "@/constants/badges";
 import { PRESET_AVATARS, getPresetAvatar } from "@/data/presetAvatars";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { User, Check, Award, BookOpen, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { isApiEnabled, learnersGetAll, learnerBadgesGetAll, type LearnerApi, type LearnerBadgeAwardApi } from "@/lib/api";
+import type { Learner } from "@/types";
 
 const PLATFORM_LINKS = [
   { name: "Scratch", url: "https://scratch.mit.edu", color: "bg-amber-500" },
@@ -26,6 +27,7 @@ export default function StudentProfilePage() {
   const { currentUser, updateUser } = useAuth();
   const { toast } = useToast();
   const { getByLearner: getBadgeAwardsByLearner } = useBadgeAwards();
+  const { learners } = useLearners();
   const currentAvatar = currentUser?.avatarId ? getPresetAvatar(currentUser.avatarId) : null;
 
   const apiEnabled = isApiEnabled();
@@ -40,12 +42,18 @@ export default function StudentProfilePage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const learner: LearnerApi | null =
+  const learnerFromList: Learner | null = useMemo(
+    () =>
+      currentUser?.role === "student" && currentUser?.id
+        ? learners.find((l) => l.userId === currentUser.id) ?? null
+        : null,
+    [currentUser?.id, currentUser?.role, learners]
+  );
+
+  const learner: LearnerApi | Learner | null =
     apiEnabled && Array.isArray(learnerFromApi) && learnerFromApi.length > 0
       ? (learnerFromApi[0] as LearnerApi)
-      : currentUser?.role === "student" && currentUser?.id
-        ? (getLearnerByUserId(currentUser.id) as any)
-        : null;
+      : learnerFromList;
 
   const learnerId = learner?.id ?? null;
 

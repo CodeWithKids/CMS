@@ -9,19 +9,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePendingAdjustments, useFinance } from "@/context/FinanceContext";
-import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import type { FinanceInvoice } from "@/types/finance";
 import type { AdjustmentRequest } from "@/types/finance";
 import { ADJUSTMENT_TYPE_LABELS } from "@/types/finance";
 import { formatCurrency } from "@/lib/financeUtils";
 import { TrendingUp } from "lucide-react";
 
-function getPayerNameFromInvoice(inv: FinanceInvoice | undefined): string {
+function getPayerNameFromInvoice(inv: FinanceInvoice | undefined, learnerNameById: Map<string, string>): string {
   if (!inv) return "—";
   if (inv.payerType === "parent" && inv.learnerId) {
-    const learner = getLearner(inv.learnerId);
-    return learner ? `${learner.firstName} ${learner.lastName}` : inv.learnerId;
+    return learnerNameById.get(inv.learnerId) ?? inv.learnerId;
   }
   const org = getOrganization(inv.payerId);
   return org?.name ?? inv.payerId;
@@ -39,6 +38,10 @@ function getRequestedAmount(req: AdjustmentRequest): number | string {
 export default function AdjustmentsListPage() {
   const pending = usePendingAdjustments();
   const { getInvoice: getInvoiceFn } = useFinance();
+  const { learners } = useLearners();
+  const learnerNameById = new Map(
+    learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -93,7 +96,7 @@ export default function AdjustmentsListPage() {
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {getPayerNameFromInvoice(inv)}
+                        {getPayerNameFromInvoice(inv, learnerNameById)}
                       </TableCell>
                       <TableCell className="text-right">
                         {typeof amount === "number" ? formatCurrency(amount) : amount}

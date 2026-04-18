@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
 import { useSessions } from "@/context/SessionsContext";
-import { getClass, getLearner } from "@/mockData";
+import { getClass } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Star, FileText } from "lucide-react";
 
@@ -12,6 +13,12 @@ export default function EducatorLearnerFeedbackPage() {
   const educatorId = currentUser?.id ?? "";
   const { getFeedbackForSession, feedbacks } = useLearnerFeedback();
   const { getSessionsForEducatorByRole } = useSessions();
+  const { learners } = useLearners();
+  const learnerNameById = useMemo(
+    () =>
+      new Map(learners.map((l) => [l.id, `${l.firstName} ${l.lastName}`.trim()])),
+    [learners]
+  );
 
   const sessionsWithFeedback = useMemo(() => {
     const sessions = getSessionsForEducatorByRole(educatorId, { from: "2000-01-01", to: "2099-12-31" });
@@ -68,8 +75,7 @@ export default function EducatorLearnerFeedbackPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {fb.map((f) => {
-                    const learner = getLearner(f.studentId);
-                    const name = learner ? `${learner.firstName} ${learner.lastName}` : f.studentId;
+                    const name = learnerNameById.get(f.studentId) ?? f.studentId;
                     return (
                       <div key={`${session.id}-${f.studentId}`} className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
                         <p className="font-medium">{name}</p>

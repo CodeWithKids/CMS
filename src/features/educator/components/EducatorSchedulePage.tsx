@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCoachingInvites } from "@/context/CoachingInvitesContext";
 import { useSchedule } from "@/context/ScheduleContext";
-import { getClass, mockUsers } from "@/mockData";
+import { getClass } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { useEducators } from "@/hooks/useEducators";
 import { useQuery } from "@tanstack/react-query";
@@ -123,11 +123,7 @@ export default function EducatorSchedulePage() {
   const { getForEducator: getCoachingInvitesForEducator } = useCoachingInvites();
   const { toast } = useToast();
   const apiEnabled = isApiEnabled();
-  const { educators: educatorsFromApi } = useEducators({ role: "educator" });
-  const allEducators = useMemo(
-    () => (apiEnabled ? educatorsFromApi : mockUsers.filter((u) => u.role === "educator").map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, status: u.employmentStatus ?? "active" }))),
-    [apiEnabled, educatorsFromApi]
-  );
+  const { educators: allEducators } = useEducators({ role: "educator" });
 
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();

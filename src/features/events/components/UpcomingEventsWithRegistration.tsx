@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { EventEntity } from "@/types";
-import { getLearner } from "@/mockData";
 import { useEventRegistrations } from "@/context/EventRegistrationsContext";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar, UserPlus, UserMinus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLearners } from "@/hooks/useLearners";
 
 function formatDate(dateStr: string): string {
   try {
@@ -41,19 +41,21 @@ export function UpcomingEventsWithRegistration({
   learnerListLabel = "Learners",
 }: UpcomingEventsWithRegistrationProps) {
   const { toast } = useToast();
+  const { learners } = useLearners();
   const {
     getRegisteredLearnerIds,
     isLearnerRegistered,
     registerLearner,
     unregisterLearner,
   } = useEventRegistrations();
+  const learnerMap = new Map(learners.map((learner) => [learner.id, learner]));
   const [registeringFor, setRegisteringFor] = useState<{ eventId: string; learnerId: string } | null>(null);
 
   const handleRegister = (eventId: string, learnerId: string) => {
     if (isLearnerRegistered(eventId, learnerId)) return;
     registerLearner(eventId, learnerId);
     setRegisteringFor(null);
-    const learner = getLearner(learnerId);
+    const learner = learnerMap.get(learnerId);
     const event = events.find((e) => e.id === eventId);
     toast({
       title: "Registered",
@@ -65,7 +67,7 @@ export function UpcomingEventsWithRegistration({
 
   const handleUnregister = (eventId: string, learnerId: string) => {
     unregisterLearner(eventId, learnerId);
-    const learner = getLearner(learnerId);
+    const learner = learnerMap.get(learnerId);
     const event = events.find((e) => e.id === eventId);
     toast({
       title: "Unregistered",
@@ -91,7 +93,7 @@ export function UpcomingEventsWithRegistration({
     <div className="space-y-4">
       {events.map((event) => {
         const registeredIds = getRegisteredLearnerIds(event.id);
-        const availableLearners = learnerIds.filter((id) => getLearner(id));
+        const availableLearners = learnerIds.filter((id) => learnerMap.has(id));
 
         return (
           <Card key={event.id}>
@@ -124,7 +126,7 @@ export function UpcomingEventsWithRegistration({
                 ) : (
                   <ul className="space-y-1">
                     {registeredIds.map((lid) => {
-                      const learner = getLearner(lid);
+                      const learner = learnerMap.get(lid);
                       const canUnregister = learnerIds.includes(lid);
                       return (
                         <li
@@ -170,7 +172,7 @@ export function UpcomingEventsWithRegistration({
                           {availableLearners
                             .filter((id) => !isLearnerRegistered(event.id, id))
                             .map((id) => {
-                              const l = getLearner(id);
+                              const l = learnerMap.get(id);
                               return (
                                 <SelectItem key={id} value={id}>
                                   {l ? `${l.firstName} ${l.lastName}` : id}

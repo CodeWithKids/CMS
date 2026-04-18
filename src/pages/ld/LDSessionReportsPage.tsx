@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
-import { getSession, getClass, getEducatorName } from "@/mockData";
+import { getSession, getClass } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { buildSessionReportSummary } from "@/lib/sessionReportAdmin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,9 +18,20 @@ export default function LDSessionReportsPage() {
   const navigate = useNavigate();
   const { list, getBySession } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
+  const { educators } = useEducators();
+  const resolveEducatorName = useMemo(
+    () => (id: string) => educators.find((e) => e.id === id)?.name ?? id,
+    [educators]
+  );
 
   const summaries = list().map((r) =>
-    buildSessionReportSummary(r, getSession, getClass, getEducatorName, presentCountForSession(r.sessionId, getAttendanceBySession))
+    buildSessionReportSummary(
+      r,
+      getSession,
+      getClass,
+      resolveEducatorName,
+      presentCountForSession(r.sessionId, getAttendanceBySession)
+    )
   );
 
   return (

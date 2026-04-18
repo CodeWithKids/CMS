@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
-import { getClass, getLearner, mockUsers } from "@/mockData";
+import { getClass } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
+import { useLearners } from "@/hooks/useLearners";
 import { useSessions } from "@/context/SessionsContext";
 import { SessionRoleChips } from "@/features/educator/components/SessionRoleChips";
 import { AddCoachDialog } from "@/features/educator/components/AddCoachDialog";
@@ -129,6 +131,19 @@ export default function SessionReportPage() {
   const { getBySession: getReportBySession, saveReport, saveCoachFeedback } = useSessionReports();
   const { getFeedbackForSession } = useLearnerFeedback();
   const { getSessionById } = useSessions();
+  const { educators } = useEducators({ role: "educator" });
+  const { learners } = useLearners();
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
+  const learnerNameById = useMemo(
+    () =>
+      new Map(
+        learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`.trim()])
+      ),
+    [learners]
+  );
 
   const session = getSessionById(sessionId ?? "");
   const cls = session ? getClass(session.classId) : null;
@@ -137,7 +152,6 @@ export default function SessionReportPage() {
   const presentCount = attendanceRecords.filter(
     (r) => r.status === "present" || r.status === "late"
   ).length;
-  const educators = mockUsers.filter((u) => u.role === "educator");
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
   const [coachFeedbackText, setCoachFeedbackText] = useState("");
   const role = getSessionRoleForUser(session, currentUser);
@@ -314,7 +328,7 @@ export default function SessionReportPage() {
                   .map((entry) => (
                     <div key={entry.educatorId} className="rounded-md border bg-muted/30 p-3 text-sm">
                       <p className="font-medium text-muted-foreground mb-1">
-                        {educators.find((u) => u.id === entry.educatorId)?.name ?? "Coach"} · {new Date(entry.createdAt).toLocaleString()}
+                        {educatorNameById.get(entry.educatorId) ?? "Coach"} · {new Date(entry.createdAt).toLocaleString()}
                       </p>
                       <p className="whitespace-pre-wrap">{entry.text}</p>
                     </div>
@@ -335,8 +349,7 @@ export default function SessionReportPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {learnerFeedbacks.map((f) => {
-                    const learner = getLearner(f.studentId);
-                    const name = learner ? `${learner.firstName} ${learner.lastName}` : f.studentId;
+                    const name = learnerNameById.get(f.studentId) ?? f.studentId;
                     return (
                       <div key={`${f.sessionId}-${f.studentId}`} className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
                         <p className="font-medium">{name}</p>

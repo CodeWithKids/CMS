@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCoachingInvites } from "@/context/CoachingInvitesContext";
-import { getEducatorName } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,11 @@ export default function EducatorCoachingInvitesPage() {
   const { currentUser } = useAuth();
   const educatorId = currentUser?.id ?? "";
   const { getForEducator, getPendingForEducator, accept, decline } = useCoachingInvites();
+  const { educators } = useEducators();
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((e) => [e.id, e.name])),
+    [educators]
+  );
   const { toast } = useToast();
 
   const allInvites = getForEducator(educatorId);
@@ -80,7 +86,7 @@ export default function EducatorCoachingInvitesPage() {
                     </TableCell>
                     <TableCell>{inv.title ?? "Coaching session"}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {getEducatorName(inv.createdById)}
+                      {educatorNameById.get(inv.createdById) ?? inv.createdById}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button size="sm" variant="outline" onClick={() => handleDecline(inv.id)}>
@@ -128,7 +134,7 @@ export default function EducatorCoachingInvitesPage() {
                     </TableCell>
                     <TableCell>{inv.title ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {getEducatorName(inv.createdById)}
+                      {educatorNameById.get(inv.createdById) ?? inv.createdById}
                     </TableCell>
                     <TableCell>
                       <span

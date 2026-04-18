@@ -2,13 +2,14 @@ import { useParams, Link } from "react-router-dom";
 import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
-import { getSession, getClass, getEducatorName } from "@/mockData";
+import { getSession, getClass } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { buildSessionReportSummary, buildSessionReportDetailView } from "@/lib/sessionReportAdmin";
 import { SESSION_REPORT_SESSION_TYPE_ADMIN_LABELS, SESSION_REPORT_STATUS_ADMIN_LABELS } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 
 function presentCountForSession(sessionId: string, getBySession: (id: string) => { status: string }[]): number {
   const records = getBySession(sessionId);
@@ -24,6 +25,11 @@ export default function LDSessionReportDetailPage() {
   const { getReportById } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
   const { getBySession: getBadgeAwardsBySession } = useBadgeAwards();
+  const { educators } = useEducators();
+  const resolveEducatorName = useCallback(
+    (id: string) => educators.find((e) => e.id === id)?.name ?? id,
+    [educators]
+  );
 
   const report = reportId ? getReportById(reportId) : undefined;
   const session = report ? getSession(report.sessionId) : null;
@@ -33,9 +39,9 @@ export default function LDSessionReportDetailPage() {
     if (!report || !session) return null;
     const present = presentCountForSession(report.sessionId, getAttendanceBySession);
     const stars = starsForSession(report.sessionId, getAttendanceBySession);
-    const summary = buildSessionReportSummary(report, getSession, getClass, getEducatorName, present);
+    const summary = buildSessionReportSummary(report, getSession, getClass, resolveEducatorName, present);
     return buildSessionReportDetailView(summary, report, getBadgeAwardsBySession, stars);
-  }, [report, session, getAttendanceBySession, getBadgeAwardsBySession]);
+  }, [report, session, getAttendanceBySession, getBadgeAwardsBySession, resolveEducatorName]);
 
   if (!report) {
     return (

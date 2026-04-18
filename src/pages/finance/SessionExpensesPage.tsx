@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
-import { getSession, getClass, getEducatorName } from "@/mockData";
+import { getSession, getClass } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -37,6 +38,11 @@ const ALL_STATUSES = "all";
 export default function SessionExpensesPage() {
   const { currentUser } = useAuth();
   const { expenses, updateExpense } = useSessionExpenses();
+  const { educators } = useEducators({ role: "educator" });
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [dateFrom, setDateFrom] = useState("2026-01-01");
   const [dateTo, setDateTo] = useState("2026-12-31");
@@ -193,7 +199,7 @@ export default function SessionExpensesPage() {
                       {formatDate(e.requestedAt)}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {getEducatorName(e.educatorId)}
+                      {educatorNameById.get(e.educatorId) ?? e.educatorId}
                     </TableCell>
                     <TableCell className="text-sm">
                       {cls?.name ?? e.sessionId} · {session?.topic ?? "—"}

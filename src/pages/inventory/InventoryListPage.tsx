@@ -33,10 +33,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { getEducatorName } from "@/mockData";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_STATUS_LABELS } from "@/types";
 import type { InventoryCategory, InventoryStatus } from "@/types";
 import { Package, Plus, Pencil, Trash2, AlertCircle, LogIn, LogOut } from "lucide-react";
+import { useEducators } from "@/hooks/useEducators";
 
 const ALL_CATEGORIES = "all";
 const ALL_STATUSES = "all";
@@ -44,8 +44,13 @@ const ALL_STATUSES = "all";
 export default function InventoryListPage() {
   const { currentUser } = useAuth();
   const { items, deleteItem } = useInventory();
+  const { educators } = useEducators();
   const navigate = useNavigate();
   const isAdmin = currentUser?.role === "admin";
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((e) => [e.id, e.name])),
+    [educators]
+  );
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES);
@@ -240,7 +245,7 @@ export default function InventoryListPage() {
                         ((item.checkedOutByEducatorId ?? item.assignedEducatorId) || item.checkedOutAt || item.dueAt) && (
                         <p className="text-xs text-muted-foreground">
                           {(item.checkedOutByEducatorId ?? item.assignedEducatorId) &&
-                            `Checked out by ${getEducatorName(item.checkedOutByEducatorId ?? item.assignedEducatorId!)}`}
+                            `Checked out by ${educatorNameById.get(item.checkedOutByEducatorId ?? item.assignedEducatorId!) ?? (item.checkedOutByEducatorId ?? item.assignedEducatorId)}`}
                           {item.checkedOutAt && ` since ${new Date(item.checkedOutAt).toLocaleDateString("en-ZA")}`}
                           {item.dueAt && ` · Due ${new Date(item.dueAt).toLocaleDateString("en-ZA")}`}
                         </p>

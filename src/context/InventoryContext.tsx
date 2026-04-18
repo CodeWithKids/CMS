@@ -9,6 +9,7 @@ import {
 import type { InventoryItem } from "@/types";
 import { mockInventoryItems } from "@/mockData";
 import { isApiEnabled, inventoryGetAll, inventoryCreate, inventoryUpdate, inventoryDelete } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 
 type InventoryItemInput = Omit<InventoryItem, "id"> & { id?: string };
 
@@ -31,6 +32,48 @@ interface InventoryContextType {
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
+type SupabaseInventoryRow = {
+  id: string;
+  name?: string | null;
+  category?: string | null;
+  status?: string | null;
+  asset_tag?: string | null;
+  assetTag?: string | null;
+  quantity?: number | null;
+  location?: string | null;
+  purchase_date?: string | null;
+  purchaseDate?: string | null;
+  checked_out_by_educator_id?: string | null;
+  checkedOutByEducatorId?: string | null;
+  assigned_educator_id?: string | null;
+  assignedEducatorId?: string | null;
+  checked_out_at?: string | null;
+  checkedOutAt?: string | null;
+  due_at?: string | null;
+  dueAt?: string | null;
+  notes?: string | null;
+  serialNumber?: string | null;
+  purchasedAt?: string | null;
+};
+
+function mapSupabaseRowToInventoryItem(row: SupabaseInventoryRow): InventoryItem {
+  return {
+    id: row.id,
+    name: row.name ?? "",
+    category: (row.category ?? "other") as InventoryItem["category"],
+    status: (row.status ?? "available") as InventoryItem["status"],
+    assetTag: row.asset_tag ?? row.assetTag ?? row.serialNumber ?? null,
+    quantity: Number(row.quantity ?? 1),
+    location: row.location ?? "Main store",
+    purchaseDate: row.purchase_date ?? row.purchaseDate ?? row.purchasedAt ?? null,
+    checkedOutByEducatorId: row.checked_out_by_educator_id ?? row.checkedOutByEducatorId ?? null,
+    assignedEducatorId: row.assigned_educator_id ?? row.assignedEducatorId ?? null,
+    checkedOutAt: row.checked_out_at ?? row.checkedOutAt ?? null,
+    dueAt: row.due_at ?? row.dueAt ?? null,
+    notes: row.notes ?? null,
+  };
+}
+
 function nextId(items: InventoryItem[]): string {
   const nums = items
     .map((i) => i.id.replace("inv", ""))
@@ -42,32 +85,55 @@ function nextId(items: InventoryItem[]): string {
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<InventoryItem[]>(() => [...mockInventoryItems]);
-  const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const apiEnabled = !supabaseEnabled && isApiEnabled();
 
   useEffect(() => {
-    if (!apiEnabled) return;
-    inventoryGetAll()
-      .then((list) => {
-        setItems(
-          list.map((i) => ({
-            id: i.id,
-            name: i.name,
-            category: i.category as InventoryItem["category"],
-            status: i.status as InventoryItem["status"],
-            serialNumber: i.serialNumber ?? undefined,
-            purchasedAt: i.purchasedAt ?? undefined,
-            checkedOutByEducatorId: i.checkedOutByEducatorId ?? undefined,
-            assignedEducatorId: i.assignedEducatorId ?? undefined,
-            checkedOutAt: i.checkedOutAt ?? undefined,
-            dueAt: i.dueAt ?? undefined,
-            notes: i.notes ?? undefined,
-          }))
-        );
-      })
-      .catch(() => {
-        // keep mock fallback if API fails
-      });
-  }, [apiEnabled]);
+    let cancelled = false;
+    const load = async () => {
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase.from("inventory_items").select("*");
+          if (error) throw error;
+          const mapped = ((data as SupabaseInventoryRow[] | null) ?? []).map(mapSupabaseRowToInventoryItem);
+          if (!cancelled) setItems(mapped);
+          return;
+        } catch {
+          if (!isApiEnabled()) return;
+        }
+      }
+
+      if (apiEnabled || isApiEnabled()) {
+        try {
+          const list = await inventoryGetAll();
+          if (cancelled) return;
+          setItems(
+            list.map((i) => ({
+              id: i.id,
+              name: i.name,
+              category: i.category as InventoryItem["category"],
+              status: i.status as InventoryItem["status"],
+              assetTag: i.serialNumber ?? null,
+              quantity: 1,
+              location: "Main store",
+              purchaseDate: i.purchasedAt ?? null,
+              checkedOutByEducatorId: i.checkedOutByEducatorId ?? null,
+              assignedEducatorId: i.assignedEducatorId ?? null,
+              checkedOutAt: i.checkedOutAt ?? null,
+              dueAt: i.dueAt ?? null,
+              notes: i.notes ?? null,
+            }))
+          );
+        } catch {
+          // keep mock fallback if backend fails
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabaseEnabled, apiEnabled]);
 
   const getItem = useCallback(
     (id: string) => items.find((i) => i.id === id),
@@ -75,52 +141,91 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   );
 
   const addItem = useCallback((input: InventoryItemInput) => {
+    const id = input.id ?? nextId(items);
+    const item: InventoryItem = { ...input, id };
+    setItems((prev) => [item, ...prev]);
+    if (supabaseEnabled && supabase) {
+      void supabase.from("inventory_items").insert({
+        id,
+        name: item.name,
+        category: item.category,
+        status: item.status,
+        asset_tag: item.assetTag ?? null,
+        quantity: item.quantity,
+        location: item.location,
+        purchase_date: item.purchaseDate ?? null,
+        checked_out_by_educator_id: item.checkedOutByEducatorId ?? null,
+        assigned_educator_id: item.assignedEducatorId ?? null,
+        checked_out_at: item.checkedOutAt ?? null,
+        due_at: item.dueAt ?? null,
+        notes: item.notes ?? null,
+      });
+      return;
+    }
     if (apiEnabled) {
       inventoryCreate({
-        id: input.id,
+        id,
         name: input.name,
         category: input.category,
         status: input.status,
-        serialNumber: input.serialNumber,
-        purchasedAt: input.purchasedAt,
+        serialNumber: input.assetTag,
+        purchasedAt: input.purchaseDate,
         notes: input.notes,
       })
         .then((created) => {
-          setItems((prev) => [
-            {
-              id: created.id,
-              name: created.name,
-              category: created.category as InventoryItem["category"],
-              status: created.status as InventoryItem["status"],
-              serialNumber: created.serialNumber ?? undefined,
-              purchasedAt: created.purchasedAt ?? undefined,
-              checkedOutByEducatorId: created.checkedOutByEducatorId ?? undefined,
-              assignedEducatorId: created.assignedEducatorId ?? undefined,
-              checkedOutAt: created.checkedOutAt ?? undefined,
-              dueAt: created.dueAt ?? undefined,
-              notes: created.notes ?? undefined,
-            },
-            ...prev,
-          ]);
+          setItems((prev) =>
+            prev.map((existing) =>
+              existing.id === id
+                ? {
+                    ...existing,
+                    id: created.id,
+                    assetTag: created.serialNumber ?? existing.assetTag,
+                    purchaseDate: created.purchasedAt ?? existing.purchaseDate,
+                    checkedOutByEducatorId: created.checkedOutByEducatorId ?? existing.checkedOutByEducatorId,
+                    assignedEducatorId: created.assignedEducatorId ?? existing.assignedEducatorId,
+                    checkedOutAt: created.checkedOutAt ?? existing.checkedOutAt,
+                    dueAt: created.dueAt ?? existing.dueAt,
+                    notes: created.notes ?? existing.notes,
+                  }
+                : existing
+            )
+          );
         })
         .catch(() => {});
-      return;
     }
-    setItems((prev) => {
-      const id = input.id ?? nextId(prev);
-      const item: InventoryItem = { ...input, id };
-      return [item, ...prev];
-    });
-  }, [apiEnabled]);
+  }, [apiEnabled, items, supabaseEnabled]);
 
   const updateItem = useCallback((id: string, update: Partial<InventoryItem>) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, ...update } : i))
+    );
+    if (supabaseEnabled && supabase) {
+      void supabase
+        .from("inventory_items")
+        .update({
+          name: update.name,
+          category: update.category,
+          status: update.status,
+          asset_tag: update.assetTag ?? null,
+          quantity: update.quantity,
+          location: update.location,
+          purchase_date: update.purchaseDate ?? null,
+          checked_out_by_educator_id: update.checkedOutByEducatorId ?? null,
+          assigned_educator_id: update.assignedEducatorId ?? null,
+          checked_out_at: update.checkedOutAt ?? null,
+          due_at: update.dueAt ?? null,
+          notes: update.notes ?? null,
+        })
+        .eq("id", id);
+      return;
+    }
     if (apiEnabled) {
       inventoryUpdate(id, {
         name: update.name,
         category: update.category,
         status: update.status,
-        serialNumber: update.serialNumber ?? null,
-        purchasedAt: update.purchasedAt ?? null,
+        serialNumber: update.assetTag ?? null,
+        purchasedAt: update.purchaseDate ?? null,
         checkedOutByEducatorId: update.checkedOutByEducatorId ?? null,
         assignedEducatorId: update.assignedEducatorId ?? null,
         checkedOutAt: update.checkedOutAt ?? null,
@@ -128,17 +233,18 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         notes: update.notes ?? null,
       }).catch(() => {});
     }
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...update } : i))
-    );
-  }, [apiEnabled]);
+  }, [apiEnabled, supabaseEnabled]);
 
   const deleteItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    if (supabaseEnabled && supabase) {
+      void supabase.from("inventory_items").delete().eq("id", id);
+      return;
+    }
     if (apiEnabled) {
       inventoryDelete(id).catch(() => {});
     }
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  }, [apiEnabled]);
+  }, [apiEnabled, supabaseEnabled]);
 
   const getItemsCheckedOutTo = useCallback(
     (educatorId: string) =>
@@ -152,39 +258,28 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const checkout = useCallback((itemId: string, educatorId: string, dueAt?: string | null) => {
     const now = new Date().toISOString();
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === itemId && (i.status === "available" || i.status === "assigned")
-          ? {
-              ...i,
-              status: "checked_out" as const,
-              checkedOutByEducatorId: educatorId,
-              checkedOutAt: now,
-              dueAt: dueAt ?? null,
-              assignedEducatorId: educatorId,
-            }
-          : i
-      )
-    );
-  }, []);
+    updateItem(itemId, {
+      status: "checked_out",
+      checkedOutByEducatorId: educatorId,
+      checkedOutAt: now,
+      dueAt: dueAt ?? null,
+      assignedEducatorId: educatorId,
+    });
+  }, [updateItem]);
 
   const returnItem = useCallback((itemId: string, educatorId: string) => {
-    setItems((prev) =>
-      prev.map((i) => {
-        if (i.id !== itemId) return i;
-        const outBy = i.checkedOutByEducatorId ?? i.assignedEducatorId;
-        if (outBy !== educatorId) return i;
-        return {
-          ...i,
-          status: "available" as const,
-          checkedOutByEducatorId: null,
-          checkedOutAt: null,
-          dueAt: null,
-          assignedEducatorId: null,
-        };
-      })
-    );
-  }, []);
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+    const outBy = item.checkedOutByEducatorId ?? item.assignedEducatorId;
+    if (outBy !== educatorId) return;
+    updateItem(itemId, {
+      status: "available",
+      checkedOutByEducatorId: null,
+      checkedOutAt: null,
+      dueAt: null,
+      assignedEducatorId: null,
+    });
+  }, [items, updateItem]);
 
   const canCheckout = useCallback((item: InventoryItem) => item.status === "available", []);
 

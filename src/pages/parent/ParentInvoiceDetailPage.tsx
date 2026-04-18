@@ -5,7 +5,8 @@ import { useFinanceAccount } from "@/context/FinanceAccountContext";
 import { useInvoice } from "@/context/FinanceContext";
 import { isApiEnabled } from "@/lib/api";
 import type { Receipt } from "@/types";
-import { parentChildMap, getLearner, getReceiptForInvoice } from "@/mockData";
+import { parentChildMap, getReceiptForInvoice } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { ArrowLeft, CreditCard, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReceiptView } from "@/features/invoices/components/ReceiptView";
@@ -32,6 +33,11 @@ export default function ParentInvoiceDetailPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const apiEnabled = isApiEnabled();
+  const { learners } = useLearners();
+  const learnerNameById = useMemo(
+    () => new Map(learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])),
+    [learners]
+  );
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
 
@@ -48,8 +54,7 @@ export default function ParentInvoiceDetailPage() {
     return childIds.includes(invoice.learnerId);
   }, [invoice, childIds]);
 
-  const learner =
-    invoice?.learnerId != null ? getLearner(invoice.learnerId) : null;
+  const learnerName = invoice?.learnerId != null ? learnerNameById.get(invoice.learnerId) ?? null : null;
 
   if (!id || !invoice || !allowed) {
     return (
@@ -74,9 +79,7 @@ export default function ParentInvoiceDetailPage() {
           ? invoice.totalAmount
           : 0;
 
-  const payerLabel = learner
-    ? `${learner.firstName} ${learner.lastName}`
-    : null;
+  const payerLabel = learnerName ?? null;
 
   const receipt: Receipt | null = useMemo(() => {
     if (invoice.status !== "paid") return null;
@@ -134,7 +137,7 @@ export default function ParentInvoiceDetailPage() {
         <div>
           <h1 className="page-title">Invoice {invoice.invoiceNumber}</h1>
           <p className="page-subtitle">
-            {learner ? `${learner.firstName} ${learner.lastName}` : "—"} · {invoice.term}
+            {learnerName ?? "—"} · {invoice.term}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -186,9 +189,7 @@ export default function ParentInvoiceDetailPage() {
                       source: (invoice as any).source,
                     },
                 {
-                  subtitle: learner
-                    ? `${learner.firstName} ${learner.lastName}`
-                    : undefined,
+                  subtitle: learnerName ?? undefined,
                 }
               )
             }
@@ -299,7 +300,7 @@ export default function ParentInvoiceDetailPage() {
         )}
 
         {invoice.status === "paid" && (() => {
-          const payerLabel = learner ? `${learner.firstName} ${learner.lastName}` : null;
+          const payerLabel = learnerName ?? null;
           const receipt = getReceiptForInvoice(invoice, payerLabel);
           return receipt ? (
             <div className="pt-4 border-t mt-4">

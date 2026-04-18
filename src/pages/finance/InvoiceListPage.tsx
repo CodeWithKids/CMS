@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/select";
 import { useInvoices } from "@/context/FinanceContext";
 import { useTerms } from "@/hooks/useTerms";
-import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { formatCurrency } from "@/lib/financeUtils";
 import { INVOICE_STATUS_LABELS, PAYER_TYPE_LABELS } from "@/types/finance";
 import type { FinanceInvoice } from "@/types/finance";
@@ -37,19 +37,17 @@ const ALL_TERMS = "all";
 const ALL_STATUSES = "all";
 const ALL_PAYER_TYPES = "all";
 
-function getPayerName(inv: FinanceInvoice): string {
+function getPayerName(inv: FinanceInvoice, learnerNameById: Map<string, string>): string {
   if (inv.payerType === "parent" && inv.learnerId) {
-    const learner = getLearner(inv.learnerId);
-    return learner ? `${learner.firstName} ${learner.lastName}` : inv.learnerId;
+    return learnerNameById.get(inv.learnerId) ?? inv.learnerId;
   }
   const org = getOrganization(inv.payerId);
   return org?.name ?? inv.payerId;
 }
 
-function getLearnerOrOrgLabel(inv: FinanceInvoice): string {
+function getLearnerOrOrgLabel(inv: FinanceInvoice, learnerNameById: Map<string, string>): string {
   if (inv.learnerId) {
-    const learner = getLearner(inv.learnerId);
-    return learner ? `Learner: ${learner.firstName} ${learner.lastName}` : inv.learnerId;
+    return `Learner: ${learnerNameById.get(inv.learnerId) ?? inv.learnerId}`;
   }
   const org = getOrganization(inv.organisationId ?? inv.payerId);
   return org ? `Org: ${org.name}` : inv.payerId;
@@ -61,6 +59,11 @@ export default function InvoiceListPage() {
   const statusParam = searchParams.get("status");
   const statusFilter = statusParam ?? ALL_STATUSES;
   const { terms: termOptions } = useTerms();
+  const { learners } = useLearners();
+  const learnerNameById = useMemo(
+    () => new Map(learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])),
+    [learners]
+  );
 
   const [termFilter, setTermFilter] = useState(ALL_TERMS);
 
@@ -225,9 +228,9 @@ export default function InvoiceListPage() {
                         {inv.id}
                       </Link>
                     </TableCell>
-                      <TableCell>{getPayerName(inv)}</TableCell>
+                      <TableCell>{getPayerName(inv, learnerNameById)}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {getLearnerOrOrgLabel(inv)}
+                        {getLearnerOrOrgLabel(inv, learnerNameById)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {mockTerms.find((t) => t.id === inv.termId)?.name ?? inv.termId}

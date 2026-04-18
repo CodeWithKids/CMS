@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useInventory } from "@/context/InventoryContext";
-import { getEducatorName } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_STATUS_LABELS } from "@/types";
 import type { InventoryCategory, InventoryStatus } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,11 @@ import { Package } from "lucide-react";
 
 export default function FinanceInventoryPage() {
   const { items } = useInventory();
+  const { educators } = useEducators({ role: "educator" });
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
 
   const summary = useMemo(() => {
     const byStatus = new Map<InventoryStatus, number>();
@@ -42,10 +47,11 @@ export default function FinanceInventoryPage() {
         .map((i) => ({
           ...i,
           educatorName: (i.checkedOutByEducatorId ?? i.assignedEducatorId)
-            ? getEducatorName(i.checkedOutByEducatorId ?? i.assignedEducatorId!)
+            ? educatorNameById.get(i.checkedOutByEducatorId ?? i.assignedEducatorId!) ??
+              (i.checkedOutByEducatorId ?? i.assignedEducatorId)
             : "—",
         })),
-    [items]
+    [items, educatorNameById]
   );
 
   return (

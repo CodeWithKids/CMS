@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
 import { useSessionExpenses } from "@/context/SessionExpensesContext";
-import { getClass, getLearner } from "@/mockData";
+import { getClass } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { getSessionRoleForUser, canEditSession } from "@/features/educator/lib/auth";
 import { AddCoachDialog } from "@/features/educator/components/AddCoachDialog";
@@ -282,7 +282,7 @@ export default function AttendancePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {cls.learnerIds.map((lid) => {
-            const learner = learnerMap.get(lid) ?? getLearner(lid);
+            const learner = learnerMap.get(lid);
             const rec = getRecord(lid);
             const status = rec?.status ?? "present";
             const name = learner ? `${learner.firstName} ${learner.lastName}` : lid;
@@ -396,7 +396,7 @@ export default function AttendancePage() {
             <DialogTitle>Give badge</DialogTitle>
             <DialogDescription>
               {learnerIdForBadge && (() => {
-                const l = learnerMap.get(learnerIdForBadge) ?? getLearner(learnerIdForBadge);
+                const l = learnerMap.get(learnerIdForBadge);
                 return l ? `${l.firstName} ${l.lastName}` : learnerIdForBadge;
               })()}
             </DialogDescription>

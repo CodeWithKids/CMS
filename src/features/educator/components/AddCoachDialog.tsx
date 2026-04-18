@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-import { getEducatorName } from "@/mockData";
-import { mockUsers } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { useSessions } from "@/context/SessionsContext";
 import type { Session } from "@/types";
 import {
@@ -24,8 +23,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { X } from "lucide-react";
 
-const educatorUsers = mockUsers.filter((u) => u.role === "educator");
-
 interface AddCoachDialogProps {
   session: Session;
   open: boolean;
@@ -34,6 +31,11 @@ interface AddCoachDialogProps {
 
 export function AddCoachDialog({ session, open, onOpenChange }: AddCoachDialogProps) {
   const { updateSession } = useSessions();
+  const { educators: educatorUsers } = useEducators({ role: "educator" });
+  const educatorNameById = useMemo(
+    () => new Map(educatorUsers.map((educator) => [educator.id, educator.name])),
+    [educatorUsers]
+  );
   const [search, setSearch] = useState("");
   const [removeCoachId, setRemoveCoachId] = useState<string | null>(null);
 
@@ -91,10 +93,10 @@ export function AddCoachDialog({ session, open, onOpenChange }: AddCoachDialogPr
                       key={id}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted text-sm"
                     >
-                      {getEducatorName(id)}
+                      {educatorNameById.get(id) ?? id}
                       <button
                         type="button"
-                        aria-label={`Remove ${getEducatorName(id)} as coach`}
+                        aria-label={`Remove ${educatorNameById.get(id) ?? id} as coach`}
                         className="rounded p-0.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
                         onClick={() => handleRemove(id)}
                       >
@@ -149,7 +151,7 @@ export function AddCoachDialog({ session, open, onOpenChange }: AddCoachDialogPr
           <AlertDialogHeader>
             <AlertDialogTitle>Remove coach</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove {removeCoachId ? getEducatorName(removeCoachId) : ""} as coach for this session?
+              Remove {removeCoachId ? (educatorNameById.get(removeCoachId) ?? removeCoachId) : ""} as coach for this session?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

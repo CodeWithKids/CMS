@@ -3,9 +3,9 @@ import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useFinance } from "@/context/FinanceContext";
 import { canApproveAdjustment } from "@/features/finance/lib/permissions";
-import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
 import { useTerms } from "@/hooks/useTerms";
+import { useLearners } from "@/hooks/useLearners";
 import { formatCurrency } from "@/lib/financeUtils";
 import {
   ADJUSTMENT_TYPE_LABELS,
@@ -30,10 +30,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 
-function getPayerName(inv: { payerType: string; payerId: string; learnerId?: string }): string {
+function getPayerName(
+  inv: { payerType: string; payerId: string; learnerId?: string },
+  learnerNameById: Map<string, string>
+): string {
   if (inv.payerType === "parent" && inv.learnerId) {
-    const learner = getLearner(inv.learnerId);
-    return learner ? `${learner.firstName} ${learner.lastName}` : inv.learnerId;
+    return learnerNameById.get(inv.learnerId) ?? inv.learnerId;
   }
   const org = getOrganization(inv.payerId);
   return org?.name ?? inv.payerId;
@@ -43,6 +45,10 @@ export default function AdjustmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const { terms } = useTerms();
+  const { learners } = useLearners();
+  const learnerNameById = new Map(
+    learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])
+  );
   const { getInvoice, updateAdjustmentStatus, adjustmentRequests } = useFinance();
 
   const [rejectNote, setRejectNote] = useState("");
@@ -104,7 +110,7 @@ export default function AdjustmentDetailPage() {
             <div className="rounded-lg border p-4 bg-muted/30">
               <p className="text-sm font-medium text-muted-foreground mb-2">Invoice summary</p>
               <p className="text-sm">
-                Invoice {invoice.id} · Payer: {getPayerName(invoice)} · Term:{" "}
+                Invoice {invoice.id} · Payer: {getPayerName(invoice, learnerNameById)} · Term:{" "}
                 {terms.find((t) => t.id === invoice.termId)?.name ?? invoice.termId}
               </p>
               <p className="text-sm mt-1">

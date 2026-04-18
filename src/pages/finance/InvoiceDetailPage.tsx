@@ -13,8 +13,8 @@ import { PaymentDialog } from "@/features/invoices/components/PaymentDialog";
 import { AdjustmentRequestDialog } from "@/features/invoices/components/AdjustmentRequestDialog";
 import { useTerms } from "@/hooks/useTerms";
 import { useOrganisation } from "@/hooks/useOrganisation";
-import { getLearner } from "@/mockData";
 import { getOrganization } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { formatCurrency } from "@/lib/financeUtils";
 import { useQuery } from "@tanstack/react-query";
 import { isApiEnabled, learnersGetById } from "@/lib/api";
@@ -41,6 +41,10 @@ export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const { terms } = useTerms();
+  const { learners } = useLearners();
+  const learnerNameById = new Map(
+    learners.map((learner) => [learner.id, `${learner.firstName} ${learner.lastName}`])
+  );
   const invoice = useInvoice(id);
   const payments = usePaymentsForInvoice(id);
   const adjustments = useAdjustmentsForInvoice(id);
@@ -77,10 +81,7 @@ export default function InvoiceDetailPage() {
       : invoice.payerType === "parent" && invoice.learnerId
         ? learnerBackendEnabled && learnerFromApi
           ? `${learnerFromApi.firstName} ${learnerFromApi.lastName}`
-          : (() => {
-              const learner = getLearner(invoice.learnerId);
-              return learner ? `${learner.firstName} ${learner.lastName}` : invoice.learnerId;
-            })()
+          : (learnerNameById.get(invoice.learnerId) ?? invoice.learnerId)
         : apiEnabled && orgFromApi
           ? orgFromApi.name
           : getOrganization(invoice.payerId)?.name ?? invoice.payerId;
@@ -164,9 +165,7 @@ export default function InvoiceDetailPage() {
           {invoice.learnerId && (
             <p>
               <span className="font-medium text-muted-foreground">Learner:</span>{" "}
-              {getLearner(invoice.learnerId)
-                ? `${getLearner(invoice.learnerId)!.firstName} ${getLearner(invoice.learnerId)!.lastName}`
-                : invoice.learnerId}
+              {learnerNameById.get(invoice.learnerId) ?? invoice.learnerId}
             </p>
           )}
           {invoice.programmeId && (

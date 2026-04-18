@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/features/tasks/context/TasksContext";
 import { canManageTasks } from "@/features/tasks/lib/permissions";
-import { getEducatorName } from "@/mockData";
-import { mockStaff, mockClasses } from "@/mockData";
+import { mockClasses } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import type { Task, TaskStatus } from "@/types";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { LearningTrack } from "@/types";
@@ -66,15 +66,18 @@ const TRACK_OPTIONS: LearningTrack[] = [
   "ai",
 ];
 
-const educators = mockStaff.filter((s) => s.role === "educator");
-
 export default function LDTasksPage() {
   const { currentUser } = useAuth();
   const { tasks, createTask, updateTask, getTaskById } = useTasks();
+  const { educators } = useEducators({ role: "educator" });
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
 
   const canManage = currentUser && canManageTasks(currentUser);
 
@@ -196,7 +199,7 @@ export default function LDTasksPage() {
                 >
                   <TableCell className="font-medium">{t.title}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {t.assigneeIds.map((id) => getEducatorName(id)).join(", ") || "—"}
+                    {t.assigneeIds.map((id) => educatorNameById.get(id) ?? id).join(", ") || "—"}
                   </TableCell>
                   <TableCell className="text-sm">
                     {t.trackId ? LEARNING_TRACK_LABELS[t.trackId] : "—"}
@@ -316,6 +319,8 @@ export default function LDTasksPage() {
                 toast({ title: "Task updated" });
               }}
               canEdit={!!canManage}
+              educators={educators}
+              educatorNameById={educatorNameById}
             />
           )}
         </SheetContent>
@@ -329,11 +334,15 @@ function TaskDetailSheet({
   onClose,
   onUpdate,
   canEdit,
+  educators,
+  educatorNameById,
 }: {
   task: Task;
   onClose: () => void;
   onUpdate: (updates: Partial<Task>) => void;
   canEdit: boolean;
+  educators: { id: string; name: string }[];
+  educatorNameById: Map<string, string>;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
@@ -410,7 +419,9 @@ function TaskDetailSheet({
               ))}
             </div>
           ) : (
-            <p className="text-sm mt-1">{task.assigneeIds.map(getEducatorName).join(", ") || "—"}</p>
+            <p className="text-sm mt-1">
+              {task.assigneeIds.map((id) => educatorNameById.get(id) ?? id).join(", ") || "—"}
+            </p>
           )}
         </div>
         <div>

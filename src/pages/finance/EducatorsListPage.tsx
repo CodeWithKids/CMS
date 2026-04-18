@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSessions } from "@/context/SessionsContext";
 import { useTerms } from "@/hooks/useTerms";
-import { mockUsers, getEducatorName } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import {
   calculateEducatorHoursByTerm,
   filterEducatorHoursByTerm,
@@ -43,6 +43,11 @@ export default function EducatorsListPage() {
   const termSelectValue = termOptions.length > 0 ? (termOptions.some((t) => t.id === termId) ? termId : termOptions[0].id) : "";
 
   const { sessions } = useSessions();
+  const { educators } = useEducators({ role: "educator" });
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
 
   const allSummaries = useMemo(
     () => calculateEducatorHoursByTerm(sessions),
@@ -55,8 +60,8 @@ export default function EducatorsListPage() {
   );
 
   const educatorIds = useMemo(
-    () => new Set(mockUsers.filter((u) => u.role === "educator").map((u) => u.id)),
-    []
+    () => new Set(educators.map((educator) => educator.id)),
+    [educators]
   );
 
   const rows = useMemo(() => {
@@ -64,13 +69,15 @@ export default function EducatorsListPage() {
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((e) =>
-        getEducatorName(e.educatorId).toLowerCase().includes(q)
+        (educatorNameById.get(e.educatorId) ?? e.educatorId).toLowerCase().includes(q)
       );
     }
     return list.sort((a, b) =>
-      getEducatorName(a.educatorId).localeCompare(getEducatorName(b.educatorId))
+      (educatorNameById.get(a.educatorId) ?? a.educatorId).localeCompare(
+        educatorNameById.get(b.educatorId) ?? b.educatorId
+      )
     );
-  }, [termSummaries, educatorIds, search]);
+  }, [termSummaries, educatorIds, search, educatorNameById]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -135,7 +142,7 @@ export default function EducatorsListPage() {
                 {rows.map((row) => (
                   <TableRow key={row.educatorId}>
                     <TableCell className="font-medium">
-                      {getEducatorName(row.educatorId)}
+                      {educatorNameById.get(row.educatorId) ?? row.educatorId}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       Educator

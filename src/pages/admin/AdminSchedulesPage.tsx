@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useSchedule } from "@/context/ScheduleContext";
 import { useSessions } from "@/context/SessionsContext";
 import { getClass } from "@/mockData";
-import { mockUsers } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { Session } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,12 +48,12 @@ function timeToMinutes(t: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
-const educators = mockUsers.filter((u) => u.role === "educator");
 const ALL_ID = "__all__";
 
 export default function AdminSchedulesPage() {
   const { getSlotsForEducator } = useSchedule();
   const { sessions, getSessionsForEducatorByRole } = useSessions();
+  const { educators } = useEducators({ role: "educator" });
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     const day = d.getDay();

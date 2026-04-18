@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useFinanceAccount } from "@/context/FinanceAccountContext";
-import { parentChildMap, getLearner, getTodaySessionsForStudent, getSessionsForStudent, getClass, getInvoicesForParent } from "@/mockData";
+import { parentChildMap, getTodaySessionsForStudent, getSessionsForStudent, getClass, getInvoicesForParent } from "@/mockData";
+import { useLearners } from "@/hooks/useLearners";
 import { User, Clock, ChevronRight, FileText } from "lucide-react";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,11 @@ export default function ParentDashboard() {
   const { currentUser } = useAuth();
   const { getByLearner } = useAttendance();
   const { getInvoices } = useFinanceAccount();
+  const { learners } = useLearners();
+  const learnerById = useMemo(
+    () => new Map(learners.map((learner) => [learner.id, learner])),
+    [learners]
+  );
   const parentId = currentUser?.id ?? "u5";
   const childIds = parentChildMap[parentId] ?? [];
   const invoices = getInvoicesForParent(getInvoices(), childIds);
@@ -60,7 +66,7 @@ export default function ParentDashboard() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {childIds.map((childId) => {
-          const learner = getLearner(childId);
+          const learner = learnerById.get(childId);
           if (!learner) return null;
           const todaySessions = getTodaySessionsForStudent(childId);
 

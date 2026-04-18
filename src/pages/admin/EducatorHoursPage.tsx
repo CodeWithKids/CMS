@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/hooks/useTerms";
-import { mockSessions, mockUsers, getEducatorName } from "@/mockData";
+import { mockSessions } from "@/mockData";
 import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
+import { useEducators } from "@/hooks/useEducators";
 import type { Session, SessionType, LearningTrack } from "@/types";
 import {
   calculateEducatorHoursByTerm,
@@ -45,6 +46,11 @@ export default function EducatorHoursPage() {
   const termSelectValue = termOptions.length > 0 ? (termOptions.some((t) => t.id === selectedTermId) ? selectedTermId : termOptions[0].id) : "";
 
   const apiEnabled = isApiEnabled();
+  const { educators } = useEducators({ role: "educator" });
+  const educatorNameById = useMemo(
+    () => new Map(educators.map((educator) => [educator.id, educator.name])),
+    [educators]
+  );
   const { data: apiSessions = [] } = useQuery({
     queryKey: ["admin", "educator-hours", "sessions"],
     queryFn: () => sessionsGetAll({}),
@@ -87,8 +93,8 @@ export default function EducatorHoursPage() {
   );
 
   const educatorIdsWithRole = useMemo(
-    () => new Set(mockUsers.filter((u) => u.role === "educator").map((u) => u.id)),
-    []
+    () => new Set(educators.map((educator) => educator.id)),
+    [educators]
   );
 
   const filteredRows = useMemo(() => {
@@ -96,11 +102,15 @@ export default function EducatorHoursPage() {
     const q = educatorSearch.trim().toLowerCase();
     if (q) {
       rows = rows.filter((s) =>
-        getEducatorName(s.educatorId).toLowerCase().includes(q)
+        (educatorNameById.get(s.educatorId) ?? s.educatorId).toLowerCase().includes(q)
       );
     }
-    return rows.sort((a, b) => getEducatorName(a.educatorId).localeCompare(getEducatorName(b.educatorId)));
-  }, [termSummaries, educatorIdsWithRole, educatorSearch]);
+    return rows.sort((a, b) =>
+      (educatorNameById.get(a.educatorId) ?? a.educatorId).localeCompare(
+        educatorNameById.get(b.educatorId) ?? b.educatorId
+      )
+    );
+  }, [termSummaries, educatorIdsWithRole, educatorSearch, educatorNameById]);
 
   const termTotals = useMemo(() => {
     let totalLead = 0;
@@ -213,6 +223,7 @@ export default function EducatorHoursPage() {
                     key={`${row.educatorId}-${row.termId}`}
                     row={row}
                     termName={selectedTerm?.name ?? row.termId ?? "—"}
+                    educatorName={educatorNameById.get(row.educatorId) ?? row.educatorId}
                   />
                 ))}
               </TableBody>
@@ -227,13 +238,15 @@ export default function EducatorHoursPage() {
 function EducatorHoursRow({
   row,
   termName,
+  educatorName,
 }: {
   row: EducatorHoursSummary;
   termName: string;
+  educatorName: string;
 }) {
   return (
     <TableRow>
-      <TableCell className="font-medium">{getEducatorName(row.educatorId)}</TableCell>
+      <TableCell className="font-medium">{educatorName}</TableCell>
       <TableCell>{termName}</TableCell>
       <TableCell className="text-right">{formatHours(row.leadHours)}</TableCell>
       <TableCell className="text-right">{formatHours(row.coachingHours)}</TableCell>

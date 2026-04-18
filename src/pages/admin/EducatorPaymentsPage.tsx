@@ -8,9 +8,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { mockEducatorPayments, getEducatorName } from "@/mockData";
+import { mockEducatorPayments } from "@/mockData";
 import { Wallet } from "lucide-react";
 import type { EducatorPaymentType } from "@/types";
+import { useEducators } from "@/hooks/useEducators";
 
 const paymentTypeLabels: Record<EducatorPaymentType, string> = {
   stipend: "Stipend",
@@ -21,6 +22,9 @@ const paymentTypeLabels: Record<EducatorPaymentType, string> = {
 import { formatCurrency } from "@/lib/financeUtils";
 
 export default function EducatorPaymentsPage() {
+  const { educators } = useEducators({ role: "educator" });
+  const educatorNameById = new Map(educators.map((educator) => [educator.id, educator.name]));
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
@@ -53,7 +57,9 @@ export default function EducatorPaymentsPage() {
             <TableBody>
               {mockEducatorPayments.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{getEducatorName(p.educatorId)}</TableCell>
+                  <TableCell className="font-medium">
+                    {educatorNameById.get(p.educatorId) ?? p.educatorId}
+                  </TableCell>
                   <TableCell>{p.period}</TableCell>
                   <TableCell>{paymentTypeLabels[p.type]}</TableCell>
                   <TableCell className="text-right font-medium">

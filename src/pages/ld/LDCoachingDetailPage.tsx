@@ -1,9 +1,10 @@
 import { useParams, Link } from "react-router-dom";
 import { useCoachingNotes } from "@/features/ld-manager/context/CoachingNotesContext";
 import { useAuth } from "@/context/AuthContext";
-import { getEducatorName, getSessionsForTerm, getCurrentTerm } from "@/mockData";
+import { getSessionsForTerm, getCurrentTerm } from "@/mockData";
+import { useEducators } from "@/hooks/useEducators";
 import { canAddCoachingNotes } from "@/features/ld-manager/lib/permissions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +18,11 @@ export default function LDCoachingDetailPage() {
   const id = educatorId ?? "";
   const { getNotesForEducator, addNote } = useCoachingNotes();
   const { currentUser } = useAuth();
+  const { educators } = useEducators({ role: "educator" });
   const { toast } = useToast();
   const [newText, setNewText] = useState("");
   const [newTrackRef, setNewTrackRef] = useState("");
+  const educatorNameById = new Map(educators.map((educator) => [educator.id, educator.name]));
 
   const notes = getNotesForEducator(id).sort((a, b) => b.date.localeCompare(a.date));
   const currentTerm = getCurrentTerm();
@@ -53,7 +56,7 @@ export default function LDCoachingDetailPage() {
     );
   }
 
-  const educatorName = getEducatorName(id);
+  const educatorName = educatorNameById.get(id) ?? id;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -114,7 +117,7 @@ export default function LDCoachingDetailPage() {
                 <li key={n.id} className="border-l-2 pl-4 py-1">
                   <p className="text-sm font-medium text-muted-foreground">{n.date} {n.trackRef ? `· ${n.trackRef}` : ""}</p>
                   <p className="text-sm">{n.text}</p>
-                  <p className="text-xs text-muted-foreground">By {getEducatorName(n.authorId)}</p>
+                  <p className="text-xs text-muted-foreground">By {educatorNameById.get(n.authorId) ?? n.authorId}</p>
                 </li>
               ))
             )}

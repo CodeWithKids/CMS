@@ -25,10 +25,8 @@ import {
 } from "@/components/ui/select";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_STATUS_LABELS } from "@/types";
 import type { InventoryCategory, InventoryStatus } from "@/types";
-import { mockUsers } from "@/mockData";
 import { ArrowLeft } from "lucide-react";
-
-const educatorOptions = mockUsers.filter((u) => u.role === "educator");
+import { useEducators } from "@/hooks/useEducators";
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -48,6 +46,7 @@ export default function InventoryFormPage() {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const { getItem, addItem, updateItem } = useInventory();
+  const { educators } = useEducators({ role: "educator" });
   const navigate = useNavigate();
   const isEdit = id && id !== "new";
   const existing = isEdit ? getItem(id) : null;
@@ -270,7 +269,7 @@ export default function InventoryFormPage() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="">None</SelectItem>
-                        {educatorOptions.map((u) => (
+                        {educators.map((u) => (
                           <SelectItem key={u.id} value={u.id}>
                             {u.name}
                           </SelectItem>

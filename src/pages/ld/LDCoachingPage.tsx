@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getSessionsForTerm, getCurrentTerm, mockStaff, getEducatorName } from "@/mockData";
+import { getSessionsForTerm, getCurrentTerm } from "@/mockData";
 import { useAuth } from "@/context/AuthContext";
 import { useCoachingInvites } from "@/context/CoachingInvitesContext";
 import { useLearnerFeedback } from "@/context/LearnerFeedbackContext";
 import { useSessionReports } from "@/context/SessionReportsContext";
+import { useEducators } from "@/hooks/useEducators";
 import {
   Table,
   TableBody,
@@ -36,8 +37,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Users, CalendarPlus, Clock } from "lucide-react";
 
-const educators = mockStaff.filter((s) => s.role === "educator");
-
 const TIME_OPTIONS = Array.from({ length: 24 }, (_, i) => {
   const h = i < 10 ? `0${i}` : `${i}`;
   return [`${h}:00`, `${h}:30`];
@@ -66,7 +65,9 @@ export default function LDCoachingPage() {
   const { feedbacks } = useLearnerFeedback();
   const { list: listReports } = useSessionReports();
   const { getCreatedBy, create, checkSlotAvailability } = useCoachingInvites();
+  const { educators } = useEducators({ role: "educator" });
   const { toast } = useToast();
+  const educatorNameById = new Map(educators.map((educator) => [educator.id, educator.name]));
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleEducatorId, setScheduleEducatorId] = useState("");
@@ -177,7 +178,7 @@ export default function LDCoachingPage() {
               <TableBody>
                 {upcomingCoaching.map((inv) => (
                   <TableRow key={inv.id}>
-                    <TableCell className="font-medium">{getEducatorName(inv.educatorId)}</TableCell>
+                    <TableCell className="font-medium">{educatorNameById.get(inv.educatorId) ?? inv.educatorId}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDate(inv.date)} {inv.startTime}–{inv.endTime}
                     </TableCell>
