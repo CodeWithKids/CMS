@@ -1,9 +1,11 @@
 /**
- * Learner by ID from API when VITE_API_URL is set.
+ * Learner by ID from Supabase when configured, otherwise API, otherwise mock.
  * Use for display labels (e.g. in tables); render in a cell component so the hook is not called in a loop.
  */
 import { useQuery } from "@tanstack/react-query";
 import { isApiEnabled, learnersGetById, type LearnerApi } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToLearnerApi, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
 import { getLearner } from "@/mockData";
 
 const LEARNER_QUERY_KEY = ["learner"];
@@ -20,12 +22,27 @@ export function useLearner(id: string | null | undefined): {
   displayName: string;
   isLoading: boolean;
 } {
-  const enabled = isApiEnabled() && !!id;
+  const supabaseEnabled = isSupabaseEnabled();
+  const apiEnabled = isApiEnabled();
+  const enabled = (supabaseEnabled || apiEnabled) && !!id;
 
   const query = useQuery({
     queryKey: [...LEARNER_QUERY_KEY, id ?? ""],
-    queryFn: () => learnersGetById(id!),
-    enabled: !!enabled,
+    queryFn: async () => {
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase.from("learners").select("*").eq("id", id!).maybeSingle();
+          if (error) throw error;
+          if (!data) return null;
+          return mapSupabaseRowToLearnerApi(data as SupabaseLearnerRow);
+        } catch {
+          if (apiEnabled) return learnersGetById(id!);
+          throw new Error("Could not load learner from Supabase.");
+        }
+      }
+      return learnersGetById(id!);
+    },
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 

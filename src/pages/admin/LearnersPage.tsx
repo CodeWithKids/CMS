@@ -47,7 +47,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { LearnerEnrolmentType } from "@/types";
+import type { Learner, LearnerEnrolmentType } from "@/types";
+import { supabase } from "@/lib/supabaseClient";
+import {
+  learnerCreateBodyToSupabaseRow,
+  learnerPatchBodyToSupabasePatch,
+  mapLearnerToLearnerApi,
+} from "@/lib/learnersSupabase";
 
 const PROGRAM_TYPES = [
   { value: "MAKERSPACE", label: "Makerspace" },
@@ -159,9 +165,10 @@ export default function LearnersPage() {
     setFormOpen("create");
   }
 
-  function openEdit(l: LearnerApi) {
-    setFormState(learnerToForm(l));
-    setFormOpen(l);
+  function openEdit(l: Learner) {
+    const apiRow = mapLearnerToLearnerApi(l);
+    setFormState(learnerToForm(apiRow));
+    setFormOpen(apiRow);
   }
 
   function handleParentSelect(parent: ParentPartnerApi | null) {
@@ -179,7 +186,7 @@ export default function LearnersPage() {
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if (!isAdmin || (!apiEnabled && !supabaseEnabled)) return;
     const { firstName, lastName, dateOfBirth, school, enrolmentType, programType, status } = formState;
     if (!firstName.trim() || !lastName.trim() || !dateOfBirth.trim() || !school.trim() || !enrolmentType || !programType) {
       toast({ title: "Missing fields", description: "First name, last name, date of birth, school, enrolment type, and program type are required.", variant: "destructive" });
@@ -204,6 +211,45 @@ export default function LearnersPage() {
       gender: formState.gender.trim() || undefined,
       joinedAt: formState.joinedAt.trim() || undefined,
     };
+
+    const finishOk = () => {
+      void queryClient.invalidateQueries({ queryKey: ["learners"] });
+      void queryClient.invalidateQueries({ queryKey: ["learner"] });
+      setFormOpen(null);
+      setFormSaving(false);
+    };
+
+    const finishErr = (msg: string) => {
+      toast({ title: "Save failed", description: msg, variant: "destructive" });
+      setFormSaving(false);
+    };
+
+    if (supabaseEnabled && supabase) {
+      void (async () => {
+        try {
+          if (formOpen === "create") {
+            const newId = crypto.randomUUID();
+            const row = learnerCreateBodyToSupabaseRow(newId, payload);
+            const { error } = await supabase.from("learners").insert(row);
+            if (error) throw error;
+            toast({ title: "Learner created" });
+            finishOk();
+          } else if (typeof formOpen === "object" && formOpen.id) {
+            const patch = learnerPatchBodyToSupabasePatch(payload);
+            const { error } = await supabase.from("learners").update(patch).eq("id", formOpen.id);
+            if (error) throw error;
+            toast({ title: "Learner updated" });
+            finishOk();
+          } else {
+            setFormSaving(false);
+          }
+        } catch (err: unknown) {
+          const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: string }).message) : "Could not save learner.";
+          finishErr(msg);
+        }
+      })();
+      return;
+    }
 
     if (formOpen === "create") {
       learnersCreate(payload)
@@ -233,11 +279,31 @@ export default function LearnersPage() {
   }
 
   function handleConfirmDelete() {
-    if (!deleteTarget || !apiEnabled) return;
+    if (!deleteTarget || (!apiEnabled && !supabaseEnabled)) return;
+    if (supabaseEnabled && supabase) {
+      setDeleteLoading(true);
+      void (async () => {
+        try {
+          const { error } = await supabase.from("learners").delete().eq("id", deleteTarget.id);
+          if (error) throw error;
+          await queryClient.invalidateQueries({ queryKey: ["learners"] });
+          await queryClient.invalidateQueries({ queryKey: ["learner"] });
+          toast({ title: "Learner deleted", description: `${deleteTarget.firstName} ${deleteTarget.lastName} has been removed.` });
+          setDeleteTarget(null);
+        } catch (err: unknown) {
+          const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: string }).message) : "Could not delete learner.";
+          toast({ title: "Delete failed", description: msg, variant: "destructive" });
+        } finally {
+          setDeleteLoading(false);
+        }
+      })();
+      return;
+    }
     setDeleteLoading(true);
     learnersDelete(deleteTarget.id)
       .then(() => {
         queryClient.invalidateQueries({ queryKey: ["learners"] });
+        queryClient.invalidateQueries({ queryKey: ["learner"] });
         toast({ title: "Learner deleted", description: `${deleteTarget.firstName} ${deleteTarget.lastName} has been removed.` });
         setDeleteTarget(null);
       })
@@ -255,7 +321,7 @@ export default function LearnersPage() {
           <h1 className="page-title">Learners</h1>
           <p className="page-subtitle">Manage all registered learners (members and partner-org)</p>
         </div>
-        {apiEnabled && isAdmin && (
+        {backendEnabled && isAdmin && (
           <Button onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" /> Add learner
           </Button>
@@ -325,7 +391,7 @@ export default function LearnersPage() {
               <th>Contact (parent / org)</th>
               <th>Status</th>
               <th></th>
-              {apiEnabled && isAdmin && <th className="w-[100px]">Actions</th>}
+              {backendEnabled && isAdmin && <th className="w-[100px]">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -363,7 +429,7 @@ export default function LearnersPage() {
                       View
                     </Link>
                   </td>
-                  {apiEnabled && isAdmin && (
+                  {backendEnabled && isAdmin && (
                     <td className="space-x-2">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(l)} title="Edit learner">
                         <Pencil className="h-4 w-4" />
@@ -372,7 +438,7 @@ export default function LearnersPage() {
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteTarget(l)}
+                        onClick={() => setDeleteTarget(mapLearnerToLearnerApi(l))}
                         title="Delete learner"
                       >
                         <Trash2 className="h-4 w-4" />

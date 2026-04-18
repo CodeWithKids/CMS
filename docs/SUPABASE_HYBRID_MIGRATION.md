@@ -30,7 +30,7 @@ VITE_API_URL=http://localhost:3001
 
 - Auth: Supabase-first with fallback compatibility in `src/context/AuthContext.tsx`
 - Terms: Supabase-first in `src/hooks/useTerms.ts`
-- Learners: Supabase-first hook in `src/hooks/useLearners.ts` (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql`)
+- Learners: Supabase-first list + by-id + admin CRUD in hooks/pages (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql` — include section 6 write policies for create/update/delete)
 - Classes: pending
 - Sessions/attendance: pending
 - Finance: pending

@@ -131,3 +131,58 @@ end;
 $$;
 
 commit;
+
+-- ---------------------------------------------------------------------------
+-- 6) Write policies (admin + finance) — run this block after the block above
+--    so the app can insert / update / delete learners from Admin → Learners.
+-- ---------------------------------------------------------------------------
+
+drop policy if exists learners_insert_admin_finance on public.learners;
+create policy learners_insert_admin_finance
+  on public.learners
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('admin', 'finance')
+    )
+  );
+
+drop policy if exists learners_update_admin_finance on public.learners;
+create policy learners_update_admin_finance
+  on public.learners
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('admin', 'finance')
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('admin', 'finance')
+    )
+  );
+
+drop policy if exists learners_delete_admin_finance on public.learners;
+create policy learners_delete_admin_finance
+  on public.learners
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('admin', 'finance')
+    )
+  );

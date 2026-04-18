@@ -10,6 +10,7 @@ import {
   type LearnerApi,
 } from "@/lib/api";
 import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToLearner, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
 
 function mapApiToLearner(a: LearnerApi): Learner {
   return {
@@ -29,66 +30,6 @@ function mapApiToLearner(a: LearnerApi): Learner {
     status: a.status as "active" | "alumni",
     gender: (a.gender as "male" | "female" | "other") ?? undefined,
     joinedAt: a.joinedAt ?? undefined,
-  };
-}
-
-interface SupabaseLearnerRow {
-  id: string;
-  first_name?: string | null;
-  firstName?: string | null;
-  last_name?: string | null;
-  lastName?: string | null;
-  date_of_birth?: string | null;
-  dateOfBirth?: string | null;
-  school?: string | null;
-  enrolment_type?: string | null;
-  enrolmentType?: string | null;
-  program_type?: string | null;
-  programType?: string | null;
-  membership_status?: string | null;
-  membershipStatus?: string | null;
-  user_id?: string | null;
-  userId?: string | null;
-  parent_name?: string | null;
-  parentName?: string | null;
-  parent_phone?: string | null;
-  parentPhone?: string | null;
-  parent_email?: string | null;
-  parentEmail?: string | null;
-  organization_id?: string | null;
-  organizationId?: string | null;
-  status?: string | null;
-  gender?: string | null;
-  joined_at?: string | null;
-  joinedAt?: string | null;
-}
-
-function normalizeLearnerStatus(value: unknown): "active" | "alumni" {
-  return value === "alumni" ? "alumni" : "active";
-}
-
-function normalizeGender(value: unknown): "male" | "female" | "other" | undefined {
-  return value === "male" || value === "female" || value === "other" ? value : undefined;
-}
-
-function mapSupabaseToLearner(row: SupabaseLearnerRow): Learner {
-  return {
-    id: row.id,
-    firstName: row.first_name ?? row.firstName ?? "",
-    lastName: row.last_name ?? row.lastName ?? "",
-    dateOfBirth: row.date_of_birth ?? row.dateOfBirth ?? "",
-    school: row.school ?? "",
-    enrolmentType: (row.enrolment_type ?? row.enrolmentType ?? "member") as "member" | "partner_org",
-    programType: (row.program_type ?? row.programType ?? "MAKERSPACE") as "MAKERSPACE" | "SCHOOL_CLUB" | "ORGANISATION",
-    membershipStatus: (row.membership_status ?? row.membershipStatus ?? undefined) as Learner["membershipStatus"],
-    userId: row.user_id ?? row.userId ?? undefined,
-    parentName: row.parent_name ?? row.parentName ?? undefined,
-    parentPhone: row.parent_phone ?? row.parentPhone ?? undefined,
-    parentEmail: row.parent_email ?? row.parentEmail ?? undefined,
-    organizationId: row.organization_id ?? row.organizationId ?? undefined,
-    status: normalizeLearnerStatus(row.status),
-    gender: normalizeGender(row.gender),
-    joinedAt: row.joined_at ?? row.joinedAt ?? undefined,
   };
 }
 
@@ -133,7 +74,7 @@ export function useLearners(params?: UseLearnersParams): {
         try {
           const { data, error } = await client.from("learners").select("*");
           if (error) throw error;
-          const mapped = ((data as SupabaseLearnerRow[] | null) ?? []).map(mapSupabaseToLearner);
+          const mapped = ((data as SupabaseLearnerRow[] | null) ?? []).map(mapSupabaseRowToLearner);
           return applyLocalLearnerFilters(mapped, params);
         } catch (e) {
           if (isApiEnabled()) {

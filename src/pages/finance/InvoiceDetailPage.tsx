@@ -18,6 +18,8 @@ import { getOrganization } from "@/mockData";
 import { formatCurrency } from "@/lib/financeUtils";
 import { useQuery } from "@tanstack/react-query";
 import { isApiEnabled, learnersGetById } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToLearnerApi, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
 import {
   INVOICE_STATUS_LABELS,
   PAYER_TYPE_LABELS,
@@ -45,19 +47,35 @@ export default function InvoiceDetailPage() {
   const creditNotes = useCreditNotesForInvoice(id);
   const { recordPayment, createAdjustmentRequest, loadPaymentsForInvoice } = useFinance();
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const learnerBackendEnabled = apiEnabled || supabaseEnabled;
   const { organisation: orgFromApi } = useOrganisation(
     invoice?.payerType === "organisation" ? invoice.payerId : null
   );
   const { data: learnerFromApi } = useQuery({
     queryKey: ["learner", invoice?.learnerId],
-    queryFn: () => learnersGetById(invoice!.learnerId!),
-    enabled: apiEnabled && !!invoice?.learnerId && invoice?.payerType === "parent",
+    queryFn: async () => {
+      const learnerId = invoice!.learnerId!;
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase.from("learners").select("*").eq("id", learnerId).maybeSingle();
+          if (error) throw error;
+          if (!data) return null;
+          return mapSupabaseRowToLearnerApi(data as SupabaseLearnerRow);
+        } catch {
+          if (apiEnabled) return learnersGetById(learnerId);
+          return null;
+        }
+      }
+      return learnersGetById(learnerId);
+    },
+    enabled: learnerBackendEnabled && !!invoice?.learnerId && invoice?.payerType === "parent",
   });
   const payerName =
     !invoice
       ? ""
       : invoice.payerType === "parent" && invoice.learnerId
-        ? apiEnabled && learnerFromApi
+        ? learnerBackendEnabled && learnerFromApi
           ? `${learnerFromApi.firstName} ${learnerFromApi.lastName}`
           : (() => {
               const learner = getLearner(invoice.learnerId);
