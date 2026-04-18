@@ -168,6 +168,7 @@
 
   /* Responsive: tables scroll horizontally on small screens */
   .table-wrapper {
-    @apply w-full overflow-x-auto -webkit-overflow-scrolling-touch;
+    @apply w-full overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
   }
 }

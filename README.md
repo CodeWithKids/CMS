@@ -13,7 +13,13 @@ CWK-CMS is an **operations and learning hub** for a kids' coding program. It let
 - **Students** see their timetable, access learning platforms, and submit feedback.
 - **Parents** see their children's next sessions, attendance, and invoices.
 
-The frontend can run with **mock data** only, or connect to the **CWK Hub API** (see `server/`). To use the API: set `VITE_API_URL=http://localhost:3001` in a `.env` file in the project root (copy from `.env.example`), then run the API from `server/` (PostgreSQL required). Login will use email/password and finance data (invoices, payments) will come from the backend.
+The frontend can run in three modes:
+
+- **Mock only** (no backend env vars)
+- **Legacy API mode** with `VITE_API_URL=http://localhost:3001`
+- **Hybrid migration mode** with Supabase (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) while keeping `VITE_API_URL` for endpoints not migrated yet
+
+See `docs/SUPABASE_HYBRID_MIGRATION.md` for the feature-by-feature migration checklist and RLS requirements.
 
 ### Signup and access
 
@@ -75,8 +81,8 @@ shadcn/ui and Tailwind provide data-heavy components (tables, cards, dialogs, fo
 
 - **Single-page app (SPA)** — One React app; routing is client-side.
 - **Role-based access** — Routes are protected by role. If a user hits a route for another role, they are redirected to their role's default page (e.g. student → `/student/dashboard`).
-- **Fake authentication** — An `AuthContext` holds the current user (`id`, `name`, `role`). Login selects a user from mock users; the chosen user is persisted in `localStorage`. A role switcher in the UI lets you switch roles during development.
-- **Mock data** — All lists and details come from in-memory arrays in `src/mockData/index.ts` (learners, classes, sessions, invoices, events, class enrollments). No API calls yet.
+- **Authentication during migration** — `AuthContext` supports Supabase auth when Supabase env vars are set, with legacy API fallback and mock/dev compatibility.
+- **Mixed data sources during migration** — Some screens still read from `src/mockData/index.ts`, while migrated slices read from Supabase or the legacy API.
 - **Finance account** — Income (invoices) and expenses are read from a single source, `src/mockData/financeAccount.ts`, so all finance reports, Income and Expenses tabs, and admin dashboards use the same data for transparency and accuracy. In production, replace the in-memory finance account with API calls to your finance/accounting backend.
 - **Layout** — Top navbar ("Code With Kids" + role switcher), left sidebar (menu items depend on role), main content area for each page.
 
@@ -111,7 +117,7 @@ CWK-CMS/
 │   │   ├── ui/               # shadcn/ui components (button, card, table, etc.)
 │   │   └── NavLink.tsx
 │   ├── context/
-│   │   └── AuthContext.tsx   # Fake auth: currentUser, login, logout
+│   │   └── AuthContext.tsx   # Supabase-first auth with API/mock fallback
 │   ├── hooks/                # use-toast, use-mobile
 │   ├── lib/
 │   │   └── utils.ts
@@ -136,9 +142,9 @@ CWK-CMS/
 
 ---
 
-## Run locally (full flow with API)
+## Run locally (hybrid mode during migration)
 
-To run the app with the real backend (login, finance, terms, etc.):
+To run the app while migrating from legacy API to Supabase:
 
 1. **Start PostgreSQL** and ensure the `cwk_hub` database exists (see `server/README.md`).
 2. **Start the API** (from project root):
@@ -151,8 +157,10 @@ To run the app with the real backend (login, finance, terms, etc.):
    npm run dev
    ```
    The API runs at **http://localhost:3001**.
-3. **Point the frontend to the API**: in the **project root**, create a `.env` file (or copy from `.env.example`) with:
+3. **Configure frontend env vars**: in the **project root**, create a `.env` file (copy from `.env.example`) with:
    ```
+   VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+   VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
    VITE_API_URL=http://localhost:3001
    ```
 4. **Start the frontend** (from project root):
@@ -160,10 +168,39 @@ To run the app with the real backend (login, finance, terms, etc.):
    npm install
    npm run dev
    ```
-5. Open the app (e.g. **http://localhost:8080**), go to **Login**, and sign in with a seed user, e.g.:
+5. Open the app (e.g. **http://localhost:8080**), go to **Login**, and sign in:
+   - Supabase users authenticate through Supabase Auth (recommended for migrated slices).
+   - Legacy API users can still authenticate via API if Supabase env vars are not set.
+6. For remaining API-backed slices, keep the API running and test finance/session flows.
+
+---
+
+## Supabase-first migration checklist
+
+For each slice (learners, classes, sessions, finance):
+
+1. Add/verify table schema in Supabase.
+2. Enable RLS and add role-scoped policies.
+3. Migrate frontend hook/service to Supabase.
+4. Validate behavior for each role.
+5. Keep `VITE_API_URL` until the slice is fully migrated.
+
+Detailed checklist: `docs/SUPABASE_HYBRID_MIGRATION.md`.
+
+---
+
+## Run locally (legacy API only)
+
+If you want to run without Supabase, set only:
+
+```
+VITE_API_URL=http://localhost:3001
+```
+
+Then sign in with a seeded backend user, e.g.:
    - **Email:** `lisa@codewithkids.afrika`  
    - **Password:** `password`
-6. Then: **Finance → Invoices** → open an invoice → **Record payment** to verify the full flow.
+Then: **Finance → Invoices** → open an invoice → **Record payment** to verify the full flow.
 
 ---
 
@@ -181,8 +218,9 @@ npm run dev
 
 Then open the URL shown in the terminal (typically **http://localhost:8080**).
 
-- Without `VITE_API_URL` set: log in via the login page by selecting a user (or you are "logged in" as the user stored in `localStorage`).
-- With `VITE_API_URL` set: use email/password (e.g. `lisa@codewithkids.afrika` / `password`).
+- Without backend env vars: mock login/demo mode.
+- With Supabase env vars: login uses Supabase Auth.
+- With only `VITE_API_URL` set: use legacy API email/password (e.g. `lisa@codewithkids.afrika` / `password`).
 - Use the role switcher in the UI to switch to educator, student, parent, or finance and see the corresponding sidebar and pages.
 
 **Other scripts:**

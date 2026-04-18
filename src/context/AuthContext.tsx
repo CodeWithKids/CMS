@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import type { AppUser, UserRole } from "@/types";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { mockUsers } from "@/mockData";
 import {
   isApiEnabled,
@@ -10,6 +11,7 @@ import {
   clearAccessToken,
   type LoginResponse,
 } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 
 function apiUserToAppUser(u: LoginResponse["user"] | null | undefined): AppUser {
   if (!u || typeof u !== "object" || !("id" in u) || !("role" in u)) {
@@ -24,6 +26,74 @@ function apiUserToAppUser(u: LoginResponse["user"] | null | undefined): AppUser 
     organizationId: u.organizationId ?? undefined,
     membershipStatus: (u.membershipStatus as AppUser["membershipStatus"]) ?? undefined,
     avatarId: u.avatarId ?? undefined,
+  };
+}
+
+const SUPPORTED_ROLES: UserRole[] = [
+  "admin",
+  "educator",
+  "finance",
+  "student",
+  "parent",
+  "organisation",
+  "partnerships",
+  "marketing",
+  "social_media",
+  "ld_manager",
+];
+
+const SUPPORTED_USER_STATUSES = ["pending", "active", "rejected"] as const;
+const SUPPORTED_MEMBERSHIP_STATUSES = ["active", "inactive", "expired"] as const;
+
+function isUserRole(value: unknown): value is UserRole {
+  return typeof value === "string" && SUPPORTED_ROLES.includes(value as UserRole);
+}
+
+function isUserStatus(value: unknown): value is AppUser["status"] {
+  return typeof value === "string" && SUPPORTED_USER_STATUSES.includes(value as (typeof SUPPORTED_USER_STATUSES)[number]);
+}
+
+function isMembershipStatus(value: unknown): value is AppUser["membershipStatus"] {
+  return (
+    typeof value === "string" &&
+    SUPPORTED_MEMBERSHIP_STATUSES.includes(value as (typeof SUPPORTED_MEMBERSHIP_STATUSES)[number])
+  );
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function getSupabaseClient() {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  return supabase;
+}
+
+async function supabaseUserToAppUser(user: SupabaseUser): Promise<AppUser> {
+  const client = getSupabaseClient();
+  const { data: profile, error } = await client.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  if (error) throw error;
+
+  const raw = (profile as Record<string, unknown> | null) ?? {};
+  const roleRaw = raw.role;
+  const statusRaw = raw.status;
+  const organizationIdRaw = raw.organization_id ?? raw.organizationId;
+  const membershipStatusRaw = raw.membership_status ?? raw.membershipStatus;
+  const avatarIdRaw = raw.avatar_id ?? raw.avatarId;
+  const fullNameRaw = raw.name ?? user.user_metadata?.full_name;
+  const emailRaw = raw.email ?? user.email;
+
+  const name = stringOrUndefined(fullNameRaw) ?? stringOrUndefined(user.email)?.split("@")[0] ?? "CWK User";
+
+  return {
+    id: user.id,
+    name,
+    role: isUserRole(roleRaw) ? roleRaw : "educator",
+    email: stringOrUndefined(emailRaw),
+    status: isUserStatus(statusRaw) ? statusRaw : undefined,
+    organizationId: stringOrUndefined(organizationIdRaw) ?? null,
+    membershipStatus: isMembershipStatus(membershipStatusRaw) ? membershipStatusRaw : undefined,
+    avatarId: stringOrUndefined(avatarIdRaw),
   };
 }
 
@@ -78,10 +148,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // When API is enabled and we have a token but no user (e.g. page refresh), restore session
   useEffect(() => {
+    if (isSupabaseEnabled()) {
+      const client = getSupabaseClient();
+      const syncSupabaseSession = async () => {
+        const { data, error } = await client.auth.getSession();
+        if (error || !data.session?.user) {
+          localStorage.removeItem("cwk_user");
+          setCurrentUser(null);
+          return;
+        }
+        try {
+          const user = await supabaseUserToAppUser(data.session.user);
+          setCurrentUser(user);
+        } catch {
+          setCurrentUser(null);
+        }
+      };
+
+      void syncSupabaseSession();
+      const { data } = client.auth.onAuthStateChange((_event, session) => {
+        if (!session?.user) {
+          localStorage.removeItem("cwk_user");
+          setCurrentUser(null);
+          return;
+        }
+        void supabaseUserToAppUser(session.user)
+          .then((u) => setCurrentUser(u))
+          .catch(() => setCurrentUser(null));
+      });
+      return () => data.subscription.unsubscribe();
+    }
+
     if (!isApiEnabled() || currentUser) return;
     const token = localStorage.getItem("cwk_token");
     if (!token) return;
-    authMe(token)
+    void authMe(token)
       .then((data) => {
         // Backend may return the user object directly or as { user }
         const user = data && typeof data === "object" && "user" in data ? (data as { user: LoginResponse["user"] }).user : data;
@@ -104,6 +205,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginWithCredentials = useCallback(async (email: string, password: string) => {
+    if (isSupabaseEnabled()) {
+      try {
+        const client = getSupabaseClient();
+        const { data, error } = await client.auth.signInWithPassword({ email, password });
+        if (error) {
+          return { ok: false as const, error: error.message || "Invalid email or password." };
+        }
+        if (!data.user) {
+          return { ok: false as const, error: "No user returned from Supabase." };
+        }
+        const user = await supabaseUserToAppUser(data.user);
+        setCurrentUser(user);
+        return { ok: true as const, user };
+      } catch {
+        return { ok: false as const, error: "Invalid email or password." };
+      }
+    }
+
     try {
       const res = await authLogin(email, password);
       if (!res?.user) {
@@ -123,6 +242,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    if (isSupabaseEnabled()) {
+      const client = getSupabaseClient();
+      void client.auth.signOut();
+    }
     if (isApiEnabled()) {
       authLogout();
       clearAccessToken();

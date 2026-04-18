@@ -14,6 +14,7 @@ import {
   type LearnerApi,
   type ParentPartnerApi,
 } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import { Search, AlertCircle, WifiOff, Plus, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -129,6 +130,8 @@ export default function LearnersPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const backendEnabled = apiEnabled || supabaseEnabled;
   const isAdmin = currentUser?.role === "admin";
 
   const { learners, isLoading } = useLearners({
@@ -148,8 +151,8 @@ export default function LearnersPage() {
     enabled: apiEnabled && isAdmin && (formOpen === "create" || formOpen !== null),
   });
 
-  const showApiSetup = !apiEnabled;
-  const filtered = apiEnabled ? learners : [];
+  const showBackendSetup = !backendEnabled;
+  const filtered = learners;
 
   function openCreate() {
     setFormState(emptyForm);
@@ -259,15 +262,16 @@ export default function LearnersPage() {
         )}
       </div>
 
-      {showApiSetup && (
+      {showBackendSetup && (
         <Alert className="mb-4 border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
           <WifiOff className="h-4 w-4" />
           <AlertTitle>Using demo data</AlertTitle>
           <AlertDescription>
-            Learner data comes from the API. To load real learners from the database, add{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">VITE_API_URL=http://localhost:3001</code> to a{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">.env</code> file in the project root (same folder as{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">package.json</code>), then restart the frontend dev server and ensure the API is running from <code className="rounded bg-muted px-1 py-0.5 text-xs">server/</code>.
+            Learner data comes from Supabase or the API. To load real learners from the database, set either{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">VITE_SUPABASE_URL</code> +{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">VITE_SUPABASE_ANON_KEY</code> (preferred) or{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">VITE_API_URL=http://localhost:3001</code> in{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">.env</code>, then restart the frontend dev server.
           </AlertDescription>
         </Alert>
       )}
@@ -383,8 +387,8 @@ export default function LearnersPage() {
       </div>
       {filtered.length === 0 && (
         <p className="text-sm text-muted-foreground py-6">
-          {showApiSetup
-            ? "Configure the API (see message above) to load learners."
+          {showBackendSetup
+            ? "Configure Supabase or API (see message above) to load learners."
             : search.trim() || enrolmentFilter !== "all"
               ? "No learners match your filters. Try changing the search or enrolment type."
               : "No learners in the system yet."}
