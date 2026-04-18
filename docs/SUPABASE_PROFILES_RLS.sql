@@ -26,6 +26,18 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+-- If `profiles` already existed (e.g. Supabase starter / old template), CREATE TABLE does nothing
+-- and columns like `email` may be missing. Add any missing columns the app expects.
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists name text;
+alter table public.profiles add column if not exists role text default 'educator';
+alter table public.profiles add column if not exists status text default 'active';
+alter table public.profiles add column if not exists organization_id text;
+alter table public.profiles add column if not exists membership_status text;
+alter table public.profiles add column if not exists avatar_id text;
+alter table public.profiles add column if not exists created_at timestamptz default now();
+alter table public.profiles add column if not exists updated_at timestamptz default now();
+
 create index if not exists profiles_role_idx on public.profiles (role);
 create index if not exists profiles_org_idx on public.profiles (organization_id);
 
