@@ -9,7 +9,9 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/hooks/useTerms";
 import { useAuth } from "@/context/AuthContext";
-import { isApiEnabled, educatorsGetById, classesGetAll, sessionsGetAll, adminAccountsDelete, adminAccountsPatch } from "@/lib/api";
+import { isApiEnabled, educatorsGetById, sessionsGetAll, adminAccountsDelete, adminAccountsPatch } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
+import { useClasses } from "@/hooks/useClasses";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import {
   Card,
@@ -81,6 +83,7 @@ export default function StaffProfilePage() {
   const { currentUser } = useAuth();
   const staffId = id ?? "";
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
   const { currentTerm } = useTerms();
   const termId = currentTerm?.id ?? "t1";
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -97,11 +100,7 @@ export default function StaffProfilePage() {
     queryFn: () => educatorsGetById(staffId),
     enabled: apiEnabled && !!staffId,
   });
-  const { data: apiClasses = [] } = useQuery({
-    queryKey: ["classes", "educator", staffId],
-    queryFn: () => classesGetAll({ educatorId: staffId }),
-    enabled: apiEnabled && !!staffId,
-  });
+  const { classes: apiClasses } = useClasses({ educatorId: staffId });
   const { data: apiSessions = [] } = useQuery({
     queryKey: ["sessions", "educator", staffId, termId],
     queryFn: () => sessionsGetAll({ educatorId: staffId, termId, dateFrom: currentTerm?.startDate, dateTo: currentTerm?.endDate }),
@@ -122,7 +121,8 @@ export default function StaffProfilePage() {
         notes: undefined as string | undefined,
       }
     : getStaffMember(staffId);
-  const assignedClasses = apiEnabled ? apiClasses : (staff ? mockClasses.filter((c) => c.educatorId === staffId) : []);
+  const assignedClasses =
+    apiEnabled || supabaseEnabled ? apiClasses : staff ? mockClasses.filter((c) => c.educatorId === staffId) : [];
   const sessionsThisTerm = apiEnabled
     ? apiSessions
     : staff

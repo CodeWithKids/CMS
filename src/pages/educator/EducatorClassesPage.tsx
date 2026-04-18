@@ -5,8 +5,9 @@ import { useSessions } from "@/context/SessionsContext";
 import { mockClasses, getCurrentTerm } from "@/mockData";
 import { LEARNING_TRACK_LABELS, SESSION_TYPE_LABELS } from "@/types";
 import type { SessionType } from "@/types";
-import { useQuery } from "@tanstack/react-query";
-import { classesGetAll, isApiEnabled, type ClassApi } from "@/lib/api";
+import { isApiEnabled, type ClassApi } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
+import { useClasses } from "@/hooks/useClasses";
 import { BookOpen, ArrowLeft } from "lucide-react";
 
 const SESSION_TYPE_ORDER: SessionType[] = [
@@ -24,15 +25,11 @@ export default function EducatorClassesPage() {
   const { getSessionsForEducatorByRole, getSessionsForClass } = useSessions();
 
   const apiEnabled = isApiEnabled();
-  const { data: apiClasses = [], isLoading } = useQuery({
-    queryKey: ["educator", "classes", educatorId],
-    queryFn: () => classesGetAll({ educatorId }),
-    enabled: apiEnabled && !!educatorId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const supabaseEnabled = isSupabaseEnabled();
+  const { classes: apiClasses, isLoading } = useClasses({ educatorId });
 
   const myClasses: ClassApi[] = useMemo(() => {
-    if (apiEnabled) return apiClasses;
+    if (apiEnabled || supabaseEnabled) return apiClasses;
     return mockClasses.filter(
       (c) =>
         c.educatorId === educatorId ||
@@ -42,7 +39,7 @@ export default function EducatorClassesPage() {
             (s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId))
         )
     );
-  }, [apiEnabled, apiClasses, educatorId, getSessionsForEducatorByRole]);
+  }, [apiEnabled, supabaseEnabled, apiClasses, educatorId, getSessionsForEducatorByRole]);
 
   const tracksByClass = useMemo(() => {
     const map = new Map<string, string[]>();

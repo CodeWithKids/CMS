@@ -12,8 +12,10 @@ import { useSessions } from "@/context/SessionsContext";
 import { LEARNING_TRACK_LABELS, SESSION_TYPE_LABELS } from "@/types";
 import type { LearningTrack, SessionType } from "@/types";
 import { useQuery } from "@tanstack/react-query";
-import { classesGetAll, sessionsGetAll, isApiEnabled, type ClassApi, type SessionApi } from "@/lib/api";
+import { sessionsGetAll, isApiEnabled, type ClassApi, type SessionApi } from "@/lib/api";
 import { useTerms } from "@/hooks/useTerms";
+import { useClasses } from "@/hooks/useClasses";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import type { Session } from "@/types";
 import { EducatorSessionCard } from "@/features/educator/components/EducatorSessionCard";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
@@ -66,6 +68,7 @@ export default function EducatorDashboard() {
   const { currentTerm } = useTerms();
 
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
   const { data: apiSessionsRaw = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["educator", "sessions", educatorId],
     queryFn: () => sessionsGetAll({ educatorId }),
@@ -141,15 +144,10 @@ export default function EducatorDashboard() {
     return { facilitating, coaching, sessionCount: sessions.length, classCount: new Set(sessions.map((s) => s.classId)).size };
   }, [apiEnabled, educatorId, termRange, educatorSessionsFromApi, getSessionsForEducatorByRole]);
 
-  const { data: apiClasses = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["educator", "classes", educatorId],
-    queryFn: () => classesGetAll({ educatorId }),
-    enabled: apiEnabled && !!educatorId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { classes: apiClasses, isLoading: classesLoading } = useClasses({ educatorId });
 
   const myClasses: ClassApi[] | typeof mockClasses = useMemo(() => {
-    if (apiEnabled) return apiClasses;
+    if (apiEnabled || supabaseEnabled) return apiClasses;
     return mockClasses.filter(
       (c) =>
         c.educatorId === educatorId ||
@@ -159,7 +157,7 @@ export default function EducatorDashboard() {
             (s.leadEducatorId === educatorId || (s.assistantEducatorIds ?? []).includes(educatorId))
         )
     );
-  }, [apiEnabled, apiClasses, educatorId, getSessionsForEducatorByRole]);
+  }, [apiEnabled, supabaseEnabled, apiClasses, educatorId, getSessionsForEducatorByRole]);
 
   const myDevices = useMemo(() => getItemsCheckedOutTo(educatorId), [getItemsCheckedOutTo, educatorId]);
 
@@ -231,16 +229,16 @@ export default function EducatorDashboard() {
 
   const todayNotes = useMemo(() => getNotesForDate(today), [today, getNotesForDate]);
 
-  const apiDataLoading = apiEnabled && (sessionsLoading || classesLoading);
+  const apiDataLoading = classesLoading || (apiEnabled && sessionsLoading);
   useEffect(() => {
-    if (!apiEnabled) {
+    if (!apiEnabled && !supabaseEnabled) {
       const t = setTimeout(() => setIsLoading(false), 200);
       return () => clearTimeout(t);
     }
-  }, [apiEnabled]);
+  }, [apiEnabled, supabaseEnabled]);
   useEffect(() => {
-    if (apiEnabled && !apiDataLoading) setIsLoading(false);
-  }, [apiEnabled, apiDataLoading]);
+    if ((apiEnabled || supabaseEnabled) && !apiDataLoading) setIsLoading(false);
+  }, [apiEnabled, supabaseEnabled, apiDataLoading]);
 
   if (isLoading) {
     return (

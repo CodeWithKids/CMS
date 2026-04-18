@@ -6,7 +6,8 @@ import { getClass, mockUsers } from "@/mockData";
 import { useSessions } from "@/context/SessionsContext";
 import { useEducators } from "@/hooks/useEducators";
 import { useQuery } from "@tanstack/react-query";
-import { isApiEnabled, sessionsGetAll, classesGetAll, type SessionApi } from "@/lib/api";
+import { isApiEnabled, sessionsGetAll, type SessionApi } from "@/lib/api";
+import { useClasses } from "@/hooks/useClasses";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { AvailabilitySlot, AvailabilitySlotType, Session } from "@/types";
 import { getSessionRoleForUser } from "@/features/educator/lib/auth";
@@ -170,12 +171,7 @@ export default function EducatorSchedulePage() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: apiClasses = [] } = useQuery({
-    queryKey: ["schedule", "classes"],
-    queryFn: () => classesGetAll(),
-    enabled: apiEnabled,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { classes: apiClasses } = useClasses();
   const classIdToName = useMemo(
     () => new Map(apiClasses.map((c) => [c.id, c.name])),
     [apiClasses]

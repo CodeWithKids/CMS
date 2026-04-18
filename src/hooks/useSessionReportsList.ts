@@ -6,13 +6,9 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { SessionReportSummary, SessionReportSessionTypeAdmin, SessionReportStatusAdmin } from "@/types";
 import { toSessionReportSessionTypeAdmin } from "@/types";
-import {
-  isApiEnabled,
-  sessionReportsGetAll,
-  sessionsGetAll,
-  classesGetAll,
-  educatorsGetAll,
-} from "@/lib/api";
+import { isApiEnabled, sessionReportsGetAll, sessionsGetAll, classesGetAll, educatorsGetAll } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToClassApi, type SupabaseClassRow } from "@/lib/classesSupabase";
 
 function mapSessionType(s: string): SessionReportSessionTypeAdmin {
   const mapped = toSessionReportSessionTypeAdmin(s as import("@/types").SessionType);
@@ -38,8 +34,20 @@ export function useSessionReportsList(params: { dateFrom?: string; dateTo?: stri
     enabled,
   });
   const classesQuery = useQuery({
-    queryKey: ["classes"],
-    queryFn: () => classesGetAll(),
+    queryKey: ["classes", "", "", "", ""],
+    queryFn: async () => {
+      if (isSupabaseEnabled() && supabase) {
+        try {
+          const { data, error } = await supabase.from("classes").select("*");
+          if (error) throw error;
+          return ((data as SupabaseClassRow[] | null) ?? []).map(mapSupabaseRowToClassApi);
+        } catch {
+          if (isApiEnabled()) return classesGetAll();
+          throw new Error("Could not load classes.");
+        }
+      }
+      return classesGetAll();
+    },
     enabled,
   });
   const educatorsQuery = useQuery({

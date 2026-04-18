@@ -88,8 +88,9 @@ export function PaymentDialog({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div>
-            <Label>Amount ({currency})</Label>
+            <Label htmlFor="payment-dialog-amount">Amount ({currency})</Label>
             <Input
+              id="payment-dialog-amount"
               type="number"
               min={1}
               max={maxAmount}
@@ -117,8 +118,9 @@ export function PaymentDialog({
             </Select>
           </div>
           <div>
-            <Label>Reference (optional)</Label>
+            <Label htmlFor="payment-dialog-reference">Reference (optional)</Label>
             <Input
+              id="payment-dialog-reference"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder="e.g. MPESA code, bank ref"
@@ -126,8 +128,9 @@ export function PaymentDialog({
             />
           </div>
           <div>
-            <Label>Date</Label>
+            <Label htmlFor="payment-dialog-date">Date</Label>
             <Input
+              id="payment-dialog-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}

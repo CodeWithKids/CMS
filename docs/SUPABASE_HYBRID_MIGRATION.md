@@ -26,18 +26,55 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_xxx
 VITE_API_URL=http://localhost:3001
 ```
 
+## What to run in the Supabase SQL Editor (order)
+
+Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe where scripts use `if not exists` / `drop policy if exists`.
+
+1. **`docs/SUPABASE_PROFILES_RLS.sql`**  
+   Creates `public.profiles`, RLS, `handle_new_user` trigger on `auth.users`, and backfills profiles for existing users.  
+   Run through **`commit;`**, then **section 6** if staff (admin/finance) should **update** other users’ profiles from the app or SQL.  
+   After first login, promote your account if needed, e.g.  
+   `update public.profiles set role = 'admin', status = 'active' where email = 'you@example.com';`
+
+2. **`docs/SUPABASE_TERMS_RLS.sql`** (recommended if you use Supabase for terms)  
+   Creates `public.terms` + read for all authenticated users. Run through **`commit;`**, then **section 6** for staff writes. Seed rows as needed (example at bottom of file).
+
+3. **`docs/SUPABASE_CLASSES_RLS.sql`**  
+   Run through **`commit;`**, then **section 6** for admin/finance class writes.  
+   Do this **before** learners if you want the educator-scoped learner policy to be created on the **first** learners script run (it only runs when `public.classes` exists).
+
+4. **`docs/SUPABASE_LEARNERS_RLS.sql`**  
+   Run through **`commit;`**, then **section 6** for admin/finance learner writes.  
+   If you ran learners **before** classes existed, run the learners script again (or only the `learners_select_educator_class_scope` block from that file) so educator read access is applied.
+
+### Dashboard (not SQL)
+
+- **Authentication → Providers**: enable **Email** (or your chosen provider).  
+- **Project Settings → API**: copy URL and anon/publishable key into `.env` as `VITE_SUPABASE_*`.
+
 ## Migration status
 
-- Auth: Supabase-first with fallback compatibility in `src/context/AuthContext.tsx`
-- Terms: Supabase-first in `src/hooks/useTerms.ts`
+- Auth: Supabase-first with fallback compatibility in `src/context/AuthContext.tsx` (expects `public.profiles`; SQL in `docs/SUPABASE_PROFILES_RLS.sql`)
+- Terms: Supabase-first in `src/hooks/useTerms.ts` (table + RLS in `docs/SUPABASE_TERMS_RLS.sql`)
 - Learners: Supabase-first list + by-id + admin CRUD in hooks/pages (RLS SQL in `docs/SUPABASE_LEARNERS_RLS.sql` — include section 6 write policies for create/update/delete)
-- Classes: pending
+- Classes: Supabase-first list + admin CRUD + hooks (`useClasses`, `useClass`); RLS in `docs/SUPABASE_CLASSES_RLS.sql` (include section 6 for writes)
 - Sessions/attendance: pending
 - Finance: pending
 
 ## RLS checklist by slice
 
 Use this checklist before exposing each slice to the client:
+
+### Profiles
+
+- [ ] `profiles` table exists (`docs/SUPABASE_PROFILES_RLS.sql`)
+- [ ] Trigger creates a row on new `auth.users` sign-up
+- [ ] At least one admin user (`update ... set role = 'admin'`) for bootstrapping
+
+### Terms
+
+- [ ] `terms` table exists (`docs/SUPABASE_TERMS_RLS.sql`)
+- [ ] At least one term row with `is_current = true` if the UI expects a current term
 
 ### Learners
 

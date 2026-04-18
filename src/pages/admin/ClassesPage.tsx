@@ -38,15 +38,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useTerms } from "@/hooks/useTerms";
 import { useEducators } from "@/hooks/useEducators";
-import {
-  isApiEnabled,
-  classesGetAll,
-  classesCreate,
-  classesPatch,
-  classesDelete,
-  focusAreasGetAll,
-  type ClassApi,
-} from "@/lib/api";
+import { isApiEnabled, classesCreate, classesPatch, classesDelete, focusAreasGetAll, type ClassApi } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { classCreateBodyToSupabaseRow, classPatchBodyToSupabasePatch } from "@/lib/classesSupabase";
+import { useClasses } from "@/hooks/useClasses";
 import { LEARNING_TRACK_LABELS } from "@/types";
 import type { LearningTrack } from "@/types";
 
@@ -131,6 +126,8 @@ export default function ClassesPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const backendEnabled = supabaseEnabled || apiEnabled;
   const isAdmin = currentUser?.role === "admin";
 
   const { data: focusAreas = [] } = useQuery({
@@ -140,19 +137,15 @@ export default function ClassesPage() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const { data: apiClasses = [], isLoading, isError } = useQuery({
-    queryKey: ["classes", selectedTrackId ?? ""],
-    queryFn: () => classesGetAll(selectedTrackId ? { trackId: selectedTrackId } : {}),
-    enabled: apiEnabled,
-  });
+  const { classes, isLoading, isError } = useClasses(selectedTrackId ? { trackId: selectedTrackId } : undefined);
 
-  const classes = apiEnabled ? apiClasses : mockClasses;
   const tracksForFilter = useMemo(() => {
     if (selectedFocusAreaId) {
       const fa = focusAreas.find((f) => f.id === selectedFocusAreaId);
       return fa?.tracks ?? [];
     }
-    return focusAreas.flatMap((fa) => fa.tracks);
+    if (focusAreas.length > 0) return focusAreas.flatMap((fa) => fa.tracks);
+    return ALL_TRACK_IDS.map((tid) => ({ id: tid, name: LEARNING_TRACK_LABELS[tid] ?? tid }));
   }, [focusAreas, selectedFocusAreaId]);
   const educatorOptions = useMemo(
     () => educators.filter((e) => e.role === "educator"),
@@ -195,7 +188,7 @@ export default function ClassesPage() {
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiEnabled || !isAdmin) return;
+    if ((!apiEnabled && !supabaseEnabled) || !isAdmin) return;
     const educatorId = formState.educatorId.trim();
     const termId = formState.termId.trim();
     if (!formState.name.trim() || !formState.program || !formState.ageGroup || !formState.location || !educatorId || !termId) {
@@ -216,13 +209,66 @@ export default function ClassesPage() {
       location: formState.location.trim(),
       educatorId,
       termId,
+      learnerIds: typeof formOpen === "object" && formOpen !== null && "learnerIds" in formOpen ? formOpen.learnerIds : [],
       capacity: capacity ?? undefined,
       schoolOrOrganisationName: formState.schoolOrOrganisationName.trim() || undefined,
       trackId: formState.trackId.trim() || undefined,
     };
 
+    const invalidateClassQueries = () => {
+      void queryClient.invalidateQueries({ queryKey: ["classes"] });
+      if (typeof formOpen === "object" && formOpen !== null && "id" in formOpen) {
+        void queryClient.invalidateQueries({ queryKey: ["class", formOpen.id] });
+      }
+    };
+
+    if (supabaseEnabled && supabase) {
+      void (async () => {
+        try {
+          if (formOpen === "create") {
+            const newId = crypto.randomUUID();
+            const row = classCreateBodyToSupabaseRow(newId, {
+              ...payload,
+              capacity: payload.capacity ?? null,
+            });
+            const { error } = await supabase.from("classes").insert(row);
+            if (error) throw error;
+            toast({ title: "Class created" });
+            invalidateClassQueries();
+            setFormOpen(null);
+          } else if (typeof formOpen === "object" && formOpen.id) {
+            const patch = classPatchBodyToSupabasePatch({
+              name: payload.name,
+              program: payload.program,
+              ageGroup: payload.ageGroup,
+              location: payload.location,
+              educatorId: payload.educatorId,
+              termId: payload.termId,
+              learnerIds: payload.learnerIds,
+              capacity: payload.capacity ?? null,
+              schoolOrOrganisationName: payload.schoolOrOrganisationName ?? null,
+              trackId: payload.trackId ?? null,
+            });
+            const { error } = await supabase.from("classes").update(patch).eq("id", formOpen.id);
+            if (error) throw error;
+            toast({ title: "Class updated" });
+            invalidateClassQueries();
+            setFormOpen(null);
+          }
+        } catch (err: unknown) {
+          const msg =
+            err && typeof err === "object" && "message" in err ? String((err as { message?: string }).message) : "Could not save class.";
+          toast({ title: "Save failed", description: msg, variant: "destructive" });
+        } finally {
+          setFormSaving(false);
+        }
+      })();
+      return;
+    }
+
     if (formOpen === "create") {
-      classesCreate(payload)
+      const { learnerIds: _omit, ...createPayload } = payload;
+      classesCreate(createPayload)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["classes"] });
           toast({ title: "Class created" });
@@ -234,9 +280,11 @@ export default function ClassesPage() {
         })
         .finally(() => setFormSaving(false));
     } else if (typeof formOpen === "object" && formOpen.id) {
-      classesPatch(formOpen.id, payload)
+      const { learnerIds: _omit, ...patchPayload } = payload;
+      classesPatch(formOpen.id, patchPayload)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["classes"] });
+          void queryClient.invalidateQueries({ queryKey: ["class", formOpen.id] });
           toast({ title: "Class updated" });
           setFormOpen(null);
         })
@@ -249,11 +297,32 @@ export default function ClassesPage() {
   }
 
   function handleConfirmDelete() {
-    if (!deleteTarget || !apiEnabled) return;
+    if (!deleteTarget || (!apiEnabled && !supabaseEnabled)) return;
+    if (supabaseEnabled && supabase) {
+      setDeleteLoading(true);
+      void (async () => {
+        try {
+          const { error } = await supabase.from("classes").delete().eq("id", deleteTarget.id);
+          if (error) throw error;
+          await queryClient.invalidateQueries({ queryKey: ["classes"] });
+          await queryClient.invalidateQueries({ queryKey: ["class", deleteTarget.id] });
+          toast({ title: "Class deleted", description: `${deleteTarget.name} has been removed.` });
+          setDeleteTarget(null);
+        } catch (err: unknown) {
+          const msg =
+            err && typeof err === "object" && "message" in err ? String((err as { message?: string }).message) : "Could not delete class.";
+          toast({ title: "Delete failed", description: msg, variant: "destructive" });
+        } finally {
+          setDeleteLoading(false);
+        }
+      })();
+      return;
+    }
     setDeleteLoading(true);
     classesDelete(deleteTarget.id)
       .then(() => {
         queryClient.invalidateQueries({ queryKey: ["classes"] });
+        void queryClient.invalidateQueries({ queryKey: ["class", deleteTarget.id] });
         toast({ title: "Class deleted", description: `${deleteTarget.name} has been removed.` });
         setDeleteTarget(null);
       })
@@ -268,7 +337,7 @@ export default function ClassesPage() {
     educatorNameMap[educatorId] ?? getEducatorName(educatorId);
   const getTermDisplay = (termId: string) => termNameMap[termId] ?? getTerm(termId)?.name ?? termId;
 
-  if (apiEnabled && isLoading) {
+  if (backendEnabled && isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-9 w-56 mb-2" />
@@ -291,7 +360,7 @@ export default function ClassesPage() {
           <h1 className="page-title">Classes</h1>
           <p className="page-subtitle">All active classes and programs</p>
         </div>
-        {apiEnabled && isAdmin && (
+        {backendEnabled && isAdmin && (
           <Button onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" /> Create class
           </Button>
@@ -314,9 +383,12 @@ export default function ClassesPage() {
             </label>
           ))}
         </div>
-        {apiEnabled && focusAreas.length > 0 && (
+        {backendEnabled && tracksForFilter.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
-            <span className="text-sm font-medium text-muted-foreground">Focus area → Track:</span>
+            <span className="text-sm font-medium text-muted-foreground">
+              {apiEnabled && focusAreas.length > 0 ? "Focus area → Track:" : "Track:"}
+            </span>
+            {apiEnabled && focusAreas.length > 0 && (
             <Select
               value={selectedFocusAreaId ?? "all"}
               onValueChange={(v) => {
@@ -334,6 +406,7 @@ export default function ClassesPage() {
                 ))}
               </SelectContent>
             </Select>
+            )}
             <Select
               value={selectedTrackId ?? "all"}
               onValueChange={(v) => setSelectedTrackId(v === "all" ? null : v)}
@@ -390,7 +463,7 @@ export default function ClassesPage() {
           <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="font-medium">No classes yet</p>
           <p className="text-sm mt-1">Add your first class to get started.</p>
-          {apiEnabled && isAdmin && (
+          {backendEnabled && isAdmin && (
             <Button onClick={openCreate} className="mt-4 gap-2">
               <Plus className="h-4 w-4" /> Create class
             </Button>
@@ -416,7 +489,7 @@ export default function ClassesPage() {
                 <th>Educator</th>
                 <th>Term</th>
                 <th className="w-[140px]">Actions</th>
-                {apiEnabled && isAdmin && <th className="w-[100px]"></th>}
+                {backendEnabled && isAdmin && <th className="w-[100px]"></th>}
               </tr>
             </thead>
             <tbody>
@@ -435,7 +508,7 @@ export default function ClassesPage() {
                       <Link to={`/admin/classes/${c.id}/enrolments`}>Manage enrolments</Link>
                     </Button>
                   </td>
-                  {apiEnabled && isAdmin && (
+                  {backendEnabled && isAdmin && (
                     <td className="space-x-2">
                       <Button
                         variant="ghost"

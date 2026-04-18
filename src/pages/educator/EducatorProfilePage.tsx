@@ -30,7 +30,9 @@ import {
 import { UserCircle, Clock, BookOpen, Award, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
-import { isApiEnabled, sessionsGetAll, classesGetAll, educatorBadgesGetAll, type EducatorBadgeApi } from "@/lib/api";
+import { isApiEnabled, sessionsGetAll, educatorBadgesGetAll, type EducatorBadgeApi } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
+import { useClasses } from "@/hooks/useClasses";
 
 const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "this_term", label: "This term" },
@@ -47,18 +49,14 @@ export default function EducatorProfilePage() {
   const currentAvatar = currentUser?.avatarId ? getPresetAvatar(currentUser.avatarId) : null;
 
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
   const { data: apiSessions = [] } = useQuery({
     queryKey: ["educator", "sessions", "profile", educatorId],
     queryFn: () => sessionsGetAll({ educatorId }),
     enabled: apiEnabled && !!educatorId,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: apiClasses = [] } = useQuery({
-    queryKey: ["classes", "all"],
-    queryFn: () => classesGetAll(),
-    enabled: apiEnabled,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { classes: apiClasses } = useClasses();
 
   const { data: apiBadges = [] } = useQuery({
     queryKey: ["educator", "badges", educatorId],
@@ -68,13 +66,13 @@ export default function EducatorProfilePage() {
   });
 
   const classMap = useMemo(() => {
-    if (!apiEnabled) return null as Map<string, { name: string; location: string }> | null;
+    if (!apiEnabled && !supabaseEnabled) return null as Map<string, { name: string; location: string }> | null;
     const map = new Map<string, { name: string; location: string }>();
     apiClasses.forEach((c) => {
       map.set(c.id, { name: c.name, location: c.location });
     });
     return map;
-  }, [apiEnabled, apiClasses]);
+  }, [apiEnabled, supabaseEnabled, apiClasses]);
 
   const allSessions = useMemo(
     (): Session[] =>
@@ -376,7 +374,7 @@ export default function EducatorProfilePage() {
               </TableHeader>
               <TableBody>
                 {sessionsInPeriod.slice(0, 20).map((s) => {
-                  const cls = apiEnabled && classMap ? classMap.get(s.classId) : getClass(s.classId);
+                  const cls = classMap ? classMap.get(s.classId) : getClass(s.classId);
                   const role = s.leadEducatorId === educatorId ? "Facilitator" : "Coach";
                   return (
                     <TableRow key={s.id}>

@@ -53,5 +53,5 @@ describe("ProtectedRoute", () => {
 
     expect(screen.getByText("Secret")).toBeInTheDocument();
   });
-}
+});
 

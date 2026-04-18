@@ -5,13 +5,9 @@ import { useSessionReports } from "@/context/SessionReportsContext";
 import { useAttendance } from "@/context/AttendanceContext";
 import { useBadgeAwards } from "@/context/BadgeAwardsContext";
 import { useEducators } from "@/hooks/useEducators";
-import {
-  isApiEnabled,
-  sessionReportsGetById,
-  sessionsGetById,
-  classesGetById,
-  attendanceGet,
-} from "@/lib/api";
+import { isApiEnabled, sessionReportsGetById, sessionsGetById, classesGetById, attendanceGet } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToClassApi, type SupabaseClassRow } from "@/lib/classesSupabase";
 import { getSession, getClass, getEducatorName } from "@/mockData";
 import {
   buildSessionReportSummary,
@@ -155,6 +151,8 @@ function MissingReportView({
 export default function SessionReportDetailPage() {
   const { id: reportId } = useParams<{ id: string }>();
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const classBackendEnabled = supabaseEnabled || apiEnabled;
   const { getReportById } = useSessionReports();
   const { getBySession: getAttendanceBySession } = useAttendance();
   const { getBySession: getBadgeAwardsBySession } = useBadgeAwards();
@@ -179,8 +177,21 @@ export default function SessionReportDetailPage() {
   });
   const { data: apiClass } = useQuery({
     queryKey: ["class", apiSession?.classId],
-    queryFn: () => classesGetById(apiSession!.classId),
-    enabled: apiEnabled && !!apiSession?.classId,
+    queryFn: async () => {
+      const classId = apiSession!.classId;
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase.from("classes").select("*").eq("id", classId).maybeSingle();
+          if (error) throw error;
+          return data ? mapSupabaseRowToClassApi(data as SupabaseClassRow) : null;
+        } catch {
+          if (isApiEnabled()) return classesGetById(classId);
+          return null;
+        }
+      }
+      return classesGetById(classId);
+    },
+    enabled: classBackendEnabled && !!apiSession?.classId,
   });
   const { data: apiAttendance = [] } = useQuery({
     queryKey: ["attendance", effectiveSessionId],

@@ -17,11 +17,9 @@ import { useLessonPlans } from "@/context/LessonPlansContext";
 import { useTerms } from "@/hooks/useTerms";
 import { useEducators } from "@/hooks/useEducators";
 import { useQuery } from "@tanstack/react-query";
-import {
-  isApiEnabled,
-  classesGetById,
-  sessionsGetAll,
-} from "@/lib/api";
+import { isApiEnabled, classesGetById, sessionsGetAll } from "@/lib/api";
+import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { mapSupabaseRowToClassApi, type SupabaseClassRow } from "@/lib/classesSupabase";
 import type { ClassEntity, Session, SessionType } from "@/types";
 import { useLearners } from "@/hooks/useLearners";
 import { getSessionRoleForUser, canEditSession } from "@/features/educator/lib/auth";
@@ -41,6 +39,8 @@ export default function ClassDetailPage() {
   const { currentUser } = useAuth();
   const { getSessionsForClass } = useSessions();
   const apiEnabled = isApiEnabled();
+  const supabaseEnabled = isSupabaseEnabled();
+  const classBackendEnabled = supabaseEnabled || apiEnabled;
   const { terms, currentTerm } = useTerms();
   const { educators } = useEducators();
   const { learners: allLearners } = useLearners();
@@ -57,8 +57,20 @@ export default function ClassDetailPage() {
 
   const { data: apiClass } = useQuery({
     queryKey: ["class", id],
-    queryFn: () => classesGetById(id!),
-    enabled: apiEnabled && !!id,
+    queryFn: async () => {
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase.from("classes").select("*").eq("id", id!).maybeSingle();
+          if (error) throw error;
+          return data ? mapSupabaseRowToClassApi(data as SupabaseClassRow) : null;
+        } catch {
+          if (isApiEnabled()) return classesGetById(id!);
+          return null;
+        }
+      }
+      return classesGetById(id!);
+    },
+    enabled: classBackendEnabled && !!id,
   });
   const { data: apiSessions = [] } = useQuery({
     queryKey: ["sessions", id, termId],
@@ -67,7 +79,7 @@ export default function ClassDetailPage() {
   });
 
   const cls: ClassEntity | undefined = useMemo(() => {
-    if (apiEnabled && apiClass) {
+    if (classBackendEnabled && apiClass) {
       return {
         id: apiClass.id,
         name: apiClass.name,
@@ -81,7 +93,7 @@ export default function ClassDetailPage() {
       };
     }
     return getClass(id ?? "") ?? undefined;
-  }, [apiEnabled, apiClass, id]);
+  }, [classBackendEnabled, apiClass, id]);
 
   const sessions = useMemo((): Session[] => {
     if (apiEnabled && id && apiSessions.length >= 0) {
@@ -107,7 +119,7 @@ export default function ClassDetailPage() {
   const { getEnrollmentsForClass } = useEnrollments();
   const enrollmentsThisTerm = useMemo(() => {
     if (!cls) return [];
-    if (apiEnabled && cls.learnerIds) {
+    if (classBackendEnabled && cls.learnerIds) {
       return cls.learnerIds.map((learnerId) => ({
         id: `e-${cls.id}-${learnerId}-${termId}`,
         classId: cls.id,
@@ -117,17 +129,17 @@ export default function ClassDetailPage() {
       }));
     }
     return getEnrollmentsForClass(cls.id, termId);
-  }, [apiEnabled, cls, termId, getEnrollmentsForClass]);
+  }, [classBackendEnabled, cls, termId, getEnrollmentsForClass]);
 
   const activeLearnerIdsThisTerm = enrollmentsThisTerm.filter((e) => e.status === "active").map((e) => e.learnerId);
   const learnerMap = useMemo(() => {
     const map = new Map<string, import("@/types").Learner>();
-    if (apiEnabled && cls) {
+    if (classBackendEnabled && cls) {
       allLearners.filter((l) => cls.learnerIds?.includes(l.id)).forEach((l) => map.set(l.id, l));
       return map;
     }
     return null;
-  }, [apiEnabled, cls, allLearners]);
+  }, [classBackendEnabled, cls, allLearners]);
   const getLearnerForRow = (learnerId: string) => (learnerMap ? learnerMap.get(learnerId) : getLearner(learnerId));
   const educatorNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -141,7 +153,7 @@ export default function ClassDetailPage() {
   const { getExpenseBySessionAndEducator } = useSessionExpenses();
   const { getInstanceForSession } = useLessonPlans();
   const educatorId = currentUser?.id ?? "";
-  const term = apiEnabled ? terms.find((t) => t.id === termId) : getTerm(termId);
+  const term = terms.length > 0 ? terms.find((t) => t.id === termId) : getTerm(termId);
   const totalLearners = activeLearnerIdsThisTerm.length;
   const sessionStats = sessions.map((s) => {
     const records = getBySession(s.id);
