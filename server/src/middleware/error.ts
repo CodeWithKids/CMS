@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type { ApiError } from "../types.js";
+import { corsAllowedOriginsListForHeaders } from "../config/corsOrigins.js";
 
 export function sendError(res: Response, status: number, code: string, message: string, details?: Record<string, string[]>): void {
   const body: ApiError = { code, message };
@@ -7,10 +8,7 @@ export function sendError(res: Response, status: number, code: string, message: 
   res.status(status).json(body);
 }
 
-const ALLOWED_ORIGINS =
-  process.env.NODE_ENV === "production"
-    ? (process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()) ?? ["https://cwk-hub.onrender.com"])
-    : ["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:8080", "http://127.0.0.1:5173"];
+const ALLOWED_ORIGINS = corsAllowedOriginsListForHeaders();
 
 function setCorsIfAllowed(req: Request, res: Response): void {
   const origin = req.headers.origin;

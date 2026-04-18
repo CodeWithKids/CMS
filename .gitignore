@@ -47,3 +47,5 @@ coverage
 .parcel-cache
 .vite
 .eslintcache
+.vercel
+.env*.local
