@@ -12,6 +12,7 @@ import {
   type LoginResponse,
 } from "@/lib/api";
 import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
+import { isHybridBackendConfigured } from "@/lib/runtimeBackend";
 
 function apiUserToAppUser(u: LoginResponse["user"] | null | undefined): AppUser {
   if (!u || typeof u !== "object" || !("id" in u) || !("role" in u)) {
@@ -257,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser((prev) => {
       if (!prev) return null;
       const next = { ...prev, ...partial };
-      if ("avatarId" in partial) {
+      if ("avatarId" in partial && !isHybridBackendConfigured()) {
         const u = getDemoLoginUsers().find((x) => x.id === prev.id);
         if (u) (u as AppUser).avatarId = partial.avatarId;
       }

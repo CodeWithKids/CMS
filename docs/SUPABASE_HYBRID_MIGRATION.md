@@ -51,25 +51,28 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
    Creates `public.sessions` (snake_case columns aligned with `SessionsContext` / Prisma). **Run this before attendance** — `docs/SUPABASE_ATTENDANCE_RLS.sql` joins `public.sessions` for educator and parent/student policies.  
    Run through **`commit;`**, then **section 6** for staff/educator session writes from the app.
 
-6. **`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`**  
+6. **`docs/SUPABASE_EDUCATOR_BADGES_RLS.sql`** (optional)  
+   Creates `public.educator_badges` (FK to `profiles`) for persisted educator badges. Run after **`docs/SUPABASE_PROFILES_RLS.sql`**. Used by `src/hooks/useEducatorBadges.ts` on educator profile and admin educator profile detail. Run through **`commit;`**, then **section 6** for staff writes.
+
+7. **`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`**  
    Creates `public.class_enrollments` with RLS for admin/finance/educator workflows and learner/parent read scope.
 
-7. **`docs/SUPABASE_ATTENDANCE_RLS.sql`**  
+8. **`docs/SUPABASE_ATTENDANCE_RLS.sql`**  
    Creates `public.attendance_records` with educator-scoped write/read policies and role-scoped access.
 
-8. **`docs/SUPABASE_FINANCE_ACCOUNT_EXPENSES_RLS.sql`**  
+9. **`docs/SUPABASE_FINANCE_ACCOUNT_EXPENSES_RLS.sql`**  
    Creates `public.finance_account_expenses` for finance expenses pages (`FinanceAccountContext`).
 
-9. **`docs/SUPABASE_INVENTORY_ITEMS_RLS.sql`**  
-   Creates/upgrades `public.inventory_items` for Supabase-first inventory management.
+10. **`docs/SUPABASE_INVENTORY_ITEMS_RLS.sql`**  
+    Creates/upgrades `public.inventory_items` for Supabase-first inventory management.
 
-10. **`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`**  
+11. **`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`**  
     Creates `public.event_registrations` for learner registrations on events.
 
-11. **`docs/SUPABASE_LEARNERS_PARENT_USER_ID.sql`** (optional, after **`docs/SUPABASE_LEARNERS_RLS.sql`**)  
+12. **`docs/SUPABASE_LEARNERS_PARENT_USER_ID.sql`** (optional, after **`docs/SUPABASE_LEARNERS_RLS.sql`**)  
     Adds `learners.parent_user_id` (FK to `auth.users`) and replaces the parent **select** policy so parents can see rows where **either** `parent_email` matches the JWT email **or** `parent_user_id = auth.uid()`. Aligns with `useParentChildIds` in the parent portal.
 
-12. **`docs/SUPABASE_ORGANISATIONS_OVERVIEW_TYPE.sql`** (optional, when `public.organisations` already exists)  
+13. **`docs/SUPABASE_ORGANISATIONS_OVERVIEW_TYPE.sql`** (optional, when `public.organisations` already exists)  
     Adds `organisations.overview_type` (`SCHOOL` | `ORGANISATION` | `MIRADI`) for org portal copy (e.g. attendance card titles) when data is loaded from Supabase.
 
 ### Dashboard (not SQL)
@@ -86,6 +89,7 @@ Run each file **from top to bottom** in **SQL → New query**. Re-runs are safe 
 - Classes: Supabase-first list + admin CRUD + hooks (`useClasses`, `useClass`); RLS in `docs/SUPABASE_CLASSES_RLS.sql` (include section 6 for writes)
 - Class enrollments: Supabase-first context + admin class enrolments page (`docs/SUPABASE_CLASS_ENROLLMENTS_RLS.sql`)
 - Sessions: table + RLS in `docs/SUPABASE_SESSIONS_RLS.sql` (run before attendance)
+- Educator badges: Supabase-first reads in `src/hooks/useEducatorBadges.ts` (`docs/SUPABASE_EDUCATOR_BADGES_RLS.sql`; optional until the table exists)
 - Attendance: Supabase/API-backed persistence in `AttendanceContext` + attendance page (`docs/SUPABASE_ATTENDANCE_RLS.sql`)
 - Finance: in progress (Supabase/API-backed invoice bootstrap in `FinanceContext`; `FinanceAccountContext` expenses now Supabase-first via `docs/SUPABASE_FINANCE_ACCOUNT_EXPENSES_RLS.sql`)
 - Inventory: Supabase/API-backed with Supabase-first load/write (`docs/SUPABASE_INVENTORY_ITEMS_RLS.sql`)
@@ -144,6 +148,11 @@ Use this checklist before exposing each slice to the client:
 
 - [ ] `event_registrations` table exists (`docs/SUPABASE_EVENT_REGISTRATIONS_RLS.sql`)
 - [ ] Parent and organisation registration scope tested against learner visibility rules
+
+### Educator badges
+
+- [ ] `educator_badges` table exists (`docs/SUPABASE_EDUCATOR_BADGES_RLS.sql`)
+- [ ] Educators can read their own rows; admin/finance/LD can read all; only staff policies can write
 
 ## Operational guardrails
 

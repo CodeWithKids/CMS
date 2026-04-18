@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth, getRoleDashboard } from "@/context/AuthContext";
 import { getDemoLoginUsers } from "@/lib/demoLoginUsers";
 import { useLearners } from "@/hooks/useLearners";
-import { isApiEnabled } from "@/lib/api";
+import { isHybridBackendConfigured } from "@/lib/runtimeBackend";
 import { ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,7 @@ export default function LoginPage() {
   const { login, loginWithCredentials } = useAuth();
   const navigate = useNavigate();
 
-  const useApi = isApiEnabled();
+  const useRealLogin = isHybridBackendConfigured();
 
   useEffect(() => {
     try {
@@ -117,7 +117,7 @@ export default function LoginPage() {
               {sessionExpiredMessage}
             </p>
           )}
-          {useApi ? (
+          {useRealLogin ? (
             <form onSubmit={handleApiLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>

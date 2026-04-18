@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { mockStaff } from "@/mockData";
 import { useEducators } from "@/hooks/useEducators";
 import { isApiEnabled } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -35,10 +36,11 @@ function getTitle(staffId: string): string {
 
 export default function EducatorProfilesListPage() {
   const apiEnabled = isApiEnabled();
+  const liveDirectory = isSupabaseEnabled() || apiEnabled;
   const { educators } = useEducators();
 
   const { adminStaff, financeStaff, educatorStaff } = useMemo(() => {
-    if (apiEnabled) {
+    if (liveDirectory) {
       const admin = educators.filter((e) => e.role === "admin");
       const finance = educators.filter((e) => e.role === "finance");
       const educator = educators.filter((e) => e.role === "educator" || e.role === "ld_manager");
@@ -53,7 +55,7 @@ export default function EducatorProfilesListPage() {
       financeStaff: mockStaff.filter((s) => FINANCE_IDS.includes(s.id)),
       educatorStaff: mockStaff.filter((s) => EDUCATOR_IDS.includes(s.id)),
     };
-  }, [apiEnabled, educators]);
+  }, [liveDirectory, educators]);
 
   const renderSection = (
     sectionTitle: string,

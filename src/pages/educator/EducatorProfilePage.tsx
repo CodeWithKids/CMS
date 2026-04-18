@@ -30,9 +30,10 @@ import {
 import { UserCircle, Clock, BookOpen, Award, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
-import { isApiEnabled, sessionsGetAll, educatorBadgesGetAll, type EducatorBadgeApi } from "@/lib/api";
+import { isApiEnabled, sessionsGetAll, type EducatorBadgeApi } from "@/lib/api";
 import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import { useClasses } from "@/hooks/useClasses";
+import { useEducatorBadges } from "@/hooks/useEducatorBadges";
 
 const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
   { value: "this_term", label: "This term" },
@@ -58,12 +59,7 @@ export default function EducatorProfilePage() {
   });
   const { classes: apiClasses } = useClasses();
 
-  const { data: apiBadges = [] } = useQuery({
-    queryKey: ["educator", "badges", educatorId],
-    queryFn: () => educatorBadgesGetAll(educatorId),
-    enabled: apiEnabled && !!educatorId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { badges: remoteBadges } = useEducatorBadges(educatorId || undefined);
 
   const classMap = useMemo(() => {
     if (!apiEnabled && !supabaseEnabled) return null as Map<string, { name: string; location: string }> | null;
@@ -139,8 +135,8 @@ export default function EducatorProfilePage() {
   );
 
   const staticBadges = useMemo(() => {
-    if (apiEnabled) {
-      return (apiBadges as EducatorBadgeApi[]).map((b) => ({
+    if (apiEnabled || supabaseEnabled) {
+      return remoteBadges.map((b: EducatorBadgeApi) => ({
         id: b.id,
         educatorId: b.educatorId,
         trackId: b.trackId ?? undefined,
@@ -150,7 +146,7 @@ export default function EducatorProfilePage() {
       }));
     }
     return getEducatorBadgesForEducator(educatorId);
-  }, [apiEnabled, apiBadges, educatorId]);
+  }, [apiEnabled, supabaseEnabled, remoteBadges, educatorId]);
 
   const badges = useMemo(() => {
     const byTrack = new Set(computedBadges.map((b) => b.trackId).filter(Boolean));

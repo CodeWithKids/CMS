@@ -40,9 +40,10 @@ import {
   mockClassEnrollments,
   getOrganization,
 } from "@/mockData";
-import type { AppUser } from "@/types";
+import type { AppUser, AdminOverviewSummary } from "@/types";
 import { RoleResponsibilitiesCard } from "@/components/RoleResponsibilitiesCard";
 import { isApiEnabled, adminPendingSignupsGet, adminOverviewGet, focusAreasGetAll } from "@/lib/api";
+import { isHybridBackendConfigured } from "@/lib/runtimeBackend";
 import type { LearningTrack } from "@/types";
 import { LEARNING_TRACK_LABELS } from "@/types";
 
@@ -95,6 +96,13 @@ function formatDate(iso: string): string {
 const pendingUsers = (): AppUser[] =>
   mockUsers.filter((u) => u.status === "pending");
 
+const EMPTY_PEOPLE_STATS = {
+  activeLearners: 0,
+  activeEducators: 0,
+  activeParents: 0,
+  pendingAccounts: 0,
+};
+
 const PARTNER_TYPE_LABELS: Record<string, string> = {
   SCHOOL: "School",
   ORGANISATION: "Organisation",
@@ -107,6 +115,7 @@ export default function AdminDashboardPage() {
   const { getInvoices } = useFinanceAccount();
   const invoices = getInvoices();
   const apiEnabled = isApiEnabled();
+  const hybridBackend = isHybridBackendConfigured();
   const { data: pendingSignups = [] } = useQuery({
     queryKey: ["admin", "pending-signups"],
     queryFn: adminPendingSignupsGet,
@@ -135,13 +144,17 @@ export default function AdminDashboardPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // When API is enabled and overview is loaded, use real data; otherwise use mock
+  // API overview when available; otherwise mock only in pure offline mode (no Supabase/API env).
   const peopleStats = overviewApi
     ? overviewApi.peopleStats
-    : getPeopleStats(mockUsers, mockLearners);
+    : hybridBackend
+      ? EMPTY_PEOPLE_STATS
+      : getPeopleStats(mockUsers, mockLearners);
   const financeStats = overviewApi
     ? overviewApi.financeStats
-    : getFinanceStats(invoices, mockLearners);
+    : hybridBackend
+      ? getFinanceStats(invoices, [])
+      : getFinanceStats(invoices, mockLearners);
   const pendingApprovals = overviewApi
     ? overviewApi.pendingUsers.map((u) => ({
         id: u.id,
@@ -154,21 +167,27 @@ export default function AdminDashboardPage() {
         avatarId: null,
         createdAt: u.createdAt,
       }))
-    : pendingUsers();
+    : hybridBackend
+      ? []
+      : pendingUsers();
   const pendingSignupsCount = apiEnabled ? pendingSignups.length : 0;
   const totalPendingApprovals = overviewApi
     ? overviewApi.peopleStats.pendingAccounts + pendingSignupsCount
     : pendingApprovals.length + pendingSignupsCount;
   const learnersWithPending = overviewApi
     ? overviewApi.learnersWithPending
-    : getLearnersWithPendingPayments(mockLearners, invoices, getOrganization);
+    : hybridBackend
+      ? []
+      : getLearnersWithPendingPayments(mockLearners, invoices, getOrganization);
   const organizationsWithPending = overviewApi
     ? overviewApi.organizationsWithPending
-    : getOrganizationsWithPendingPayments(
-        mockLearners,
-        invoices,
-        getOrganization
-      );
+    : hybridBackend
+      ? []
+      : getOrganizationsWithPendingPayments(
+          mockLearners,
+          invoices,
+          getOrganization
+        );
 
   const overview = useMemo(() => {
     if (overviewApi) {
@@ -186,6 +205,15 @@ export default function AdminDashboardPage() {
         })),
       };
     }
+    if (hybridBackend) {
+      return {
+        activeSchools: 0,
+        activeOrganisations: 0,
+        activeMiradis: 0,
+        partners: [] as AdminOverviewSummary["partners"],
+        learnersByTrack: [] as AdminOverviewSummary["learnersByTrack"],
+      };
+    }
     return getAdminOverviewSummary(
       mockOrganizations,
       mockLearners,
@@ -193,7 +221,7 @@ export default function AdminDashboardPage() {
       mockSessionReports,
       mockClassEnrollments
     );
-  }, [overviewApi]);
+  }, [overviewApi, hybridBackend]);
 
   const learnersByFocusArea = useMemo(() => {
     if (focusAreas.length === 0) return [];
@@ -209,15 +237,17 @@ export default function AdminDashboardPage() {
 
   const sessionReportsMissingCount = overviewApi
     ? overviewApi.sessionReportsMissingCount
-    : (() => {
-        const today = new Date().toISOString().split("T")[0];
-        const submittedSessionIds = new Set(
-          mockSessionReports.filter((r) => r.status === "submitted").map((r) => r.sessionId)
-        );
-        return mockSessions.filter(
-          (s) => s.date < today && !submittedSessionIds.has(s.id)
-        ).length;
-      })();
+    : hybridBackend
+      ? 0
+      : (() => {
+          const today = new Date().toISOString().split("T")[0];
+          const submittedSessionIds = new Set(
+            mockSessionReports.filter((r) => r.status === "submitted").map((r) => r.sessionId)
+          );
+          return mockSessions.filter(
+            (s) => s.date < today && !submittedSessionIds.has(s.id)
+          ).length;
+        })();
 
   const showSkeleton = !apiEnabled ? isLoading : isLoading || overviewLoading;
 

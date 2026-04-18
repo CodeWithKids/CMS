@@ -1,21 +1,21 @@
 import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  getStaffMember,
-  getCurrentTerm,
-  mockSessions,
-  mockStaff,
-  mockUsers,
-} from "@/mockData";
+import { getStaffMember, mockStaff, mockUsers } from "@/mockData";
 import { getEducatorBadgesForEducator } from "@/mockData/educator";
 import { computeEducatorBadges } from "@/utils/educatorBadges";
 import { useInventory } from "@/context/InventoryContext";
-import { isApiEnabled, sessionsGetAll, educatorBadgesGetAll, type SessionApi, type EducatorBadgeApi } from "@/lib/api";
+import { useSessions } from "@/context/SessionsContext";
+import { useEducator } from "@/hooks/useEducator";
+import { useEducatorBadges } from "@/hooks/useEducatorBadges";
+import { useTerms } from "@/hooks/useTerms";
+import { isApiEnabled, sessionsGetAll, type SessionApi, type EducatorBadgeApi } from "@/lib/api";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import type { Session, SessionType, LearningTrack } from "@/types";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PRESET_AVATARS, getPresetAvatar } from "@/data/presetAvatars";
 import { ArrowLeft, Award, Clock, Calendar, Package, UserCircle } from "lucide-react";
 
@@ -24,16 +24,44 @@ function getEducatorAvatarUrl(index: number): string {
   return preset?.imageUrl ?? "";
 }
 
+function presetIndexFromId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h) % PRESET_AVATARS.length;
+}
+
+function isEducatorProfileRole(role: string): boolean {
+  return role === "educator" || role === "ld_manager";
+}
+
 export default function EducatorProfileDetailPage() {
   const { id } = useParams<{ id: string }>();
   const educatorId = id ?? "";
-  const staff = getStaffMember(educatorId);
   const { getItemsCheckedOutTo } = useInventory();
+  const { getSessionsForEducator } = useSessions();
+  const { currentTerm } = useTerms();
 
-  const currentTerm = getCurrentTerm();
-  const termId = currentTerm?.id ?? "t1";
-
+  const supabaseEnabled = isSupabaseEnabled();
   const apiEnabled = isApiEnabled();
+  const liveEducator = supabaseEnabled || apiEnabled;
+
+  const { educator, isLoading: educatorLoading } = useEducator(educatorId);
+
+  const mockStaffMember = useMemo(
+    () => (educatorId ? getStaffMember(educatorId) : undefined),
+    [educatorId]
+  );
+
+  const staff = useMemo(() => {
+    if (liveEducator && educator) {
+      return { name: educator.name, role: educator.role };
+    }
+    if (!liveEducator && mockStaffMember) {
+      return { name: mockStaffMember.name, role: mockStaffMember.role };
+    }
+    return null;
+  }, [liveEducator, educator, mockStaffMember]);
+
   const { data: apiSessions = [] } = useQuery({
     queryKey: ["admin", "educator-profile", "sessions", educatorId],
     queryFn: () => sessionsGetAll({ educatorId }),
@@ -41,46 +69,38 @@ export default function EducatorProfileDetailPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: apiBadges = [] } = useQuery({
-    queryKey: ["admin", "educator-profile", "badges", educatorId],
-    queryFn: () => educatorBadgesGetAll(educatorId),
-    enabled: apiEnabled && !!educatorId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { badges: remoteBadges } = useEducatorBadges(educatorId || undefined);
 
-  const allSessions: Session[] = useMemo(
-    () =>
-      apiEnabled
-        ? (apiSessions as SessionApi[]).map(
-            (s): Session => ({
-              id: s.id,
-              classId: s.classId,
-              date: s.date,
-              startTime: s.startTime,
-              endTime: s.endTime,
-              topic: s.topic,
-              sessionType: s.sessionType as SessionType,
-              duration: "1_hour",
-              learningTrack: s.learningTrack as LearningTrack,
-              termId: s.termId,
-              leadEducatorId: s.leadEducatorId,
-              assistantEducatorIds: s.assistantEducatorIds ?? [],
-              durationHours: s.durationHours ?? 1,
-            })
-          )
-        : mockSessions.filter(
-            (s) =>
-              s.leadEducatorId === educatorId ||
-              (s.assistantEducatorIds ?? []).includes(educatorId)
-          ),
-    [apiEnabled, apiSessions, educatorId]
-  );
+  const allSessions: Session[] = useMemo(() => {
+    if (apiEnabled) {
+      return (apiSessions as SessionApi[]).map(
+        (s): Session => ({
+          id: s.id,
+          classId: s.classId,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          topic: s.topic,
+          sessionType: s.sessionType as SessionType,
+          duration: "1_hour",
+          learningTrack: s.learningTrack as LearningTrack,
+          termId: s.termId,
+          leadEducatorId: s.leadEducatorId,
+          assistantEducatorIds: s.assistantEducatorIds ?? [],
+          durationHours: s.durationHours ?? 1,
+        })
+      );
+    }
+    return getSessionsForEducator(educatorId);
+  }, [apiEnabled, apiSessions, educatorId, getSessionsForEducator]);
 
-  const sessionsThisTerm = useMemo(
-    () =>
-      allSessions.filter((s) => s.termId === termId),
-    [allSessions, termId]
-  );
+  const termId = currentTerm?.id;
+  const sessionsThisTerm = useMemo(() => {
+    if (termId) return allSessions.filter((s) => s.termId === termId);
+    if (liveEducator) return allSessions;
+    return allSessions.filter((s) => s.termId === "t1");
+  }, [allSessions, termId, liveEducator]);
+
   const facilitatingHours = sessionsThisTerm
     .filter((s) => s.leadEducatorId === educatorId)
     .reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
@@ -90,8 +110,8 @@ export default function EducatorProfileDetailPage() {
   const totalHours = facilitatingHours + coachingHours;
 
   const staticBadges = useMemo(() => {
-    if (apiEnabled) {
-      return (apiBadges as EducatorBadgeApi[]).map((b) => ({
+    if (apiEnabled || supabaseEnabled) {
+      return remoteBadges.map((b: EducatorBadgeApi) => ({
         id: b.id,
         educatorId: b.educatorId,
         trackId: b.trackId ?? undefined,
@@ -101,7 +121,7 @@ export default function EducatorProfileDetailPage() {
       }));
     }
     return getEducatorBadgesForEducator(educatorId);
-  }, [apiEnabled, apiBadges, educatorId]);
+  }, [apiEnabled, supabaseEnabled, remoteBadges, educatorId]);
 
   const computedBadges = computeEducatorBadges(educatorId, allSessions);
   const byTrack = new Set(computedBadges.map((b) => b.trackId).filter(Boolean));
@@ -114,11 +134,34 @@ export default function EducatorProfileDetailPage() {
 
   const educators = mockStaff.filter((s) => s.role === "educator");
   const educatorIndex = educators.findIndex((s) => s.id === educatorId);
-  const userAvatarId = mockUsers.find((u) => u.id === educatorId)?.avatarId;
+  const userAvatarId =
+    liveEducator && educator?.avatarId
+      ? educator.avatarId
+      : !liveEducator
+        ? mockUsers.find((u) => u.id === educatorId)?.avatarId
+        : undefined;
   const chosenAvatar = userAvatarId ? getPresetAvatar(userAvatarId) : null;
-  const avatarUrl = chosenAvatar?.imageUrl ?? getEducatorAvatarUrl(educatorIndex >= 0 ? educatorIndex : 0);
+  const avatarUrl =
+    chosenAvatar?.imageUrl ??
+    getEducatorAvatarUrl(
+      liveEducator ? presetIndexFromId(educatorId || "x") : educatorIndex >= 0 ? educatorIndex : 0
+    );
 
-  if (!staff || staff.role !== "educator") {
+  const profileNotFound = liveEducator
+    ? !educatorLoading && (!educator || !isEducatorProfileRole(educator.role))
+    : !mockStaffMember || !isEducatorProfileRole(mockStaffMember.role);
+
+  if (liveEducator && educatorLoading) {
+    return (
+      <div className="p-6 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 w-full max-w-lg" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  if (profileNotFound || !staff) {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">Educator not found.</p>

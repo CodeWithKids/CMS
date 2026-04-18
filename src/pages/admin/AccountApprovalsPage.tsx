@@ -38,6 +38,7 @@ import {
   type AdminAccountUser,
   type PendingSignupApi,
 } from "@/lib/api";
+import { isHybridBackendConfigured } from "@/lib/runtimeBackend";
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-ZA", {
@@ -64,6 +65,7 @@ export default function AccountApprovalsPage() {
   const [signupActionLoading, setSignupActionLoading] = useState(false);
 
   const apiEnabled = isApiEnabled();
+  const hybridBackend = isHybridBackendConfigured();
   const { data: apiPending = [], isLoading, isError, error } = useQuery({
     queryKey: PENDING_ACCOUNTS_QUERY_KEY,
     queryFn: adminAccountsGetPending,
@@ -76,10 +78,10 @@ export default function AccountApprovalsPage() {
     enabled: apiEnabled,
   });
 
-  const mockPending = useMemo(
-    () => mockUsers.filter((u) => u.status === "pending" && !processedIds.has(u.id)),
-    [processedIds]
-  );
+  const mockPending = useMemo(() => {
+    if (hybridBackend) return [];
+    return mockUsers.filter((u) => u.status === "pending" && !processedIds.has(u.id));
+  }, [hybridBackend, processedIds]);
 
   const pending: (AppUser | AdminAccountUser)[] = apiEnabled
     ? apiPending.filter((u) => !processedIds.has(u.id))
@@ -286,6 +288,17 @@ export default function AccountApprovalsPage() {
           <Link to="/admin/create-team-member">Create team member</Link>
         </Button>
       </div>
+
+      {hybridBackend && !apiEnabled && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Team approvals need the API</AlertTitle>
+          <AlertDescription>
+            Pending team accounts are loaded from the CWK Hub API. Configure <code className="text-xs">VITE_API_URL</code>{" "}
+            (and auth) to list and approve real invitations. Signup requests below also require the API.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isError && (
         <Alert variant="destructive">
