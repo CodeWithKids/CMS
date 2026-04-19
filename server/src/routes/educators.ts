@@ -4,9 +4,19 @@ import { prisma } from "../db.js";
 
 const router = Router();
 
-const STAFF_ROLES = ["admin", "educator", "finance"];
+/** Roles shown in Hub staff directory / useEducators — keep in sync with StaffDirectoryPage filters */
+const STAFF_ROLES = [
+  "admin",
+  "educator",
+  "finance",
+  "partnerships",
+  "marketing",
+  "social_media",
+  "ld_manager",
+  "parent",
+];
 
-/** GET /v1/educators - list staff (admin, educator, finance). Query: role?, status? */
+/** GET /v1/educators - list staff. Query: role?, status? */
 router.get("/", async (req: Request, res: Response) => {
   const { role, status } = req.query;
   const where: { role: { in: string[] } | string; status?: string } = {
