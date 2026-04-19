@@ -6,6 +6,7 @@ import { useLearners } from "@/hooks/useLearners";
 import { isHybridBackendConfigured, shouldShowCredentialLoginForm } from "@/lib/runtimeBackend";
 import { ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
@@ -154,9 +155,8 @@ export default function LoginPage() {
                     Forgot password?
                   </Link>
                 </div>
-                <Input
+                <PasswordInput
                   id="login-password"
-                  type="password"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);

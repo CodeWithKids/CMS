@@ -34,12 +34,67 @@ const TEAM_AND_PARENT_ROLES = [
 
 type GoTrueSignupResponse = {
   user?: { id?: string; email?: string } | null;
+  /** Some GoTrue versions return the user id at the top level on success. */
   id?: string;
+  email?: string;
+  /** Present when signup returns tokens without a fully populated user object. */
+  access_token?: string;
+  session?: {
+    access_token?: string;
+    user?: { id?: string; email?: string } | null;
+  } | null;
   msg?: string;
   error?: string;
   error_description?: string;
   message?: string;
 };
+
+/** Auth user id from JWT `sub` when GoTrue returns only access_token/session. */
+function userIdFromAccessToken(accessToken: string | undefined): string | undefined {
+  if (!accessToken || typeof accessToken !== "string") return undefined;
+  const parts = accessToken.split(".");
+  if (parts.length < 2) return undefined;
+  try {
+    const segment = parts[1];
+    const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+    const padLen = (4 - (base64.length % 4)) % 4;
+    const padded = base64 + "=".repeat(padLen);
+    const decoded = atob(padded);
+    const payload = JSON.parse(decoded) as { sub?: string };
+    return typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** GoTrue `/signup` success bodies vary by version and email-confirm settings. */
+function extractUserIdFromSignupResponse(json: GoTrueSignupResponse): string | undefined {
+  const fromUser = json.user?.id;
+  if (typeof fromUser === "string" && fromUser.length > 0) return fromUser;
+
+  const top = json.id;
+  if (typeof top === "string" && top.length > 0) return top;
+
+  const fromSession = json.session?.user?.id;
+  if (typeof fromSession === "string" && fromSession.length > 0) return fromSession;
+
+  const token =
+    typeof json.access_token === "string" && json.access_token.length > 0
+      ? json.access_token
+      : typeof json.session?.access_token === "string" && json.session.access_token.length > 0
+        ? json.session.access_token
+        : undefined;
+  return userIdFromAccessToken(token);
+}
+
+function extractEmailFromSignupResponse(json: GoTrueSignupResponse, fallback: string): string {
+  if (typeof json.user?.email === "string" && json.user.email.length > 0) return json.user.email;
+  if (typeof json.email === "string" && json.email.length > 0) return json.email;
+  if (typeof json.session?.user?.email === "string" && json.session.user.email.length > 0) {
+    return json.session.user.email;
+  }
+  return fallback;
+}
 
 function friendlyGoTrueSignupError(raw: string): string {
   const s = raw.trim();
@@ -178,15 +233,18 @@ async function authSignUpWithAnonKey(body: {
     throw new ApiError(res.status, { message: msg }, msg);
   }
 
-  const userId = json.user?.id;
+  const userId = extractUserIdFromSignupResponse(json);
   if (!userId) {
     throw new ApiError(
       500,
-      { message: "Sign up succeeded but no user id was returned." },
+      {
+        message:
+          "Sign up succeeded but no user id was returned. If Confirm email is on in Supabase, set VITE_API_URL and the hub API env (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET) so users are created via the Admin API, or temporarily disable Confirm email for development.",
+      },
       "Sign up succeeded but no user id was returned."
     );
   }
-  return { userId, email: json.user?.email ?? body.email };
+  return { userId, email: extractEmailFromSignupResponse(json, body.email) };
 }
 
 export async function adminCreateTeamMemberSupabase(input: {
