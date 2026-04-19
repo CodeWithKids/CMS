@@ -71,6 +71,42 @@ Point the frontend API base URL to `http://localhost:3001` (e.g. via env or a sh
 
 For a **production** SPA (e.g. on Vercel at `https://app.codewithkids.africa`), set the frontend `VITE_API_URL` to this API’s **HTTPS** base URL. CORS is enforced **here on the API**, not on Vercel.
 
+## Full-stack Hub (SPA + API)
+
+For **full Hub behaviour**—admin overview (`GET /v1/admin/overview`), pending signups, hybrid admin routes, finance aggregates, and other `/v1` features—the browser app and this server must be configured together.
+
+### Client (Vite SPA, repo root `.env`)
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_SUPABASE_URL` | Supabase project URL (auth and data client). |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (with the URL, enables Supabase in the SPA). |
+| `VITE_API_URL` | Base URL of **this** Express API, including **scheme and port** (e.g. `http://localhost:3001` or `https://api.example.com`). If unset, the SPA treats the API as disabled (`isApiEnabled()` is false) and many flows fall back to mocks or Supabase-only paths. |
+
+**Rebuild or restart** the Vite dev server after changing any `VITE_*` variable; production builds must be **rebuilt** so `import.meta.env` is updated.
+
+### CORS (this API)
+
+- **Development** (`NODE_ENV` not `production`): the API uses a permissive CORS policy and **allows any browser origin** (see `src/config/corsOrigins.ts`). You usually do not need `CORS_ORIGIN` locally.
+- **Production**: the allow-list is **`CORS_ORIGIN`** (comma-separated origins, no trailing slash) or, if omitted, the **defaults** in `corsOrigins.ts` (today that includes `https://app.codewithkids.africa` only). Add every origin where the Hub is hosted (production and preview URLs if you test PRs against this API).
+
+### Server: Hub JWT vs Supabase session (hybrid)
+
+Protected `/v1` routes accept **`Authorization: Bearer …`**. The token may be:
+
+1. A **Hub** JWT from `POST /v1/auth/login` (validated with `JWT_SECRET`), or  
+2. A **Supabase** session **access_token** when the admin is signed in via Supabase in the browser.
+
+For (2), the API must verify the JWT and load `profiles.role` using Supabase’s service API. Set these on **this** server (never put the service role key in Vite):
+
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_URL` | Same as Supabase Dashboard → Settings → API → Project URL. |
+| `SUPABASE_JWT_SECRET` | Dashboard → Settings → API → JWT Secret (used to verify user access tokens). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Dashboard → Service role (secret); used for admin/profile checks over REST. |
+
+If admins sign in with **Supabase only** and these are missing, hybrid calls to `/v1/...` can return **401** even when `VITE_SUPABASE_*` and `VITE_API_URL` are correct in the SPA.
+
 ## Production API environment
 
 Set these on **whatever runs Express** (Railway, Fly.io, a VPS, Docker, etc.). `DATABASE_URL` can point at **Supabase Postgres** if you use Supabase for the database. Do **not** rely on static-host env vars for CORS—set `CORS_ORIGIN` on the API process.
