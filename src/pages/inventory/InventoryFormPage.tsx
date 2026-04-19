@@ -287,7 +287,7 @@ export default function InventoryFormPage() {
                   <FormItem>
                     <FormLabel>Notes (optional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="e.g. Charger missing, used for Miradi" {...field} />
+                      <Textarea placeholder="e.g. Charger missing, used for FCP sessions" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

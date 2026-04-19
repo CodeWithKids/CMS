@@ -18,7 +18,7 @@ import { isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 import { mapSupabaseRowToLearner, type SupabaseLearnerRow } from "@/lib/learnersSupabase";
 import type { LearnerEnrollmentType, LearnerProgramType, OrganisationOverviewType } from "@/types";
 
-/** Partner-portal copy for attendance / reports (school vs Miradi vs generic). */
+/** Partner-portal copy for attendance / reports (school vs FCP vs generic). */
 export type OrganisationAttendanceCardVariant = "school" | "miradi" | "partner";
 
 function attendanceCardVariantForOrganisation(org: Organization | null): OrganisationAttendanceCardVariant {
@@ -40,7 +40,7 @@ export interface UseOrganisationLearnersResult {
   isOrgUser: boolean;
   /** True while organisation/learners are loading from API (only when API enabled). */
   isLoading?: boolean;
-  /** For dashboard copy: school vs Miradi vs generic partner. */
+  /** For dashboard copy: school vs FCP vs generic partner. */
   attendanceCardVariant: OrganisationAttendanceCardVariant;
 }
 

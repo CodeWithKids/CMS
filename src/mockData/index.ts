@@ -35,7 +35,7 @@ export {
   getEducatorBadgesForEducator,
 } from "./educator";
 
-// Login mock: 7 team (admin, educator, finance, social_media, partnerships, ld_manager, marketing) + 5 other (school, organisation, parent, member learner, miradi)
+// Login mock: 7 team (admin, educator, finance, social_media, partnerships, ld_manager, marketing) + 5 other (school, organisation, parent, member learner, FCP)
 export const mockUsers: AppUser[] = [
   { id: "u1", name: "Sarah Admin (Super admin)", role: "admin", email: "admin@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
   { id: "u2", name: "Vivian Cheboi (Educator)", role: "educator", email: "vivian@codewithkids.afrika", status: "active", createdAt: "2026-01-01" },
@@ -48,12 +48,12 @@ export const mockUsers: AppUser[] = [
   { id: "u5", name: "Lucy Njeri (Parent)", role: "parent", email: "lucy.njeri@mail.com", status: "active", createdAt: "2026-01-01", membershipStatus: "active" },
   { id: "u10", name: "Greenfield Primary (School)", role: "organisation", email: "office@greenfield.edu", status: "active", createdAt: "2026-01-01", organizationId: "org1" },
   { id: "u9", name: "Spur Afrika (Organisation)", role: "organisation", email: "admin@spurafrika.org", status: "active", createdAt: "2026-01-01", organizationId: "org3" },
-  { id: "u8", name: "Compassion Miradi (Miradi)", role: "organisation", email: "miradi@compassion.org", status: "active", createdAt: "2026-01-01", organizationId: "org2" },
+  { id: "u8", name: "FCP – Nairobi (Frontline Church Partners)", role: "organisation", email: "miradi@compassion.org", status: "active", createdAt: "2026-01-01", organizationId: "org2" },
 ];
 
 export const mockOrganizations: Organization[] = [
   { id: "org1", name: "Greenfield Primary", type: "school", contactPerson: "Mr. Principal", contactPhone: "+27 11 100 1000", contactEmail: "office@greenfield.edu", location: "Johannesburg", status: "ACTIVE", overviewType: "SCHOOL" },
-  { id: "org2", name: "Compassion Miradi", type: "church", contactPerson: "Pastor Sarah", contactPhone: "+27 11 200 2000", contactEmail: "miradi@compassion.org", location: "Nairobi", status: "ACTIVE", overviewType: "MIRADI" },
+  { id: "org2", name: "FCP – Nairobi (Frontline Church Partners)", type: "church", contactPerson: "Pastor Sarah", contactPhone: "+27 11 200 2000", contactEmail: "miradi@compassion.org", location: "Nairobi", status: "ACTIVE", overviewType: "MIRADI" },
   { id: "org3", name: "Spur Afrika", type: "organisation", contactPerson: "Ms. Director", contactPhone: "+27 11 300 3000", contactEmail: "admin@spurafrika.org", location: "Cape Town", status: "ACTIVE", overviewType: "ORGANISATION" },
 ];
 
@@ -73,7 +73,7 @@ export const PROGRAM_NAMES = [
   "Virtual Session",
   "Home Sessions",
   "Organization Session",
-  "Miradi Session (Compassion Churches)",
+  "FCP session (Frontline Church Partners)",
 ] as const;
 
 export const mockClasses: ClassEntity[] = [
@@ -84,10 +84,10 @@ export const mockClasses: ClassEntity[] = [
   { id: "c5", name: "Kokomelon Schools", program: "School STEM Club", ageGroup: "8-13", location: "Kokomelon Schools", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
   { id: "c6", name: "Kianda School", program: "School STEM Club", ageGroup: "8-13", location: "Kianda School", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
   { id: "c7", name: "Vine Garden Academy", program: "School STEM Club", ageGroup: "8-13", location: "Vine Garden Academy", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
-  { id: "c8", name: "KE 916 Kibera", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "KE 916 Kibera", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
-  { id: "c9", name: "KE 370 Waithaka", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "KE 370 Waithaka", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
-  { id: "c10", name: "KE 462 Limuru", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "KE 462 Limuru", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
-  { id: "c11", name: "Kangemi Church CDC", program: "Miradi Session (Compassion Churches)", ageGroup: "8-13", location: "Kangemi Church CDC", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c8", name: "KE 916 Kibera", program: "FCP session (Frontline Church Partners)", ageGroup: "8-13", location: "KE 916 Kibera", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c9", name: "KE 370 Waithaka", program: "FCP session (Frontline Church Partners)", ageGroup: "8-13", location: "KE 370 Waithaka", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c10", name: "KE 462 Limuru", program: "FCP session (Frontline Church Partners)", ageGroup: "8-13", location: "KE 462 Limuru", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
+  { id: "c11", name: "Kangemi Church CDC", program: "FCP session (Frontline Church Partners)", ageGroup: "8-13", location: "Kangemi Church CDC", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
   { id: "c12", name: "Spur Afrika", program: "Organization Session", ageGroup: "8-13", location: "Spur Afrika", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
   { id: "c13", name: "Smart Kibera of Hope(SKOH)", program: "Organization Session", ageGroup: "8-13", location: "Smart Kibera of Hope", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
   { id: "c14", name: "Maisha Trust", program: "Organization Session", ageGroup: "8-13", location: "Maisha Trust", educatorId: "u2", termId: "t1", learnerIds: [], capacity: 30 },
@@ -512,7 +512,7 @@ export const mockIncomeSources: IncomeSource[] = [
   { id: "inc2", name: "Makerspace sessions", code: "MAKER" },
   { id: "inc3", name: "Home sessions", code: "HOME" },
   { id: "inc4", name: "Organization sessions", code: "ORG" },
-  { id: "inc5", name: "Miradi (Compassion Churches)", code: "MIRADI" },
+  { id: "inc5", name: "FCP (Frontline Church Partners)", code: "MIRADI" },
   { id: "inc6", name: "Camps", code: "CAMP" },
   { id: "inc7", name: "Donations", code: "DON" },
 ];

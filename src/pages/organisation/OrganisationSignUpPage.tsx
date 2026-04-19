@@ -31,7 +31,7 @@ const VARIANT_CONFIG: Record<
   },
   miradi: {
     title: "Create FCP account",
-    subtitle: "Register your FCP (Compassion International Frontline Church Partner) to get access to view your learners and programme details.",
+    subtitle: "Register your organisation as an FCP (Frontline Church Partners) site to view your learners and programme details.",
     defaultType: "church",
     formLabel: "Sign up your FCP",
   },

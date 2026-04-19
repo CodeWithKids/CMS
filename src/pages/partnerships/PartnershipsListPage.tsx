@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ApiError,
   isApiEnabled,
   partnersGetOrganisations,
   partnersGetParents,
@@ -40,6 +41,12 @@ import {
   type OrganisationPartnerApi,
   type ParentPartnerApi,
 } from "@/lib/api";
+import {
+  deleteOrganisationPartnerSupabase,
+  listOrganisationPartnersSupabase,
+  updateOrganisationPartnerSupabase,
+} from "@/lib/partnersOrganisationsSupabase";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import {
@@ -61,7 +68,7 @@ const statusVariant: Record<Partnership["status"], "default" | "secondary" | "ou
 const ORG_TYPES = [
   { value: "school", label: "School" },
   { value: "organisation", label: "Organisation" },
-  { value: "miradi", label: "Miradi" },
+  { value: "miradi", label: "FCP (Frontline Church Partners)" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -100,12 +107,18 @@ export default function PartnershipsListPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const apiEnabled = isApiEnabled();
-  const canEditDeleteOrgs = apiEnabled && (isAdmin || isPartnerships);
+  const supabaseEnabled = isSupabaseEnabled();
+  const partnerBackendLive = apiEnabled || supabaseEnabled;
+  const canEditDeleteOrgs = partnerBackendLive && (isAdmin || isPartnerships);
 
   const { data: orgPartners = [], isLoading: orgsLoading } = useQuery<OrganisationPartnerApi[]>({
-    queryKey: ["partners", "organisations"],
-    queryFn: partnersGetOrganisations,
-    enabled: apiEnabled,
+    queryKey: ["partners", "organisations", apiEnabled ? "api" : supabaseEnabled ? "supabase" : "none"],
+    queryFn: async () => {
+      if (apiEnabled) return partnersGetOrganisations();
+      if (supabaseEnabled) return listOrganisationPartnersSupabase();
+      return [];
+    },
+    enabled: partnerBackendLive && (apiEnabled || supabaseEnabled),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -117,7 +130,7 @@ export default function PartnershipsListPage() {
   });
 
   const partnerships: Partnership[] = useMemo(() => {
-    if (!apiEnabled) return ctxPartnerships;
+    if (!apiEnabled && !supabaseEnabled) return ctxPartnerships;
 
     const fromOrgs: Partnership[] = orgPartners.map((o) => ({
       id: o.id,
@@ -131,20 +144,22 @@ export default function PartnershipsListPage() {
       createdAt: o.createdAt,
     }));
 
-    const fromParents: Partnership[] = parentPartners.map((p) => ({
-      id: p.id,
-      name: p.name,
-      type: "Parent",
-      programType: undefined,
-      contactPerson: p.name,
-      contactEmail: p.email || undefined,
-      contactPhone: p.contactPhone || undefined,
-      status: p.status as Partnership["status"],
-      createdAt: p.createdAt,
-    }));
+    const fromParents: Partnership[] = apiEnabled
+      ? parentPartners.map((p) => ({
+          id: p.id,
+          name: p.name,
+          type: "Parent",
+          programType: undefined,
+          contactPerson: p.name,
+          contactEmail: p.email || undefined,
+          contactPhone: p.contactPhone || undefined,
+          status: p.status as Partnership["status"],
+          createdAt: p.createdAt,
+        }))
+      : [];
 
     return [...fromOrgs, ...fromParents];
-  }, [apiEnabled, ctxPartnerships, orgPartners, parentPartners]);
+  }, [apiEnabled, supabaseEnabled, ctxPartnerships, orgPartners, parentPartners]);
 
   const handleAdd = () => {
     if (!form.name.trim()) {
@@ -182,19 +197,35 @@ export default function PartnershipsListPage() {
     if (!editingOrg || !editForm.name.trim()) return;
     setEditSaving(true);
     try {
-      await organisationsUpdate(editingOrg.id, {
-        name: editForm.name.trim(),
-        type: editForm.type.trim() || undefined,
-        contactPerson: editForm.contactPerson.trim() || undefined,
-        contactEmail: editForm.contactEmail.trim() || undefined,
-        contactPhone: editForm.contactPhone.trim() || undefined,
-        location: editForm.location.trim() || undefined,
-      });
+      if (apiEnabled) {
+        await organisationsUpdate(editingOrg.id, {
+          name: editForm.name.trim(),
+          type: editForm.type.trim() || undefined,
+          contactPerson: editForm.contactPerson.trim() || undefined,
+          contactEmail: editForm.contactEmail.trim() || undefined,
+          contactPhone: editForm.contactPhone.trim() || undefined,
+          location: editForm.location.trim() || undefined,
+        });
+      } else if (supabaseEnabled) {
+        await updateOrganisationPartnerSupabase(editingOrg.id, {
+          name: editForm.name.trim(),
+          type: editForm.type.trim() || undefined,
+          contactPerson: editForm.contactPerson.trim() || undefined,
+          contactEmail: editForm.contactEmail.trim() || undefined,
+          contactPhone: editForm.contactPhone.trim() || undefined,
+          location: editForm.location.trim() || undefined,
+        });
+      }
       toast({ title: "Partner updated" });
       queryClient.invalidateQueries({ queryKey: ["partners", "organisations"] });
       setEditingOrg(null);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Update failed";
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Update failed";
       toast({ title: msg, variant: "destructive" });
     } finally {
       setEditSaving(false);
@@ -205,12 +236,21 @@ export default function PartnershipsListPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await organisationsDelete(deleteTarget.id);
+      if (apiEnabled) {
+        await organisationsDelete(deleteTarget.id);
+      } else if (supabaseEnabled) {
+        await deleteOrganisationPartnerSupabase(deleteTarget.id);
+      }
       toast({ title: "Partner removed" });
       queryClient.invalidateQueries({ queryKey: ["partners", "organisations"] });
       setDeleteTarget(null);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Delete failed";
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Delete failed";
       toast({ title: msg, variant: "destructive" });
     } finally {
       setDeleteLoading(false);
@@ -231,11 +271,11 @@ export default function PartnershipsListPage() {
           <h1 className="text-2xl font-bold tracking-tight">Active partnerships</h1>
           <p className="text-muted-foreground">
             Add and manage all active partnerships. {canEditDeleteOrgs
-              ? "Admins and Partnership & Communications can edit and delete partner details below (e.g. to fix registration details)."
-              : "To edit or delete partners, the app must be connected to the API. Then Admins and Partnership & Communications can update details."}
+              ? "Admins and Partnership & Communications can edit and delete organisation partners below (when no learners are linked)."
+              : "Connect the Hub API or Supabase so organisation partners load from the database; then admins and Partnership & Communications can edit or delete."}
           </p>
         </div>
-        {!apiEnabled && (
+        {!partnerBackendLive && (
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add partnership

@@ -261,7 +261,7 @@ export default function AccountApprovalsPage() {
       case "school":
         return "School";
       case "miradi":
-        return "FCP (Miradi)";
+        return "FCP (Frontline Church Partners)";
       case "organisation":
         return "Organisation";
       case "parent":

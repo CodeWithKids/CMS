@@ -46,7 +46,7 @@ const TEAM_ROLES: { value: UserRole; label: string }[] = [
 const ORG_TYPES: { value: "school" | "organisation" | "miradi" | "other"; label: string }[] = [
   { value: "school", label: "School" },
   { value: "organisation", label: "Organisation" },
-  { value: "miradi", label: "FCP / Miradi" },
+  { value: "miradi", label: "FCP (Frontline Church Partners)" },
   { value: "other", label: "Other" },
 ];
 

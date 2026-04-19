@@ -19,9 +19,9 @@ function attendanceReportsCardCopy(variant: OrganisationAttendanceCardVariant): 
   switch (variant) {
     case "miradi":
       return {
-        title: "Miradi attendance & session reports",
+        title: "FCP attendance & session reports",
         description:
-          "Recent sessions with children registered through your Miradi site: who was marked present or late, and submitted session reports from facilitators.",
+          "Recent sessions with children registered through your FCP (Frontline Church Partners) site: who was marked present or late, and submitted session reports from facilitators.",
       };
     case "school":
       return {

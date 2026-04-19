@@ -55,7 +55,7 @@ export const MOCK_MARKETING_TASKS: MarketingTask[] = [
 
 export const MOCK_MARKETING_APPROVALS: MarketingApproval[] = [
   { id: "ma1", eventOrCampaignId: "e1", title: "Enjoy AI 2026 Launch", fromRole: "Ops", note: "Increase capacity for Nairobi venue.", status: "approved", createdAt: "2026-02-18" },
-  { id: "ma2", eventOrCampaignId: "e2", title: "April Bootcamp Push", fromRole: "CEO", note: "Target Miradi X and add 2 more schools.", status: "pending", createdAt: "2026-02-24" },
+  { id: "ma2", eventOrCampaignId: "e2", title: "April Bootcamp Push", fromRole: "CEO", note: "Target FCP partners and add 2 more schools.", status: "pending", createdAt: "2026-02-24" },
   { id: "ma3", eventOrCampaignId: "mc3", title: "School sign-up drive", fromRole: "Ops", note: "Approved. Go live.", status: "approved", createdAt: "2026-02-01" },
 ];
 
@@ -72,7 +72,7 @@ export const MOCK_MARKETING_KPIS: MarketingKpis = {
 };
 
 export const MOCK_MY_EVENTS: MyEventSummary[] = [
-  { id: "e1", title: "Enjoy AI 2026 Info Session", status: "PUBLISHED", startDate: "2026-03-05", registrationsCount: 68, visibilitySummary: "4 orgs, 3 schools, 2 miradis" },
+  { id: "e1", title: "Enjoy AI 2026 Info Session", status: "PUBLISHED", startDate: "2026-03-05", registrationsCount: 68, visibilitySummary: "4 orgs, 3 schools, 2 FCP partners" },
   { id: "e2", title: "April Bootcamp Launch", status: "DRAFT", startDate: "2026-04-12", registrationsCount: 0, visibilitySummary: "2 schools" },
   { id: "e3", title: "STEM Fair 2026", status: "PUBLISHED", startDate: "2026-03-15", registrationsCount: 29, visibilitySummary: "All" },
 ];

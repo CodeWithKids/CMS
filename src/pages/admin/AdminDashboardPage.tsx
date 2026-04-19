@@ -106,7 +106,7 @@ const EMPTY_PEOPLE_STATS = {
 const PARTNER_TYPE_LABELS: Record<string, string> = {
   SCHOOL: "School",
   ORGANISATION: "Organisation",
-  MIRADI: "Miradi",
+  MIRADI: "FCP",
 };
 
 export default function AdminDashboardPage() {
@@ -396,14 +396,14 @@ export default function AdminDashboardPage() {
         <div className="grid gap-4 sm:grid-cols-3 mb-4">
           <StatCard title="Active schools" value={overview.activeSchools} to="/partnerships" />
           <StatCard title="Active organisations" value={overview.activeOrganisations} to="/partnerships" />
-          <StatCard title="Active Miradi sites" value={overview.activeMiradis} to="/partnerships" />
+          <StatCard title="Active FCP partners" value={overview.activeMiradis} to="/partnerships" />
         </div>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle>Partners</CardTitle>
               <CardDescription>
-                Active organisations with learner counts (schools, organisations, Miradi).
+                Active organisations with learner counts (schools, organisations, FCP).
               </CardDescription>
             </div>
             <Button asChild variant="outline" size="sm">

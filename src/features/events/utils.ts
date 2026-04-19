@@ -49,13 +49,13 @@ export function slugFromTitle(title: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** Summary text for admin list: "X orgs, Y schools, Z miradis" */
+/** Summary text for admin list: "X orgs, Y schools, Z FCP partners" */
 export function visibilitySummary(event: { visibility: { allowedOrganisationIds: string[]; allowedSchoolIds: string[]; allowedMiradiIds: string[]; allowedParentIds: string[] } }): string {
   const v = event.visibility;
   const parts: string[] = [];
   if (v.allowedOrganisationIds.length) parts.push(`${v.allowedOrganisationIds.length} orgs`);
   if (v.allowedSchoolIds.length) parts.push(`${v.allowedSchoolIds.length} schools`);
-  if (v.allowedMiradiIds.length) parts.push(`${v.allowedMiradiIds.length} miradis`);
+  if (v.allowedMiradiIds.length) parts.push(`${v.allowedMiradiIds.length} FCP partners`);
   if (v.allowedParentIds.length) parts.push(`${v.allowedParentIds.length} parents`);
   return parts.length ? parts.join(", ") : "Not tagged (internal only)";
 }

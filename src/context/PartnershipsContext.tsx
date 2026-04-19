@@ -16,7 +16,7 @@ interface PartnershipsContextType {
 const PartnershipsContext = createContext<PartnershipsContextType | undefined>(undefined);
 
 const INITIAL_PARTNERSHIPS: Partnership[] = [
-  { id: "p1", name: "Compassion Miradi", type: "Church", contactPerson: "Pastor Sarah", contactEmail: "miradi@compassion.org", contactPhone: "+27 11 200 2000", status: "active", createdAt: "2026-01-01" },
+  { id: "p1", name: "FCP – Nairobi (Frontline Church Partners)", type: "Church", contactPerson: "Pastor Sarah", contactEmail: "miradi@compassion.org", contactPhone: "+27 11 200 2000", status: "active", createdAt: "2026-01-01" },
   { id: "p2", name: "Riverside Academy", type: "School", contactPerson: "Ms. Director", contactEmail: "admin@riverside.ac.za", contactPhone: "+27 11 300 3000", status: "active", createdAt: "2026-01-01" },
   { id: "p3", name: "Greenfield Primary", type: "School", contactPerson: "Mr. Principal", contactEmail: "office@greenfield.edu", status: "active", createdAt: "2026-01-01" },
 ];

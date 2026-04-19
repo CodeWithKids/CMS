@@ -24,8 +24,8 @@ const OPTIONS = [
   },
   {
     to: "/signup/miradi",
-    label: "Miradi",
-    description: "Register your FCP (Compassion International Frontline Church Partner).",
+    label: "FCP",
+    description: "Register your site as FCP (Frontline Church Partners).",
     icon: Church,
   },
 ];

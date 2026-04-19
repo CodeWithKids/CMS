@@ -35,7 +35,7 @@ create policy organisations_insert_admin_finance
       select 1
       from public.profiles p
       where p.id = auth.uid()
-        and p.role in ('admin', 'finance')
+        and p.role in ('admin', 'finance', 'partnerships')
     )
   );
 
@@ -49,7 +49,7 @@ create policy organisations_update_admin_finance
       select 1
       from public.profiles p
       where p.id = auth.uid()
-        and p.role in ('admin', 'finance')
+        and p.role in ('admin', 'finance', 'partnerships')
     )
   )
   with check (
@@ -57,7 +57,21 @@ create policy organisations_update_admin_finance
       select 1
       from public.profiles p
       where p.id = auth.uid()
-        and p.role in ('admin', 'finance')
+        and p.role in ('admin', 'finance', 'partnerships')
+    )
+  );
+
+drop policy if exists organisations_delete_admin_partnerships on public.organisations;
+create policy organisations_delete_admin_partnerships
+  on public.organisations
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('admin', 'partnerships')
     )
   );
 

@@ -5,16 +5,16 @@ import { sendError } from "../middleware/error.js";
 
 const router = Router();
 
-function isAdmin(req: Request & { auth?: { user: { role: string } } }): boolean {
-  return req.auth?.user?.role === "admin";
+/** Same as PATCH/DELETE organisations: admin or Partnership & Communications. */
+function canViewPartnerLists(req: Request & { auth?: { user: { role: string } } }): boolean {
+  const role = req.auth?.user?.role;
+  return role === "admin" || role === "partnerships";
 }
-
-// All partner listing endpoints are admin-only for now.
 
 /** GET /v1/partners/organisations - list school/org/FCP partners from Organisation table. */
 router.get("/organisations", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
-    sendError(res, 403, "FORBIDDEN", "Admin only.");
+  if (!canViewPartnerLists(req as Request & { auth?: { user: { role: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin or Partnership & Communications only.");
     return;
   }
 
@@ -40,8 +40,8 @@ router.get("/organisations", requireAuth, async (req: Request, res: Response) =>
 
 /** GET /v1/partners/parents - list parent partners from User table. */
 router.get("/parents", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
-    sendError(res, 403, "FORBIDDEN", "Admin only.");
+  if (!canViewPartnerLists(req as Request & { auth?: { user: { role: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin or Partnership & Communications only.");
     return;
   }
 
@@ -64,8 +64,8 @@ router.get("/parents", requireAuth, async (req: Request, res: Response) => {
 
 /** GET /v1/partners/learners - optional: learners plus org/parent linkage. */
 router.get("/learners", requireAuth, async (req: Request, res: Response) => {
-  if (!isAdmin(req as Request & { auth?: { user: { role: string } } })) {
-    sendError(res, 403, "FORBIDDEN", "Admin only.");
+  if (!canViewPartnerLists(req as Request & { auth?: { user: { role: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin or Partnership & Communications only.");
     return;
   }
 

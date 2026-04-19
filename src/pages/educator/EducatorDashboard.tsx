@@ -493,7 +493,7 @@ export default function EducatorDashboard() {
           <BookOpen className="w-5 h-5 text-primary" /> My Classes
         </h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Classes by program type: Makerspace Session, School STEM Club, Virtual Session, Home Sessions, Organization Session, Miradi Session.
+          Classes by program type: Makerspace Session, School STEM Club, Virtual Session, Home Sessions, Organization Session, FCP session (Frontline Church Partners).
         </p>
         <div className="space-y-3">
           {myClassesByProgramType.map(({ class: c, sessionType }) => {

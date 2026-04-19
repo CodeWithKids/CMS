@@ -24,7 +24,7 @@ export const PARTNERSHIP_PROGRAM_TYPES = [
   "Virtual Session",
   "Home Sessions",
   "Organization Session",
-  "Miradi Session (Compassion Churches)",
+  "FCP session (Frontline Church Partners)",
 ] as const;
 
 export type PartnershipProgramType = (typeof PARTNERSHIP_PROGRAM_TYPES)[number];
@@ -240,7 +240,7 @@ export interface LearnerBadgeAward {
 /** School, church, NGO, company, etc. — used to tag partner learners and track billing/attendance per org. */
 export type OrganizationType = "school" | "church" | "NGO" | "company" | "other";
 
-/** Overview dashboard: group organisations as School / Organisation / Miradi. */
+/** Overview dashboard: group organisations as School / Organisation / FCP (MIRADI on wire). */
 export type OrganisationOverviewType = "SCHOOL" | "ORGANISATION" | "MIRADI";
 
 /** Organisation status for overview (active partners only). */
@@ -312,7 +312,7 @@ export interface ClassEnrollment {
   status: ClassEnrollmentStatus;
 }
 
-/** CWK classes and programs: Makerspace, School STEM Club, Virtual, Home, Organisation, Miradi. */
+/** CWK classes and programs: Makerspace, School STEM Club, Virtual, Home, Organisation, FCP. */
 export type SessionType =
   | "makerspace"
   | "school_stem_club"
@@ -347,7 +347,7 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   virtual: "Virtual Session",
   home: "Home Sessions",
   organization: "Organization Session",
-  miradi: "Miradi Session (Compassion Churches)",
+  miradi: "FCP session (Frontline Church Partners)",
 };
 
 export const SESSION_DURATION_LABELS: Record<SessionDuration, string> = {
@@ -557,7 +557,7 @@ export interface Invoice {
   payerType?: IncomePayerType | null;
 }
 
-/** Receipt generated when an invoice is paid. Parents, schools, organisations, and Miradi can view receipts on their profile. */
+/** Receipt generated when an invoice is paid. Parents, schools, organisations, and FCP partners can view receipts on their profile. */
 export interface Receipt {
   id: string;
   invoiceId: string;
@@ -606,7 +606,7 @@ export const INCOME_SESSION_TYPE_LABELS: Record<IncomeSessionType, string> = {
   VIRTUAL: "Virtual",
   HOME_SESSION: "Home session",
   ORGANISATION_SESSION: "Organisation session",
-  MIRADI_SESSION: "Miradi session",
+  MIRADI_SESSION: "FCP session",
   OTHER: "Other",
 };
 
@@ -627,7 +627,7 @@ export interface IncomeEntry {
   date: string; // ISO
   description?: string | null;
   sessionType: IncomeSessionType; // from session/programme type
-  organisationId?: string | null; // school/org/Miradi
+  organisationId?: string | null; // school/org/FCP
   payerType: IncomePayerType; // who actually pays (PARENT | SCHOOL | ORGANISATION)
   /** Optional link back to invoice when derived from invoice payment. */
   invoiceId?: string | null;
@@ -836,7 +836,7 @@ export const INVOICE_SOURCE_LABELS: Record<InvoiceSource, string> = {
   makerspace: "Makerspace",
   home_session: "Home sessions",
   organization: "Organization",
-  miradi: "Miradi",
+  miradi: "FCP (Frontline Church Partners)",
   camp: "Camps",
   other: "Other",
   donation: "Donation",
@@ -1015,7 +1015,7 @@ export const SESSION_REPORT_SESSION_TYPE_ADMIN_LABELS: Record<SessionReportSessi
   VIRTUAL: "Virtual",
   HOME: "Home",
   ORGANISATION: "Organisation",
-  MIRADI: "Miradi",
+  MIRADI: "FCP",
 };
 
 export const SESSION_REPORT_STATUS_ADMIN_LABELS: Record<SessionReportStatusAdmin, string> = {

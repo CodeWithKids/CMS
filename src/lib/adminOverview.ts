@@ -14,7 +14,8 @@ import { LEARNING_TRACK_LABELS } from "@/types";
 export function getOrganisationOverviewType(org: Organization): OrganisationOverviewType {
   if (org.overviewType) return org.overviewType;
   if (org.type === "school") return "SCHOOL";
-  if (org.name.toLowerCase().includes("miradi")) return "MIRADI";
+  const n = org.name.toLowerCase();
+  if (n.includes("miradi") || n.includes("fcp") || n.includes("frontline church")) return "MIRADI";
   return "ORGANISATION";
 }
 
@@ -23,7 +24,7 @@ function isOrganisationActive(org: Organization): boolean {
 }
 
 /**
- * Build admin overview summary: active partners (schools, organisations, Miradi) and learners by track.
+ * Build admin overview summary: active partners (schools, organisations, FCP) and learners by track.
  *
  * Track counts: computed from Learner.learningTrackId when set; where missing, inferred from
  * recent educator session reports (or session.learningTrack) for that learner via class enrollments.
