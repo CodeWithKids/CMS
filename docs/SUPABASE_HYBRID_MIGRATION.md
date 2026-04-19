@@ -154,6 +154,12 @@ Use this checklist before exposing each slice to the client:
 - [ ] `educator_badges` table exists (`docs/SUPABASE_EDUCATOR_BADGES_RLS.sql`)
 - [ ] Educators can read their own rows; admin/finance/LD can read all; only staff policies can write
 
+## Auth: “Email rate limit exceeded” when creating parents or staff
+
+Admin flows such as **Create team member** call Supabase **`POST /auth/v1/signup`** with the anon key. If **Confirm email** is on, GoTrue sends a confirmation message each time; Supabase’s **built-in SMTP** enforces a **low hourly cap** per project, so you may see **`Email rate limit exceeded`**.
+
+**What to do:** (1) Run the Express API from this repo with **`SUPABASE_URL`**, **`SUPABASE_SERVICE_ROLE_KEY`**, and **`SUPABASE_JWT_SECRET`** set in `server/.env` (see `server/.env.example`), keep **`VITE_API_URL`** in the SPA pointed at that API, and keep signing in with Supabase. Creating a parent/team/org then uses **`POST /v1/admin/provision-supabase-user`** and the Auth Admin API (`email_confirm: true`) — **no signup confirmation email**, so the built-in SMTP cap does not apply. (2) Alternatively: turn off **Confirm email** for local/dev, add **Custom SMTP**, or adjust **Authentication → Rate Limits** – see [Supabase Auth rate limits](https://supabase.com/docs/guides/auth/rate-limits).
+
 ## Operational guardrails
 
 - Never put Supabase secret/service-role keys in frontend env vars.

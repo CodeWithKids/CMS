@@ -9,7 +9,14 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/hooks/useTerms";
 import { useAuth } from "@/context/AuthContext";
-import { isApiEnabled, educatorsGetById, sessionsGetAll, adminAccountsDelete, adminAccountsPatch } from "@/lib/api";
+import { isApiEnabled, sessionsGetAll } from "@/lib/api";
+import { fetchStaffProfileForDisplay } from "@/lib/staffProfileQuery";
+import {
+  adminStaffPatch,
+  adminStaffDelete,
+  staffAdminMutationsAvailable,
+  staffHardDeleteAvailable,
+} from "@/lib/adminStaffOperations";
 import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import { useClasses } from "@/hooks/useClasses";
 import { PageBreadcrumbs } from "@/components/layout/PageBreadcrumbs";
@@ -84,6 +91,9 @@ export default function StaffProfilePage() {
   const staffId = id ?? "";
   const apiEnabled = isApiEnabled();
   const supabaseEnabled = isSupabaseEnabled();
+  const liveProfile = supabaseEnabled || apiEnabled;
+  const staffMutationsLive = staffAdminMutationsAvailable();
+  const canHardDelete = staffHardDeleteAvailable();
   const { currentTerm } = useTerms();
   const termId = currentTerm?.id ?? "t1";
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -95,10 +105,14 @@ export default function StaffProfilePage() {
   const isAdmin = currentUser?.role === "admin";
   const isOwnProfile = currentUser?.id === staffId;
 
-  const { data: apiStaff } = useQuery({
+  const {
+    data: staffRecord,
+    isPending: profilePending,
+    isFetched: profileFetched,
+  } = useQuery({
     queryKey: ["educator", staffId],
-    queryFn: () => educatorsGetById(staffId),
-    enabled: apiEnabled && !!staffId,
+    queryFn: () => fetchStaffProfileForDisplay(staffId),
+    enabled: liveProfile && !!staffId,
   });
   const { classes: apiClasses } = useClasses({ educatorId: staffId });
   const { data: apiSessions = [] } = useQuery({
@@ -107,20 +121,22 @@ export default function StaffProfilePage() {
     enabled: apiEnabled && !!staffId && !!termId,
   });
 
-  const staff = apiEnabled && apiStaff
+  const staff = staffRecord
     ? {
-        id: apiStaff.id,
-        name: apiStaff.name,
-        email: apiStaff.email ?? "",
-        role: apiStaff.role,
-        employmentStatus: (apiStaff.status ?? "active").replace("_", " "),
+        id: staffRecord.id,
+        name: staffRecord.name,
+        email: staffRecord.email ?? "",
+        role: staffRecord.role,
+        employmentStatus: (staffRecord.status ?? "active").replace("_", " "),
         contractType: undefined as ContractType | undefined,
         phone: undefined as string | undefined,
         hireDate: undefined as string | undefined,
-        createdAt: apiStaff.createdAt,
+        createdAt: staffRecord.createdAt,
         notes: undefined as string | undefined,
       }
-    : getStaffMember(staffId);
+    : liveProfile
+      ? undefined
+      : getStaffMember(staffId);
   const assignedClasses =
     apiEnabled || supabaseEnabled ? apiClasses : staff ? mockClasses.filter((c) => c.educatorId === staffId) : [];
   const sessionsThisTerm = apiEnabled
@@ -141,7 +157,10 @@ export default function StaffProfilePage() {
     .reduce((sum, s) => sum + (s.durationHours ?? 1), 0);
 
   const startEditing = () => {
-    const rawStatus = apiStaff?.status ?? (staff as { employmentStatus?: string }).employmentStatus?.replace(/ /g, "_") ?? "active";
+    const rawStatus =
+      staffRecord?.status ??
+      (staff as { employmentStatus?: string } | undefined)?.employmentStatus?.replace(/ /g, "_") ??
+      "active";
     setEditForm({
       name: staff.name,
       email: staff.email ?? "",
@@ -152,7 +171,7 @@ export default function StaffProfilePage() {
   };
 
   const handleEditSave = async () => {
-    if (!apiEnabled || !isAdmin) return;
+    if (!staffMutationsLive || !isAdmin) return;
     const name = editForm.name.trim();
     const email = editForm.email.trim();
     if (!name) {
@@ -165,7 +184,7 @@ export default function StaffProfilePage() {
     }
     setEditSaving(true);
     try {
-      await adminAccountsPatch(staffId, {
+      await adminStaffPatch(staffId, {
         name,
         email,
         role: editForm.role,
@@ -182,6 +201,25 @@ export default function StaffProfilePage() {
       setEditSaving(false);
     }
   };
+
+  if (liveProfile && profilePending) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Loading profile…</p>
+      </div>
+    );
+  }
+
+  if (liveProfile && profileFetched && !staffRecord) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Staff member not found.</p>
+        <Link to="/admin/hr/staff" className="text-primary hover:underline text-sm">
+          ← Back to staff directory
+        </Link>
+      </div>
+    );
+  }
 
   if (!staff) {
     return (
@@ -207,6 +245,7 @@ export default function StaffProfilePage() {
   const STATUS_OPTIONS = [
     { value: "active", label: "Active" },
     { value: "pending", label: "Pending" },
+    { value: "rejected", label: "Rejected" },
   ];
 
   return (
@@ -226,8 +265,8 @@ export default function StaffProfilePage() {
         <ArrowLeft className="w-4 h-4" /> Back to staff directory
       </Link>
 
-      {/* Edit profile (admin only, when API enabled) */}
-      {isAdmin && apiEnabled && !editing && (
+      {/* Edit profile (admin only, Supabase or legacy API) */}
+      {isAdmin && staffMutationsLive && !editing && (
         <Card>
           <CardContent className="pt-6">
             <Button variant="outline" onClick={startEditing} className="gap-2">
@@ -237,7 +276,7 @@ export default function StaffProfilePage() {
         </Card>
       )}
 
-      {editing && isAdmin && apiEnabled && (
+      {editing && isAdmin && staffMutationsLive && (
         <Card>
           <CardHeader>
             <CardTitle>Edit profile</CardTitle>
@@ -497,8 +536,8 @@ export default function StaffProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Delete account (admin only, not own profile) */}
-      {isAdmin && apiEnabled && !isOwnProfile && (
+      {/* Delete account (admin only, hub API required for GoTrue delete) */}
+      {isAdmin && canHardDelete && !isOwnProfile && (
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="text-destructive">Danger zone</CardTitle>
@@ -530,11 +569,12 @@ export default function StaffProfilePage() {
             <AlertDialogAction
               onClick={async (e) => {
                 e.preventDefault();
-                if (!apiEnabled) return;
+                if (!canHardDelete) return;
                 setDeleteLoading(true);
                 try {
-                  await adminAccountsDelete(staffId);
+                  await adminStaffDelete(staffId);
                   queryClient.invalidateQueries({ queryKey: ["educators"] });
+                  queryClient.invalidateQueries({ queryKey: ["educator", staffId] });
                   toast({ title: "Account deleted", description: `${staff.name} has been removed.` });
                   navigate("/admin/hr/staff");
                 } catch (err: unknown) {

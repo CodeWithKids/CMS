@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { isApiEnabled, parentsSignup } from "@/lib/api";
 import { ApiError } from "@/lib/api";
@@ -176,9 +177,8 @@ export default function ParentSignUpPage() {
             </div>
             <div>
               <Label htmlFor="parent-password">Password</Label>
-              <Input
+              <PasswordInput
                 id="parent-password"
-                type="password"
                 autoComplete="new-password"
                 placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 value={form.password}
@@ -189,9 +189,8 @@ export default function ParentSignUpPage() {
             </div>
             <div>
               <Label htmlFor="parent-confirm">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="parent-confirm"
-                type="password"
                 autoComplete="new-password"
                 placeholder="Repeat password"
                 value={form.confirmPassword}

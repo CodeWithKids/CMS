@@ -5,8 +5,18 @@
  *
  * Requires Authentication → Providers → Email enabled, and "Allow new users to sign up" on
  * (or equivalent), since this uses the public anon key like any client sign-up.
+ *
+ * **Email rate limit:** Each `POST /auth/v1/signup` can trigger a confirmation email. Supabase’s
+ * built-in email provider enforces a low hourly project cap (`Email rate limit exceeded`). Mitigations:
+ * turn off **Confirm email** for local/dev (Dashboard → Authentication → Providers → Email), configure
+ * **Custom SMTP** (Authentication), increase windows under **Authentication → Rate Limits**, or wait and retry.
+ * **Bypass (recommended):** If `VITE_API_URL` points at this repo’s Express API and the API process has
+ * `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_JWT_SECRET`, the app calls
+ * `POST /v1/admin/provision-supabase-user` with your Supabase session token so new users are created with
+ * `email_confirm: true` and **no confirmation email** (avoids built-in SMTP rate limits). The service role
+ * stays on the server only.
  */
-import { ApiError } from "@/lib/api";
+import { ApiError, getApiBaseUrl, isApiEnabled } from "@/lib/api";
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseEnabled, supabase } from "@/lib/supabaseClient";
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -31,10 +41,106 @@ type GoTrueSignupResponse = {
   message?: string;
 };
 
+function friendlyGoTrueSignupError(raw: string): string {
+  const s = raw.trim();
+  const lower = s.toLowerCase();
+  if (lower.includes("rate limit") || lower.includes("email rate")) {
+    return [
+      "Supabase stopped this sign-up because too many auth emails were sent recently (built-in email provider limit).",
+      "Fix: In the Supabase Dashboard go to Authentication → Providers → Email and disable Confirm email for development, or add Custom SMTP under Project Settings → Authentication, or wait an hour and try again.",
+      "Details: https://supabase.com/docs/guides/auth/rate-limits",
+      "If you run the CWK Hub API (VITE_API_URL), set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_JWT_SECRET on the server so educator/parent/team creation uses the Admin API instead of public sign-up.",
+    ].join(" ");
+  }
+  return s;
+}
+
 function assertConfigured(): void {
   if (!isSupabaseEnabled()) {
     throw new ApiError(503, { message: "Supabase is not configured." }, "Supabase is not configured.");
   }
+}
+
+/**
+ * When the Express API is configured with Supabase service credentials, creates the auth user
+ * without sending a confirmation email (avoids rate limits).
+ *
+ * Returns `null` only when **`VITE_API_URL` is not set** so callers may fall back to public sign-up.
+ * If `VITE_API_URL` **is** set, failures throw (we do not fall back to anon sign-up, which would hit
+ * the same email rate limits and hide misconfiguration).
+ */
+async function tryProvisionAuthUserViaApi(input: {
+  email: string;
+  password: string;
+  name: string;
+  role: string;
+}): Promise<{ userId: string } | null> {
+  if (!isApiEnabled()) return null;
+  const base = getApiBaseUrl();
+  if (!base) return null;
+  if (!supabase) return null;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) {
+    throw new ApiError(
+      401,
+      { message: "No Supabase session. Sign out and sign in again, then create the account." },
+      "No Supabase session. Sign out and sign in again, then create the account."
+    );
+  }
+
+  const url = `${base.replace(/\/$/, "")}/v1/admin/provision-supabase-user`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : "Network error";
+    throw new ApiError(
+      502,
+      {
+        message: `Could not reach the hub API at ${base} (${detail}). Start the API (e.g. npm run dev in server/) and ensure CORS_ORIGIN includes this app.`,
+      },
+      `Could not reach the hub API (${detail}). Is the server running?`
+    );
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    userId?: string;
+    code?: string;
+    message?: string;
+  };
+
+  if (res.status === 503 && json.code === "NOT_CONFIGURED") {
+    throw new ApiError(
+      503,
+      {
+        message:
+          "The hub API is running but cannot provision Supabase users yet. On the API host, set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_JWT_SECRET (see server/.env.example), restart the API, then try again. Public sign-up was not used so you are not stuck behind email rate limits.",
+      },
+      json.message ??
+        "Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_JWT_SECRET on the API server."
+    );
+  }
+  if (res.status === 401 || res.status === 403) {
+    const msg = json.message ?? "Not allowed to provision users.";
+    throw new ApiError(res.status, { message: msg }, msg);
+  }
+  if (!res.ok) {
+    const msg = json.message ?? `Provision failed (${res.status}).`;
+    throw new ApiError(res.status, { message: msg }, msg);
+  }
+  if (!json.userId) {
+    throw new ApiError(500, { message: "Provision returned no user id." }, "Provision returned no user id.");
+  }
+  return { userId: json.userId };
 }
 
 async function authSignUpWithAnonKey(body: {
@@ -61,13 +167,14 @@ async function authSignUpWithAnonKey(body: {
   const json = (await res.json().catch(() => ({}))) as GoTrueSignupResponse;
 
   if (!res.ok) {
-    const msg =
+    const raw =
       json.msg ||
       json.message ||
       json.error_description ||
       json.error ||
       res.statusText ||
       "Sign up failed.";
+    const msg = friendlyGoTrueSignupError(raw);
     throw new ApiError(res.status, { message: msg }, msg);
   }
 
@@ -100,6 +207,13 @@ export async function adminCreateTeamMemberSupabase(input: {
   if (!TEAM_AND_PARENT_ROLES.includes(role as (typeof TEAM_AND_PARENT_ROLES)[number])) {
     throw new ApiError(400, { message: "Invalid role for team account." }, "Invalid role for team account.");
   }
+  const provisioned = await tryProvisionAuthUserViaApi({
+    email: email.trim(),
+    password,
+    name: name.trim(),
+    role: role.trim(),
+  });
+  if (provisioned) return;
   await authSignUpWithAnonKey({
     email: email.trim(),
     password,
@@ -126,6 +240,13 @@ export async function adminCreateParentSupabase(input: {
       `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
     );
   }
+  const provisioned = await tryProvisionAuthUserViaApi({
+    email: email.trim(),
+    password,
+    name: name.trim(),
+    role: "parent",
+  });
+  if (provisioned) return;
   await authSignUpWithAnonKey({
     email: email.trim(),
     password,
@@ -168,16 +289,28 @@ export async function adminCreateOrganisationAccountSupabase(input: {
     );
   }
 
-  const { userId } = await authSignUpWithAnonKey({
+  let userId: string;
+  const provisioned = await tryProvisionAuthUserViaApi({
     email: contactEmail.trim(),
     password,
-    data: {
-      full_name: contactPerson.trim(),
-      name: contactPerson.trim(),
-      role: "organisation",
-      status: "active",
-    },
+    name: contactPerson.trim(),
+    role: "organisation",
   });
+  if (provisioned) {
+    userId = provisioned.userId;
+  } else {
+    const created = await authSignUpWithAnonKey({
+      email: contactEmail.trim(),
+      password,
+      data: {
+        full_name: contactPerson.trim(),
+        name: contactPerson.trim(),
+        role: "organisation",
+        status: "active",
+      },
+    });
+    userId = created.userId;
+  }
 
   const orgId = crypto.randomUUID();
 

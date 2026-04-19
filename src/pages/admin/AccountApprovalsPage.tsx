@@ -31,13 +31,15 @@ import type { AppUser } from "@/types";
 import {
   isApiEnabled,
   adminAccountsGetPending,
-  adminAccountsPatch,
   adminPendingSignupsGet,
   adminPendingSignupApprove,
   adminPendingSignupReject,
   type AdminAccountUser,
   type PendingSignupApi,
 } from "@/lib/api";
+import { fetchPendingProfilesForAdmin } from "@/lib/adminStaffSupabase";
+import { adminStaffPatch } from "@/lib/adminStaffOperations";
+import { isSupabaseEnabled } from "@/lib/supabaseClient";
 import { isHybridBackendConfigured } from "@/lib/runtimeBackend";
 
 function formatDate(iso: string): string {
@@ -66,10 +68,13 @@ export default function AccountApprovalsPage() {
 
   const apiEnabled = isApiEnabled();
   const hybridBackend = isHybridBackendConfigured();
-  const { data: apiPending = [], isLoading, isError, error } = useQuery({
+  const { data: livePending = [], isLoading, isError, error } = useQuery({
     queryKey: PENDING_ACCOUNTS_QUERY_KEY,
-    queryFn: adminAccountsGetPending,
-    enabled: apiEnabled,
+    queryFn: async () => {
+      if (isSupabaseEnabled()) return fetchPendingProfilesForAdmin();
+      return adminAccountsGetPending();
+    },
+    enabled: hybridBackend,
   });
 
   const { data: pendingSignups = [], isLoading: signupsLoading } = useQuery({
@@ -83,22 +88,23 @@ export default function AccountApprovalsPage() {
     return mockUsers.filter((u) => u.status === "pending" && !processedIds.has(u.id));
   }, [hybridBackend, processedIds]);
 
-  const pending: (AppUser | AdminAccountUser)[] = apiEnabled
-    ? apiPending.filter((u) => !processedIds.has(u.id))
+  const pending: (AppUser | AdminAccountUser)[] = hybridBackend
+    ? livePending.filter((u) => !processedIds.has(u.id))
     : mockPending;
 
   const refetch = () => {
-    if (apiEnabled) queryClient.invalidateQueries({ queryKey: PENDING_ACCOUNTS_QUERY_KEY });
+    if (hybridBackend) queryClient.invalidateQueries({ queryKey: PENDING_ACCOUNTS_QUERY_KEY });
   };
 
   const handleApprove = async (user: AppUser | AdminAccountUser) => {
-    if (apiEnabled) {
+    if (hybridBackend) {
       setActionLoading(true);
       try {
-        await adminAccountsPatch(user.id, { status: "active" });
+        await adminStaffPatch(user.id, { status: "active" });
         setProcessedIds((prev) => new Set(prev).add(user.id));
         setConfirmAction(null);
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["educators"] });
         toast({
           title: "Account approved",
           description: `${user.name} has been approved and can now sign in.`,
@@ -123,13 +129,14 @@ export default function AccountApprovalsPage() {
   };
 
   const handleReject = async (user: AppUser | AdminAccountUser) => {
-    if (apiEnabled) {
+    if (hybridBackend) {
       setActionLoading(true);
       try {
-        await adminAccountsPatch(user.id, { status: "rejected" });
+        await adminStaffPatch(user.id, { status: "rejected" });
         setProcessedIds((prev) => new Set(prev).add(user.id));
         setConfirmAction(null);
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["educators"] });
         toast({
           title: "Account rejected",
           description: `${user.name} has been rejected. They can be contacted to resolve any issues.`,
@@ -154,12 +161,12 @@ export default function AccountApprovalsPage() {
   };
 
   const handleBulkApprove = async () => {
-    if (apiEnabled) {
+    if (hybridBackend) {
       setActionLoading(true);
       let done = 0;
       try {
         for (const id of selectedIds) {
-          await adminAccountsPatch(id, { status: "active" });
+          await adminStaffPatch(id, { status: "active" });
           setProcessedIds((prev) => new Set(prev).add(id));
           done++;
         }
@@ -167,6 +174,7 @@ export default function AccountApprovalsPage() {
         setSelectedIds(new Set());
         setBulkApproveOpen(false);
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["educators"] });
         toast({
           title: "Accounts approved",
           description: `${count} account${count === 1 ? "" : "s"} approved.`,
@@ -292,10 +300,10 @@ export default function AccountApprovalsPage() {
       {hybridBackend && !apiEnabled && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Team approvals need the API</AlertTitle>
+          <AlertTitle>Signup request queue needs the Hub API</AlertTitle>
           <AlertDescription>
-            Pending team accounts are loaded from the CWK Hub API. Configure <code className="text-xs">VITE_API_URL</code>{" "}
-            (and auth) to list and approve real invitations. Signup requests below also require the API.
+            Organisation and parent signup rows below load from <code className="text-xs">VITE_API_URL</code>.
+            Pending <strong>team</strong> accounts can be listed and approved using Supabase (see below) when Supabase is configured.
           </AlertDescription>
         </Alert>
       )}

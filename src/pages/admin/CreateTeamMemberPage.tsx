@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -268,8 +269,10 @@ export default function CreateTeamMemberPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Create account</h1>
           <p className="text-muted-foreground">
-            Create a team member, parent, or organisation account. With Supabase configured, new users are created in Auth and{" "}
-            <code className="text-xs">profiles</code> (no Node API required). With only the API, creation uses the server. They log in with the email and password you set. To add a learner, use the{" "}
+            Create a team member, parent, or organisation account. With Supabase, new users go to Auth and{" "}
+            <code className="text-xs">profiles</code>. If <code className="text-xs">VITE_API_URL</code> points at the hub API and the API has{" "}
+            <code className="text-xs">SUPABASE_URL</code>, <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code>, and{" "}
+            <code className="text-xs">SUPABASE_JWT_SECRET</code>, creation uses the Admin API (no confirmation email, no built-in SMTP rate limit). Otherwise Supabase public sign-up is used and repeated creates can hit email limits. They log in with the email and password you set. To add a learner, use the{" "}
             <Link to="/admin/learners" className="text-primary hover:underline font-medium">Learners</Link> page.
           </p>
         </div>
@@ -280,6 +283,18 @@ export default function CreateTeamMemberPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {isSupabaseEnabled() && !isApiEnabled() && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Supabase only (no hub API URL)</AlertTitle>
+          <AlertDescription>
+            Staff and parent creation uses public sign-up and can trigger email rate limit errors after several accounts. Add{" "}
+            <code className="text-xs">VITE_API_URL</code> to this app and configure the API server (see{" "}
+            <code className="text-xs">server/.env.example</code>), or in the Supabase Dashboard disable Confirm email under Authentication → Providers → Email for development.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -335,12 +350,12 @@ export default function CreateTeamMemberPage() {
               </div>
               <div>
                 <Label htmlFor="tm-pw">Password</Label>
-                <Input id="tm-pw" type="password" autoComplete="new-password" value={teamForm.password} onChange={(e) => setTeamForm((f) => ({ ...f, password: e.target.value }))} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} className="mt-1" />
+                <PasswordInput id="tm-pw" autoComplete="new-password" value={teamForm.password} onChange={(e) => setTeamForm((f) => ({ ...f, password: e.target.value }))} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} className="mt-1" />
                 {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password}</p>}
               </div>
               <div>
                 <Label htmlFor="tm-confirm">Confirm password</Label>
-                <Input id="tm-confirm" type="password" autoComplete="new-password" value={teamForm.confirmPassword} onChange={(e) => setTeamForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" className="mt-1" />
+                <PasswordInput id="tm-confirm" autoComplete="new-password" value={teamForm.confirmPassword} onChange={(e) => setTeamForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" className="mt-1" />
                 {errors.confirmPassword && <p className="mt-1 text-xs text-destructive">{errors.confirmPassword}</p>}
               </div>
               <div className="flex gap-2 pt-2">
@@ -364,12 +379,12 @@ export default function CreateTeamMemberPage() {
               </div>
               <div>
                 <Label htmlFor="p-pw">Password</Label>
-                <Input id="p-pw" type="password" autoComplete="new-password" value={parentForm.password} onChange={(e) => setParentForm((f) => ({ ...f, password: e.target.value }))} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} className="mt-1" />
+                <PasswordInput id="p-pw" autoComplete="new-password" value={parentForm.password} onChange={(e) => setParentForm((f) => ({ ...f, password: e.target.value }))} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} className="mt-1" />
                 {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password}</p>}
               </div>
               <div>
                 <Label htmlFor="p-confirm">Confirm password</Label>
-                <Input id="p-confirm" type="password" autoComplete="new-password" value={parentForm.confirmPassword} onChange={(e) => setParentForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" className="mt-1" />
+                <PasswordInput id="p-confirm" autoComplete="new-password" value={parentForm.confirmPassword} onChange={(e) => setParentForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" className="mt-1" />
                 {errors.confirmPassword && <p className="mt-1 text-xs text-destructive">{errors.confirmPassword}</p>}
               </div>
               <div className="flex gap-2 pt-2">
@@ -417,12 +432,12 @@ export default function CreateTeamMemberPage() {
               </div>
               <div>
                 <Label htmlFor="org-pw">Password</Label>
-                <Input id="org-pw" type="password" autoComplete="new-password" value={orgForm.password} onChange={(e) => setOrgForm((f) => ({ ...f, password: e.target.value }))} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} className="mt-1" />
+                <PasswordInput id="org-pw" autoComplete="new-password" value={orgForm.password} onChange={(e) => setOrgForm((f) => ({ ...f, password: e.target.value }))} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} className="mt-1" />
                 {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password}</p>}
               </div>
               <div>
                 <Label htmlFor="org-confirm">Confirm password</Label>
-                <Input id="org-confirm" type="password" autoComplete="new-password" value={orgForm.confirmPassword} onChange={(e) => setOrgForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" className="mt-1" />
+                <PasswordInput id="org-confirm" autoComplete="new-password" value={orgForm.confirmPassword} onChange={(e) => setOrgForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat password" className="mt-1" />
                 {errors.confirmPassword && <p className="mt-1 text-xs text-destructive">{errors.confirmPassword}</p>}
               </div>
               <div className="flex gap-2 pt-2">

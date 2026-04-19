@@ -32,7 +32,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useEducators } from "@/hooks/useEducators";
 import { useAuth } from "@/context/AuthContext";
-import { isApiEnabled, adminAccountsDelete, adminAccountsPatch } from "@/lib/api";
+import {
+  adminStaffPatch,
+  adminStaffDelete,
+  staffAdminMutationsAvailable,
+  staffHardDeleteAvailable,
+} from "@/lib/adminStaffOperations";
 import { Pencil, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EducatorListItem } from "@/hooks/useEducators";
@@ -69,7 +74,8 @@ export default function StaffDirectoryPage() {
   const [roleChangeId, setRoleChangeId] = useState<string | null>(null);
 
   const isAdmin = currentUser?.role === "admin";
-  const apiEnabled = isApiEnabled();
+  const staffMutationsLive = staffAdminMutationsAvailable();
+  const canHardDelete = staffHardDeleteAvailable();
 
   const filteredEducators = useMemo(() => {
     if (!searchQuery.trim()) return educators;
@@ -82,10 +88,10 @@ export default function StaffDirectoryPage() {
   }, [educators, searchQuery]);
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget || !apiEnabled) return;
+    if (!deleteTarget || !canHardDelete) return;
     setDeleteLoading(true);
     try {
-      await adminAccountsDelete(deleteTarget.id);
+      await adminStaffDelete(deleteTarget.id);
       queryClient.invalidateQueries({ queryKey: ["educators"] });
       toast({ title: "Account deleted", description: `${deleteTarget.name} has been removed.` });
       setDeleteTarget(null);
@@ -98,10 +104,10 @@ export default function StaffDirectoryPage() {
   };
 
   const handleRoleChange = async (staffId: string, newRole: string) => {
-    if (!apiEnabled || !isAdmin || newRole === "all") return;
+    if (!staffMutationsLive || !isAdmin || newRole === "all") return;
     setRoleChangeId(staffId);
     try {
-      await adminAccountsPatch(staffId, { role: newRole });
+      await adminStaffPatch(staffId, { role: newRole });
       queryClient.invalidateQueries({ queryKey: ["educators"] });
       queryClient.invalidateQueries({ queryKey: ["educator", staffId] });
       toast({ title: "Role updated", description: "Staff role has been changed." });
@@ -165,7 +171,9 @@ export default function StaffDirectoryPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Status</TableHead>
-                  {isAdmin && apiEnabled && <TableHead className="w-[80px]">Actions</TableHead>}
+                  {isAdmin && staffMutationsLive && canHardDelete && (
+                    <TableHead className="w-[80px]">Actions</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -178,7 +186,7 @@ export default function StaffDirectoryPage() {
                       >
                         {staff.name}
                       </Link>
-                      {isAdmin && apiEnabled && (
+                      {isAdmin && staffMutationsLive && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -192,7 +200,7 @@ export default function StaffDirectoryPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {isAdmin && apiEnabled ? (
+                      {isAdmin && staffMutationsLive ? (
                         <Select
                           value={staff.role}
                           onValueChange={(v) => handleRoleChange(staff.id, v)}
@@ -219,7 +227,7 @@ export default function StaffDirectoryPage() {
                         {(staff.status ?? "active").replace("_", " ")}
                       </Badge>
                     </TableCell>
-                    {isAdmin && apiEnabled && (
+                    {isAdmin && staffMutationsLive && canHardDelete && (
                       <TableCell>
                         <Button
                           variant="ghost"

@@ -1,10 +1,31 @@
 # CWK Hub – API contracts (auth, learners, classes, sessions, finance, organisations)
 
-This document defines the **API contracts** for the domains that power most frontend flows. Response/request shapes align with existing frontend types where possible.
+This document defines **API contracts** for domains that power frontend flows. Response and request shapes align with existing frontend types where possible.
 
 **Base URL:** `https://api.codewithkids.co.ke` (or `/api` when same-origin).  
 **Version prefix:** `/v1` (e.g. `/v1/auth/me`).  
-**Auth:** All protected endpoints expect `Authorization: Bearer <access_token>` (or session cookie if using cookie-based auth).
+**Auth:** Protected routes use `Authorization: Bearer <access_token>` from `POST /v1/auth/login`. The reference server is Express + Prisma under `server/` (`server/src/index.ts` mounts routes).
+
+---
+
+## 0. Express server (`server/`) vs this document
+
+| Kind | Meaning |
+|------|--------|
+| **Implemented** | Route exists in `server/src/routes/*.ts` as shipped in this repo. |
+| **Target only** | Described for product/frontend alignment; **not** implemented in the Express server yet (or only partially). |
+
+**Largest gaps today (contract vs `server/`):**
+
+| Area | Status |
+|------|--------|
+| **Class enrollment REST** | **Not implemented.** There is no `GET/POST /v1/classes/:id/enrollments` or `PATCH /v1/enrollments/:id`. Classes use a `learnerIds` string array on the class record; set it via `POST/PATCH /v1/classes`. |
+| **Finance beyond invoices + payments + educator payments** | **Not implemented** in `server/src/routes/finance.ts`: no invoice create, adjustments, session-expenses, receipts, expenses/income aggregates. |
+| **`POST /v1/session-reports/:id/coach-feedback`** | **Not implemented** (no dedicated route; coach feedback would need a schema + route or reuse `PATCH` with fields once defined). |
+| **Event registrations** | **Not implemented** in `server/src/routes/events.ts`: no `GET …/registrations` or `POST …/register`. |
+| **Events detail key** | Detail and **`PATCH`** use **`:slug`** (URL segment is the event’s unique `slug`, not a separate numeric id). `GET /v1/events` returns rows that include both `id` and `slug`. |
+
+The **summary tables** at the end list implemented routes explicitly, then target-only sketches.
 
 ---
 
@@ -12,32 +33,18 @@ This document defines the **API contracts** for the domains that power most fron
 
 ### Response envelope (optional)
 
-- **Success:** Return the resource or array directly (no wrapper), or a consistent wrapper if you prefer:
-  ```json
-  { "data": { ... } }
-  ```
-- **List responses:** Pagination when needed:
-  ```json
-  { "items": [...], "nextCursor": "optional", "total": 123 }
-  ```
-  For MVP, returning a plain array `[...]` is acceptable.
+- **Success:** Return the resource or array directly (no wrapper), or a consistent wrapper if you prefer: `{ "data": { ... } }`.
+- **List responses:** Pagination when needed: `{ "items": [...], "nextCursor": "optional", "total": 123 }`. For MVP, a plain array `[...]` is acceptable.
 
 ### Errors
 
 - **HTTP status:** `400` (validation), `401` (unauthorized), `403` (forbidden), `404` (not found), `422` (business rule), `500` (server error).
-- **Body (JSON):**
-  ```json
-  {
-    "code": "VALIDATION_ERROR",
-    "message": "Human-readable message",
-    "details": { "field": ["error1"] }
-  }
-  ```
+- **Body (JSON):** `{ "code": "VALIDATION_ERROR", "message": "…", "details": { "field": ["error1"] } }`
 
 ### Auth context
 
-- After login, the backend issues an **access token** (and optionally refresh token). The frontend sends the access token on every request.
-- The backend resolves the **current user** (id, role, organisationId) from the token and uses it for authorization and filtering.
+- After login, the backend issues an **access token**. The frontend sends it on protected requests.
+- On the reference server, `requireAuth` validates JWT and attaches `req.auth.user` (id, role, organizationId, etc.).
 
 ---
 
@@ -45,611 +52,327 @@ This document defines the **API contracts** for the domains that power most fron
 
 ### POST `/v1/auth/login`
 
-**Request:**
-```json
-{
-  "email": "string",
-  "password": "string"
-}
-```
-(Or `provider`, `idToken` for OAuth when supported.)
+**Request:** `{ "email": "string", "password": "string" }`
 
-**Response (200):**
-```json
-{
-  "accessToken": "string",
-  "refreshToken": "string",
-  "expiresIn": 3600,
-  "user": {
-    "id": "string",
-    "name": "string",
-    "role": "admin | educator | finance | student | parent | organisation | partnerships | marketing | social_media | ld_manager",
-    "email": "string",
-    "status": "pending | active | rejected",
-    "organizationId": "string | null",
-    "membershipStatus": "active | inactive | expired",
-    "avatarId": "string | null"
-  }
-}
-```
-`user` matches frontend `AppUser`. For **students**: only allow login if linked learner has `programType === "MAKERSPACE"` and `membershipStatus === "active"`. For **parents**: only if `membershipStatus === "active"`. Return `401` with a clear message otherwise.
-
----
+**Response (200):** `accessToken`, `expiresIn`, `user` (id, name, role, email, status, organizationId, membershipStatus, avatarId). *(Reference server sets `refreshToken` equal to `accessToken`; no refresh rotation.)*
 
 ### GET `/v1/auth/me`
 
-**Response (200):** Same `user` object as in login response.  
-**401:** Not authenticated.
-
----
+**Auth:** Required. **Response (200):** Same user shape as login.
 
 ### POST `/v1/auth/logout`
 
-**Request:** Optional body `{ "refreshToken": "string" }`.  
-**Response (204):** No body. Invalidates refresh token if provided.
+**Response (204):** No body.
 
 ---
 
-## 3. Learners
+## 3. Learners (implemented + extensions)
 
-### GET `/v1/learners`
+### GET `/v1/learners` — **implemented**
 
-**Query:** `search?`, `enrollmentType?` (member | partner_org), `organisationId?`, `status?` (active | alumni).  
-**Response (200):** Array of `Learner`:
-```json
-[
-  {
-    "id": "string",
-    "firstName": "string",
-    "lastName": "string",
-    "dateOfBirth": "string",
-    "school": "string",
-    "enrollmentType": "member | partner_org",
-    "programType": "MAKERSPACE | SCHOOL_CLUB | ORGANISATION",
-    "membershipStatus": "active | inactive | expired | null",
-    "userId": "string | null",
-    "parentName": "string",
-    "parentPhone": "string",
-    "parentEmail": "string",
-    "organizationId": "string | null",
-    "status": "active | alumni",
-    "gender": "male | female | other | null",
-    "joinedAt": "string | null"
-  }
-]
-```
-**Authorization:** Admin (all); Organisation role restricted to `organisationId` matching their org.
+**Query:** `organisationId?`, `status?`, `search?`, `userId?`, `enrollmentType?` or `enrolmentType?` (alias).  
+**Response (200):** Array of learners from Prisma.
 
----
+### POST `/v1/learners` — **implemented** (admin + Bearer)
 
-### GET `/v1/learners/:id`
+Creates a learner. Required: `firstName`, `lastName`, `dateOfBirth`, `school`, `enrollmentType` (or `enrolmentType`), `programType`. Optional: `membershipStatus`, `userId`, parent fields, `organizationId`, `status`, `gender`, `joinedAt`.
 
-**Response (200):** Single `Learner` or admin profile shape (e.g. `LearnerAdminProfile`) if you have an extended admin view.  
-**404:** Learner not found or not allowed for this role.
+### PATCH `/v1/learners/:id` — **implemented** (admin)
+
+Partial update; accepts `enrollmentType` or `enrolmentType`.
+
+### DELETE `/v1/learners/:id` — **implemented** (admin)
+
+**Response (204).**
+
+### GET `/v1/learners/:id` — **implemented**
+
+### GET `/v1/learners/:id/badges` — **implemented**
+
+Lists `LearnerBadgeAward` rows for the learner.
+
+### POST `/v1/learners/:id/badges` — **implemented**
+
+**Body:** `badgeId` (required), `sessionId` (required), `awardedAt?`, `awardedBy?`. **Response (201):** Created award.
+
+**Target only (not on server):** Organisation-scoped list rules beyond admin; extended `LearnerAdminProfile` shape.
 
 ---
 
-## 4. Classes and enrollments
+## 4. Classes (implemented) and enrollments (gap)
 
-### GET `/v1/classes`
+### GET `/v1/classes` — **implemented**
 
-**Query:** `termId?`, `program?`, `educatorId?`.  
-**Response (200):** Array of `ClassEntity`:
-```json
-[
-  {
-    "id": "string",
-    "name": "string",
-    "program": "string",
-    "ageGroup": "string",
-    "location": "string",
-    "educatorId": "string",
-    "termId": "string",
-    "learnerIds": ["string"],
-    "capacity": "number | null"
-  }
-]
-```
+**Query:** `termId?`, `program?`, `educatorId?`, `trackId?`.
 
----
+### GET `/v1/classes/:id` — **implemented**
 
-### GET `/v1/classes/:id`
+### POST `/v1/classes` — **implemented** (admin)
 
-**Response (200):** Single `ClassEntity`.  
-**404:** Class not found.
+**Body:** `name`, `program`, `ageGroup`, `location`, `educatorId`, `termId` required; optional `learnerIds[]`, `capacity`, `schoolOrOrganisationName`, `trackId`. **Response (201):** Class.
 
----
+### PATCH `/v1/classes/:id` — **implemented** (admin)
 
-### GET `/v1/classes/:id/enrollments`
+Partial update including `learnerIds` to manage roster **without** a separate enrollments API.
 
-**Query:** `termId` (required).  
-**Response (200):** Array of enrollments:
-```json
-[
-  {
-    "id": "string",
-    "classId": "string",
-    "learnerId": "string",
-    "termId": "string",
-    "status": "active | dropped | completed"
-  }
-]
-```
+### DELETE `/v1/classes/:id` — **implemented** (admin)
+
+Deletes class and related sessions/reports.
+
+### Class enrollment REST — **target only (not implemented)**
+
+The following were **design targets** only; they are **not** in `server/src/routes/classes.ts`:
+
+- `GET /v1/classes/:id/enrollments?termId=…`
+- `POST /v1/classes/:id/enrollments`
+- `PATCH /v1/enrollments/:id`
+
+Use **`learnerIds`** on the class resource instead.
 
 ---
 
-### POST `/v1/classes/:id/enrollments`
+## 5. Sessions and attendance
 
-**Request:**
-```json
-{
-  "learnerId": "string",
-  "termId": "string",
-  "status": "active"
-}
-```
-**Response (201):** Created enrollment object.  
-**400/422:** Validation or business rule (e.g. class full, duplicate).
+### GET `/v1/sessions` — **implemented**
 
----
+**Query:** `classId?`, `termId?`, `dateFrom?`, `dateTo?`, plus **`educatorId?`** (filters sessions where user is lead or assistant).  
+**Note:** `learnerId` query filter is **target only** (not implemented on server).
 
-### PATCH `/v1/enrollments/:id`
+### GET `/v1/sessions/:id` — **implemented**
 
-**Request:** `{ "status": "active | dropped | completed" }`.  
-**Response (200):** Updated enrollment.
+### GET `/v1/sessions/:id/attendance` — **implemented**
+
+### PUT `/v1/sessions/:id/attendance` — **implemented**
+
+**Body:** Array of `{ learnerId, status, stars?, notes? }`. Replaces all attendance rows for the session.
 
 ---
 
-## 5. Sessions
+## 6. Finance — **implemented in `server/`**
 
-### GET `/v1/sessions`
+`server/src/routes/finance.ts` currently exposes:
 
-**Query:** `educatorId?`, `learnerId?`, `classId?`, `dateFrom?`, `dateTo?`, `termId?`.  
-**Response (200):** Array of `Session`:
-```json
-[
-  {
-    "id": "string",
-    "classId": "string",
-    "date": "YYYY-MM-DD",
-    "startTime": "string",
-    "endTime": "string",
-    "topic": "string",
-    "sessionType": "makerspace | school_stem_club | virtual | home | organization | miradi",
-    "durationHours": "number",
-    "learningTrack": "string",
-    "termId": "string",
-    "leadEducatorId": "string",
-    "assistantEducatorIds": ["string"]
-  }
-]
-```
-**Authorization:** Admin sees all; Educator sees own (lead or assistant); Student sees sessions for their enrollments; Organisation not needed for sessions list (they use learners/invoices).
+| Method | Path |
+|--------|------|
+| GET | `/v1/finance/invoices` — query: `termId`, `status`, `payerType`, `organisationId`, `learnerId` |
+| GET | `/v1/finance/invoices/:id` |
+| GET | `/v1/finance/invoices/:id/payments` |
+| POST | `/v1/finance/invoices/:id/payments` — body: `amount`, `method`, `reference`, `date`, `recordedBy` |
+| GET | `/v1/finance/educator-payments` — query: `educatorId`, `period`, `status` |
+
+Invoice list objects match the frontend `FinanceInvoice` shape where fields exist in Prisma.
 
 ---
 
-### GET `/v1/sessions/:id`
+## 7. Finance — **target only (not in Express server)**
 
-**Response (200):** Single `Session`.  
-**404:** Session not found or not allowed.
+The following sections describe **intended** contracts for pages that may still use mocks or Supabase; they are **not** implemented in `server/src/routes/finance.ts` today:
 
----
+- Invoice **create** / **PATCH** invoice, **GET receipt**
+- **Adjustments:** `GET|POST /v1/finance/invoices/:id/adjustments`, `GET|PATCH /v1/finance/adjustments…`
+- **Session expenses:** `GET|POST|PATCH /v1/finance/session-expenses…`
+- **Reporting:** `GET /v1/finance/expenses`, `GET /v1/finance/income`
 
-## 6. Finance – Invoices
-
-### GET `/v1/finance/invoices`
-
-**Query:** `termId?`, `status?`, `payerType?` (parent | organisation), `organisationId?`, `learnerId?`.  
-**Response (200):** Array of `FinanceInvoice` (see `@/types/finance`):
-```json
-[
-  {
-    "id": "string",
-    "payerType": "parent | organisation",
-    "payerId": "string",
-    "learnerId": "string | null",
-    "organisationId": "string | null",
-    "termId": "string",
-    "grossAmount": "number",
-    "discountAmount": "number",
-    "netAmount": "number",
-    "amountPaid": "number",
-    "balance": "number",
-    "currency": "string",
-    "dueDate": "string",
-    "issueDate": "string",
-    "status": "draft | issued | partially_paid | paid | overdue | cancelled"
-  }
-]
-```
-**Authorization:** Finance + Admin: full list. Parent: only invoices for their linked learners. Organisation: only invoices for their `organisationId`.
+*(Previous numbered sections in older versions of this file matched those targets; they are omitted here to avoid implying the server supports them.)*
 
 ---
 
-### GET `/v1/finance/invoices/:id`
+## 8. Organisations
 
-**Response (200):** Single `FinanceInvoice`.  
-**403/404:** Not allowed or not found.
+### POST `/v1/organisations/signup` — **implemented** (public)
 
----
+Creates a **pending signup** row (`pendingSignup`); admin approves via `/v1/admin/pending-signups/...`. **Response (201):** `{ id, message, accountCreated: false }`.
 
-## 7. Finance – Payments
+### GET `/v1/organisations/:id` — **implemented**
 
-### GET `/v1/finance/invoices/:id/payments`
+### GET `/v1/organisations/:id/learners` — **implemented**
 
-**Response (200):** Array of `Payment`:
-```json
-[
-  {
-    "id": "string",
-    "invoiceId": "string",
-    "amount": "number",
-    "method": "mpesa | bank_transfer | cash | card | other",
-    "reference": "string | null",
-    "date": "string",
-    "recordedBy": "string",
-    "createdAt": "string"
-  }
-]
-```
+### GET `/v1/organisations/:id/invoices` — **implemented**
+
+### PATCH `/v1/organisations/:id` — **implemented** (admin or `partnerships` role)
+
+### DELETE `/v1/organisations/:id` — **implemented** (admin or `partnerships`; blocked if learners still reference org)
 
 ---
 
-### POST `/v1/finance/invoices/:id/payments`
+## 9. Parents (public signup)
 
-**Request:**
-```json
-{
-  "amount": "number",
-  "method": "mpesa | bank_transfer | cash | card | other",
-  "reference": "string | null",
-  "date": "YYYY-MM-DD",
-  "recordedBy": "string"
-}
-```
-**Response (201):** Created `Payment`.  
-**400/422:** Amount &gt; balance, invalid date, etc.
+### POST `/v1/parents/signup` — **implemented** (public)
+
+Creates pending parent signup; same admin approval flow as org signups.
 
 ---
 
-## 8. Finance – Adjustments (discounts / refunds)
+## 10. Admin
 
-### GET `/v1/finance/invoices/:id/adjustments`
-
-**Response (200):** Array of `AdjustmentRequest` (see `@/types/finance`).
-
----
-
-### POST `/v1/finance/invoices/:id/adjustments`
-
-**Request (discount):**
-```json
-{
-  "type": "discount",
-  "reason": "string",
-  "discountScope": "this_invoice | this_term | ongoing",
-  "discountPercent": "number | null",
-  "discountAmount": "number | null",
-  "requestedBy": "string"
-}
-```
-**Request (refund):**
-```json
-{
-  "type": "refund",
-  "reason": "string",
-  "refundAmount": "number",
-  "refundApplication": "refund_to_payer | credit_for_future",
-  "requestedBy": "string"
-}
-```
-**Response (201):** Created adjustment.  
-**400/422:** Validation or policy (e.g. refund &gt; net, discount % &gt; 100).
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/v1/admin/accounts` | Admin: create team user (password, role, etc.) |
+| POST | `/v1/admin/accounts/organisation` | Admin: create org + linked org user |
+| GET | `/v1/admin/accounts` | Query `status`; list users |
+| PATCH | `/v1/admin/accounts/:id` | Approve/reject (`status`), update fields |
+| DELETE | `/v1/admin/accounts/:id` | Admin cannot delete self |
+| GET | `/v1/admin/overview` | Dashboard aggregates (admin) |
+| GET | `/v1/admin/pending-signups` | List pending requests |
+| POST | `/v1/admin/pending-signups/:id/approve` | Approve org or parent signup |
+| POST | `/v1/admin/pending-signups/:id/reject` | Reject signup |
+| POST | `/v1/admin/provision-supabase-user` | **Hybrid:** `Authorization: Bearer <Supabase access_token>` (admin session). Body: `email`, `password`, `name`, `role`. Creates `auth.users` via GoTrue Admin API with `email_confirm: true` (no confirmation email). Requires server env `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`. |
 
 ---
 
-## 9. Finance – Educator session expenses
+## 11. Terms (reference data)
 
-### GET `/v1/finance/session-expenses`
-
-**Query:** `educatorId?`, `sessionId?`, `status?`.  
-**Response (200):** Array of `EducatorSessionExpense`:
-```json
-[
-  {
-    "id": "string",
-    "educatorId": "string",
-    "sessionId": "string",
-    "schoolName": "string",
-    "transportTo": "number",
-    "transportFrom": "number",
-    "otherAmount": "number",
-    "totalRequested": "number",
-    "status": "requested | issued | paid",
-    "requestedAt": "string",
-    "issuedAt": "string | null",
-    "paidAt": "string | null",
-    "processedBy": "string | null",
-    "notes": "string | null"
-  }
-]
-```
-**Authorization:** Educator sees own; Finance/Admin see all.
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/v1/terms` | |
+| GET | `/v1/terms/current` | 404 if none marked current |
+| POST | `/v1/terms` | Admin + Bearer |
+| PATCH | `/v1/terms/:id` | Admin |
+| DELETE | `/v1/terms/:id` | Admin |
 
 ---
 
-### POST `/v1/finance/session-expenses`
+## 12. Session reports
 
-**Request:**
-```json
-{
-  "educatorId": "string",
-  "sessionId": "string",
-  "schoolName": "string",
-  "transportTo": "number",
-  "transportFrom": "number",
-  "otherAmount": "number",
-  "totalRequested": "number",
-  "status": "requested",
-  "requestedAt": "string",
-  "notes": "string | null"
-}
-```
-**Response (201):** Created `EducatorSessionExpense`.  
-**403:** Only educator (or system) can create for themselves.
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/v1/session-reports` | Query: `dateFrom?`, `dateTo?`, `educatorId?` |
+| GET | `/v1/session-reports/by-session/:sessionId` | |
+| GET | `/v1/session-reports/:id` | |
+| POST | `/v1/session-reports` | |
+| PATCH | `/v1/session-reports/:id` | Partial update |
+
+### Coach feedback — **not implemented**
+
+**`POST /v1/session-reports/:id/coach-feedback`** is **not** present in `server/src/routes/sessionReports.ts`. Define persistence (fields on report vs child table) before adding to server and UI.
 
 ---
 
-### PATCH `/v1/finance/session-expenses/:id`
+## 13. Educators / staff
 
-**Request:** Partial update (e.g. `status`, `issuedAt`, `paidAt`, `processedBy`, or educator-editable fields when status is still `requested`).  
-**Response (200):** Updated expense.
-
----
-
-## 10. Organisations
-
-### POST `/v1/organisations/signup`
-
-**Request:** (aligns with OrganisationSignUpPage)
-```json
-{
-  "organisationName": "string",
-  "type": "school | church | NGO | company | other",
-  "contactPerson": "string",
-  "contactEmail": "string",
-  "contactPhone": "string | null",
-  "location": "string | null"
-}
-```
-**Response (201):**
-```json
-{
-  "id": "string",
-  "message": "Thank you for registering. We will be in touch."
-}
-```
-Backend creates a pending org (and optionally pending user) and notifies admins.
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/v1/educators` | Query `role?`, `status?`; staff roles subset |
+| GET | `/v1/educators/:id` | |
+| GET | `/v1/educators/:id/badges` | |
+| POST | `/v1/educators/:id/badges` | Body: `badgeId`, optional `trackId`, `earnedAt` |
 
 ---
 
-### GET `/v1/organisations/:id`
+## 14. Events
 
-**Response (200):** Organisation profile (e.g. id, name, type, contactPerson, contactEmail, contactPhone, location, status).  
-**403:** Only org users for that `organizationId` or admin.
+**List:** `GET /v1/events` — query `status?`, `dateFrom?`, `dateTo?`.
 
----
+**Detail:** `GET /v1/events/:slug` — parameter is the **`slug`** (stable URL key), **not** the internal `id`.
 
-### GET `/v1/organisations/:id/learners`
+**Create:** `POST /v1/events` — body includes `title`, **`slug`** (unique), `startDate`, `location`, optional `description`, `endDate`, `capacity`, `price`, `tracks[]`, `status`, `createdById`.
 
-**Response (200):** Array of `Learner` linked to this organisation (`organizationId` or enrollments in org-owned classes – define scope consistently).
+**Update:** `PATCH /v1/events/:slug` — same `:slug` routing; body may include a new `slug` to rename.
 
----
-
-### GET `/v1/organisations/:id/invoices`
-
-**Response (200):** Array of invoices where `organisationId === id` (same shape as `GET /v1/finance/invoices` filtered by org).
+**Registrations:** **not implemented** — no `GET /v1/events/:slug/registrations` or `POST …/register` in server.
 
 ---
 
-## 11. Optional: Account approvals (admin)
+## 15. Partners (admin directory)
 
-### GET `/v1/admin/accounts`
+All **admin + Bearer**:
 
-**Query:** `status=pending`.  
-**Response (200):** Array of users (e.g. minimal `AppUser`) with `status: "pending"`.
-
-### PATCH `/v1/admin/accounts/:id`
-
-**Request:** `{ "status": "active | rejected", "role?" : "...", "organizationId?": "..." }`.  
-**Response (200):** Updated user.
+- `GET /v1/partners/organisations`
+- `GET /v1/partners/parents`
+- `GET /v1/partners/learners`
 
 ---
 
-## 12. Terms (reference data)
+## 16. Inventory
 
-Used by finance, admin, educator, and LD flows for filtering (invoices, classes, sessions, reports).
-
-### GET `/v1/terms`
-
-**Response (200):** Array of terms, e.g.:
-```json
-[
-  { "id": "term-2025-t1", "name": "Term 1 2025", "startDate": "2025-01-15", "endDate": "2025-04-15", "isCurrent": true },
-  { "id": "term-2024-t3", "name": "Term 3 2024", "startDate": "2024-09-01", "endDate": "2024-11-30", "isCurrent": false }
-]
-```
-
-### GET `/v1/terms/current`
-
-**Response (200):** Single term object for the current term (or 404 if none).
+| Method | Path |
+|--------|------|
+| GET | `/v1/inventory/items` — query `status?`, `category?`, `educatorId?` |
+| POST | `/v1/inventory/items` |
+| PATCH | `/v1/inventory/items/:id` |
+| DELETE | `/v1/inventory/items/:id` |
 
 ---
 
-## 13. Session reports
+## 17. Lesson plans
 
-Educator submits a report per session; admin and LD view list and detail.
-
-### GET `/v1/session-reports`
-
-**Query:** `dateFrom?`, `dateTo?`, `educatorId?`, `program?`, `location?`.  
-**Response (200):** Array of session report summaries (e.g. `SessionReportSummary`: id, sessionId, sessionDate, sessionType, organisationName, className, leadEducatorName, presentCount, totalLearners, engagementRating, status).
-
-### GET `/v1/session-reports/:id`
-
-**Response (200):** Full `SessionReport` or `SessionReportDetailView` (includes notes, challenges, stars, badges, incidents, follow-up).  
-**404:** Not found.
-
-### GET `/v1/session-reports/by-session/:sessionId`
-
-**Response (200):** Single report for that session, or 404.
-
-### POST `/v1/session-reports`
-
-**Request:** Body matches `SessionReport` (sessionId, leadEducatorId, assistantEducatorIds, date, duration, sessionType, schoolOrOrganizationName, totalLearners, learningTrack, durationHours, femaleCount, maleCount, highlights, objectivesMet, etc.).  
-**Response (201):** Created report.
-
-### PATCH `/v1/session-reports/:id`
-
-**Request:** Partial `SessionReport` (e.g. status draft → submitted, or coach feedback).  
-**Response (200):** Updated report.
-
-### POST `/v1/session-reports/:id/coach-feedback`
-
-**Request:** `{ "educatorId": "string", "text": "string" }`.  
-**Response (200):** Updated report with new coach feedback entry.
+| Method | Path |
+|--------|------|
+| GET | `/v1/lesson-plans/templates` |
+| POST | `/v1/lesson-plans/templates` |
+| PATCH | `/v1/lesson-plans/templates/:id` |
+| GET | `/v1/lesson-plans/instances` — query `sessionId?`, `educatorId?` |
+| POST | `/v1/lesson-plans/instances` |
+| PATCH | `/v1/lesson-plans/instances/:id` |
 
 ---
 
-## 14. Attendance
+## 18. Coaching notes
 
-Educator marks attendance per session; admin/LD/educator views use it.
-
-### GET `/v1/sessions/:id/attendance`
-
-**Response (200):** Array of `AttendanceRecord` (sessionId, learnerId, status, stars?, absenceType?, notes?, markedAt?, markedBy?).
-
-### PUT `/v1/sessions/:id/attendance`
-
-**Request:** Array of `{ learnerId, status, stars?, absenceType?, notes? }`.  
-**Response (200):** Full attendance list for the session. Backend may set `markedAt` and `markedBy` from token.
+| Method | Path |
+|--------|------|
+| GET | `/v1/coaching-notes` — query `educatorId?` |
+| POST | `/v1/coaching-notes` — body: `educatorId`, `authorId`, `text`, optional `date`, `trackRef`, `sessionId` |
 
 ---
 
-## 15. Educators / staff
+## 19. Settings reference lists (programs, locations, age groups, finance labels, tracks)
 
-Admin staff directory, educator profiles, finance educator list, and “get educator name” lookups.
+Admin CRUD uses **`requireAuth`** + admin check on mutating routes unless noted.
 
-### GET `/v1/educators`
-
-**Query:** `role?` (educator | admin | finance), `status?`.  
-**Response (200):** Array of staff/educator profiles (e.g. id, name, email, role, phone?, employmentStatus, hireDate?, contractType?, skills?). Shape can match `StaffMember` or a minimal view.
-
-### GET `/v1/educators/:id`
-
-**Response (200):** Single educator/staff profile (full detail for admin profile page).  
-**404:** Not found.
-
----
-
-## 16. Finance – Adjustments (list and detail)
-
-List all adjustment requests (finance adjustments page); detail for approval workflow.
-
-### GET `/v1/finance/adjustments`
-
-**Query:** `status?`, `invoiceId?`, `termId?`.  
-**Response (200):** Array of `AdjustmentRequest` (see §8). Optionally include invoice summary or payer label for list display.
-
-### GET `/v1/finance/adjustments/:id`
-
-**Response (200):** Single `AdjustmentRequest` with invoice context.  
-**404:** Not found.
-
-### PATCH `/v1/finance/adjustments/:id`
-
-**Request:** `{ "status": "approved | rejected", "decisionNote?": "string", "approvedBy"?: "string" }`.  
-**Response (200):** Updated adjustment.
+| Resource | Base path | GET list | POST | PATCH | DELETE |
+|----------|-----------|----------|------|-------|--------|
+| Programs | `/v1/programs` | yes | admin | `/:id` admin | `/:id` admin |
+| Locations | `/v1/locations` | yes | admin | `/:id` admin | `/:id` admin |
+| Age groups | `/v1/age-groups` | yes | admin | `/:id` admin | `/:id` admin |
+| Income sources | `/v1/income-sources` | yes | admin | `/:id` admin | `/:id` admin |
+| Expense categories | `/v1/expense-categories` | yes | admin | `/:id` admin | `/:id` admin |
+| Focus areas | `/v1/focus-areas` | **GET only** (nested tracks in payload) | — | — | — |
 
 ---
 
-## 17. Finance – Receipts
+## Summary table A — **implemented** in `server/`
 
-Parent and organisation invoice detail pages show a receipt when the invoice is paid.
-
-### GET `/v1/finance/invoices/:id/receipt`
-
-**Response (200):** Receipt object (id, invoiceId, invoiceNumber, receiptNumber, paidDate, amountPaid, description?, payerLabel?, createdAt) when the invoice is paid; **404** when not paid or no receipt yet.
-
----
-
-## 18. Finance – Expenses and income (reporting)
-
-Finance expenses page, income page, and year overview use lists of expenses and income entries.
-
-### GET `/v1/finance/expenses`
-
-**Query:** `dateFrom?`, `dateTo?`, `category?`.  
-**Response (200):** Array of expense records (id, amount, date, description?, category?, sessionId?, invoiceId?, etc. – align with frontend `Expense` type).
-
-### GET `/v1/finance/income`
-
-**Query:** `dateFrom?`, `dateTo?`, `sessionType?`, `payerType?`, `organisationId?`.  
-**Response (200):** Array of income entries (id, amount, date, description?, sessionType, payerType, organisationId?, invoiceId?) for reporting.
+| Domain | Endpoints |
+|--------|-----------|
+| Auth | `POST /v1/auth/login`, `GET /v1/auth/me`, `POST /v1/auth/logout` |
+| Terms | `GET /v1/terms`, `GET /v1/terms/current`, `POST /v1/terms`, `PATCH /v1/terms/:id`, `DELETE /v1/terms/:id` |
+| Learners | `GET /v1/learners`, `POST /v1/learners`, `PATCH /v1/learners/:id`, `DELETE /v1/learners/:id`, `GET /v1/learners/:id`, `GET|POST /v1/learners/:id/badges` |
+| Classes | `GET /v1/classes`, `GET /v1/classes/:id`, `POST /v1/classes`, `PATCH /v1/classes/:id`, `DELETE /v1/classes/:id` |
+| Sessions | `GET /v1/sessions`, `GET /v1/sessions/:id`, `GET|PUT /v1/sessions/:id/attendance` |
+| Session reports | `GET /v1/session-reports`, `GET /v1/session-reports/:id`, `GET /v1/session-reports/by-session/:sessionId`, `POST /v1/session-reports`, `PATCH /v1/session-reports/:id` |
+| Educators | `GET /v1/educators`, `GET /v1/educators/:id`, `GET|POST /v1/educators/:id/badges` |
+| Finance | `GET /v1/finance/invoices`, `GET /v1/finance/invoices/:id`, `GET|POST /v1/finance/invoices/:id/payments`, `GET /v1/finance/educator-payments` |
+| Organisations | `POST /v1/organisations/signup`, `GET /v1/organisations/:id`, `GET /v1/organisations/:id/learners`, `GET /v1/organisations/:id/invoices`, `PATCH /v1/organisations/:id`, `DELETE /v1/organisations/:id` |
+| Parents | `POST /v1/parents/signup` |
+| Admin | `POST /v1/admin/accounts`, `POST /v1/admin/accounts/organisation`, `GET /v1/admin/accounts`, `PATCH /v1/admin/accounts/:id`, `DELETE /v1/admin/accounts/:id`, `GET /v1/admin/overview`, `GET /v1/admin/pending-signups`, `POST /v1/admin/pending-signups/:id/approve`, `POST /v1/admin/pending-signups/:id/reject`, `POST /v1/admin/provision-supabase-user` (Supabase hybrid; see §10) |
+| Events | `GET /v1/events`, `GET /v1/events/:slug`, `POST /v1/events`, `PATCH /v1/events/:slug` |
+| Partners | `GET /v1/partners/organisations`, `GET /v1/partners/parents`, `GET /v1/partners/learners` |
+| Inventory | `GET|POST /v1/inventory/items`, `PATCH|DELETE /v1/inventory/items/:id` |
+| Lesson plans | `GET|POST|PATCH /v1/lesson-plans/templates`, `GET|POST /v1/lesson-plans/instances`, `PATCH /v1/lesson-plans/instances/:id` |
+| Coaching notes | `GET /v1/coaching-notes`, `POST /v1/coaching-notes` |
+| Reference data | `GET|POST|PATCH|DELETE /v1/programs`, `/v1/locations`, `/v1/age-groups`, `/v1/income-sources`, `/v1/expense-categories`; `GET /v1/focus-areas` |
 
 ---
 
-## 19. Events (optional for MVP)
+## Summary table B — **target / not in Express server** (or misleading in older docs)
 
-Parent and organisation events pages; event registration.
-
-### GET `/v1/events`
-
-**Query:** `from?` (date), `to?`, `target?` (e.g. parent | organisation).  
-**Response (200):** Array of events (id, title, date, time, description, target).
-
-### GET `/v1/events/:id/registrations`
-
-**Response (200):** Array of event registrations (learnerId, eventId, status, etc.).
-
-### POST `/v1/events/:id/register`
-
-**Request:** `{ "learnerId": "string" }` (and optionally organisationId or parentId from context).  
-**Response (201):** Created registration.
+| Area | Notes |
+|------|--------|
+| Class enrollments REST | Use class `learnerIds` via `POST/PATCH /v1/classes`. |
+| Finance | Invoice CRUD beyond read, adjustments, session-expenses, receipts, expenses/income reporting. |
+| Session report coach feedback | Dedicated `POST …/coach-feedback` — add when schema exists. |
+| Events | Registrations list/create APIs. |
+| Auth | Separate refresh rotation (`POST /v1/auth/refresh`). |
+| Sessions | `learnerId` query on list. |
+| Partnerships / marketing / social | Prospects, campaigns, posts (frontend-heavy today). |
 
 ---
 
-## Summary table
+## Coverage and next steps
 
-| Domain        | Endpoints |
-|---------------|-----------|
-| Auth          | `POST /v1/auth/login`, `GET /v1/auth/me`, `POST /v1/auth/logout` |
-| Terms         | `GET /v1/terms`, `GET /v1/terms/current` |
-| Learners      | `GET /v1/learners`, `GET /v1/learners/:id` |
-| Classes       | `GET /v1/classes`, `GET /v1/classes/:id`, `GET /v1/classes/:id/enrollments`, `POST /v1/classes/:id/enrollments`, `PATCH /v1/enrollments/:id` |
-| Sessions      | `GET /v1/sessions`, `GET /v1/sessions/:id`, `GET|PUT /v1/sessions/:id/attendance` |
-| Session reports | `GET /v1/session-reports`, `GET /v1/session-reports/:id`, `GET /v1/session-reports/by-session/:sessionId`, `POST /v1/session-reports`, `PATCH /v1/session-reports/:id`, `POST /v1/session-reports/:id/coach-feedback` |
-| Educators     | `GET /v1/educators`, `GET /v1/educators/:id` |
-| Finance       | Invoices: `GET /v1/finance/invoices`, `GET /v1/finance/invoices/:id`, `GET /v1/finance/invoices/:id/receipt`. Payments: `GET|POST /v1/finance/invoices/:id/payments`. Adjustments: `GET /v1/finance/adjustments`, `GET /v1/finance/adjustments/:id`, `GET|POST /v1/finance/invoices/:id/adjustments`, `PATCH /v1/finance/adjustments/:id`. Session expenses: `GET|POST|PATCH /v1/finance/session-expenses`. Reporting: `GET /v1/finance/expenses`, `GET /v1/finance/income`. |
-| Organisations | `POST /v1/organisations/signup`, `GET /v1/organisations/:id`, `GET /v1/organisations/:id/learners`, `GET /v1/organisations/:id/invoices` |
-| Admin         | `GET /v1/admin/accounts`, `PATCH /v1/admin/accounts/:id` |
-| Events (opt.) | `GET /v1/events`, `GET /v1/events/:id/registrations`, `POST /v1/events/:id/register` |
+- **Single source for mounts:** `server/src/index.ts`.
+- **Align frontend:** Prefer `events` detail/`PATCH` by **`slug`** from `GET /v1/events`; avoid assuming `:id` is numeric or equals `slug`.
+- **Close biggest gaps:** If the product needs enrollment rows, session-expense approval, or event registration in the Node API, add routes under `server/src/routes/` and extend this document’s **table A**.
 
----
-
-## Coverage and gaps
-
-**Fully specified (ready for backend):** Auth, Learners, Classes, Enrollments, Sessions, Terms, Session reports, Attendance, Educators, Finance (invoices, payments, adjustments list/detail, session expenses, receipts, expenses, income), Organisations, Admin account approvals. **Events** are specified as optional for MVP.
-
-**Not yet in this contract (can be added when needed):**
-
-- **Partnerships:** Prospects, grants, received donations (CRUD) – currently in frontend stores.
-- **Marketing:** Campaigns, brand kit assets – campaign list/create/update and asset URLs.
-- **Social media:** Posts, content calendar, analytics – posts list/create/schedule and analytics aggregates.
-- **L&D:** Coaching notes per educator, coaching invites, lesson plan library (templates/instances), LD tasks – coaching and lesson-plan endpoints.
-- **Inventory:** Items list and CRUD – used by finance inventory page.
-- **Educator payments:** List and detail of payments to educators (admin/finance) – e.g. `GET /v1/finance/educator-payments`, `GET /v1/educators/:id/payments`.
-- **Programmes / learning tracks:** Reference lists for dropdowns – e.g. `GET /v1/programmes`, `GET /v1/learning-tracks`.
-- **Refresh token:** Optional `POST /v1/auth/refresh` with `refreshToken` in body, returning new `accessToken` and optional `expiresIn`.
-
-All request/response bodies use the same field names and types as the frontend where applicable (`AppUser`, `Learner`, `ClassEntity`, `Session`, `SessionReport`, `AttendanceRecord`, `FinanceInvoice`, `Payment`, `AdjustmentRequest`, `EducatorSessionExpense`, `StaffMember`, etc.) so that the existing UI can switch from mocks to API with minimal changes.
+Request/response bodies should continue to match frontend types (`AppUser`, `Learner`, `ClassEntity`, `Session`, `SessionReport`, `FinanceInvoice`, `Payment`, etc.) so the UI can switch between **Express**, **Supabase**, and mocks with minimal friction.

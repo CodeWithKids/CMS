@@ -17,7 +17,7 @@
 
 **Backend:** All Settings write routes use `requireAuth` and an `isAdmin` check; non-admin receives 403 with message "Admin only."
 
-**Frontend:** Add/Edit/Delete buttons on `/admin/settings` are shown only when `currentUser?.role === "admin"` and API is enabled.
+**Frontend:** Add/Edit/Delete buttons on `/admin/settings` are shown only when `currentUser?.role === "admin"` and a live backend is configured (Node API via `VITE_API_URL` or Supabase via `VITE_SUPABASE_*`).
 
 ## Other modules (to be defined)
 

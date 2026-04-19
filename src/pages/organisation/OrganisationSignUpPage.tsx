@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import type { OrganizationType } from "@/types";
 import { isApiEnabled, organisationsSignup } from "@/lib/api";
@@ -257,9 +258,8 @@ export default function OrganisationSignUpPage() {
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 value={form.password}
@@ -273,9 +273,8 @@ export default function OrganisationSignUpPage() {
             </div>
             <div>
               <Label htmlFor="confirm-password">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="confirm-password"
-                type="password"
                 autoComplete="new-password"
                 placeholder="Repeat password"
                 value={form.confirmPassword}
