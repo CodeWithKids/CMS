@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import type { AppUser } from "../types.js";
 import { prisma } from "../db.js";
+import { fetchProfileRole, verifySupabaseUserAccessToken } from "../supabaseJwt.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "cwk-hub-dev-secret-change-in-production";
 
@@ -62,23 +63,60 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
-  const payload = verifyToken(token);
-  if (!payload) {
+  const hubPayload = verifyToken(token);
+  if (hubPayload) {
+    prisma.user
+      .findUnique({ where: { id: hubPayload.sub } })
+      .then((row) => {
+        if (!row) {
+          res.status(401).json({ code: "UNAUTHORIZED", message: "User not found." });
+          return;
+        }
+        (req as Request & { auth: AuthLocals }).auth = { user: toAppUser(row), payload: hubPayload };
+        next();
+      })
+      .catch((err) => next(err));
+    return;
+  }
+
+  /** SPA hybrid: Supabase session access_token + profiles.role (API host needs SUPABASE_* + service role). */
+  const supabaseSub = verifySupabaseUserAccessToken(token);
+  if (!supabaseSub) {
     res.status(401).json({ code: "UNAUTHORIZED", message: "Token expired or invalid." });
     return;
   }
 
-  prisma.user
-    .findUnique({ where: { id: payload.sub } })
-    .then((row) => {
-      if (!row) {
-        res.status(401).json({ code: "UNAUTHORIZED", message: "User not found." });
+  void (async () => {
+    try {
+      const role = await fetchProfileRole(supabaseSub);
+      if (!role) {
+        res.status(401).json({
+          code: "UNAUTHORIZED",
+          message: "Could not verify account role. Ensure the API has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+        });
         return;
       }
-      (req as Request & { auth: AuthLocals }).auth = { user: toAppUser(row), payload };
+      const synthetic: AppUser = {
+        id: supabaseSub,
+        name: "User",
+        role: role as AppUser["role"],
+        email: undefined,
+        status: "active",
+        organizationId: null,
+        membershipStatus: undefined,
+        avatarId: null,
+      };
+      const payload: JwtPayload = {
+        sub: supabaseSub,
+        role: synthetic.role,
+        organizationId: null,
+      };
+      (req as Request & { auth: AuthLocals }).auth = { user: synthetic, payload };
       next();
-    })
-    .catch((err) => next(err));
+    } catch (err) {
+      next(err);
+    }
+  })();
 }
 
 /** Optional auth: set req.auth if token present, do not 401 if missing. */

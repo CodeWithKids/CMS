@@ -105,6 +105,50 @@ router.post("/signup", async (req: Request, res: Response) => {
   });
 });
 
+/** POST /v1/organisations - create partner organisation (admin or Partnership & Communications). */
+router.post("/", requireAuth, async (req: Request, res: Response) => {
+  if (!canManagePartners(req as Request & { auth?: { user: { role: string } } })) {
+    sendError(res, 403, "FORBIDDEN", "Admin or Partnership & Communications only.");
+    return;
+  }
+
+  const body = req.body ?? {};
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const type = typeof body.type === "string" ? body.type.trim() : "other";
+  const contactPerson = typeof body.contactPerson === "string" ? body.contactPerson.trim() : "";
+  const contactEmail =
+    typeof body.contactEmail === "string" && body.contactEmail.trim().length > 0
+      ? body.contactEmail.trim()
+      : null;
+  const contactPhone =
+    typeof body.contactPhone === "string" && body.contactPhone.trim().length > 0
+      ? body.contactPhone.trim()
+      : null;
+  const location =
+    typeof body.location === "string" ? body.location.trim() : "";
+
+  if (!name) {
+    sendError(res, 400, "VALIDATION_ERROR", "name is required.");
+    return;
+  }
+
+  const orgId = `org-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  await prisma.organisation.create({
+    data: {
+      id: orgId,
+      name,
+      type: type || "other",
+      contactPerson: contactPerson || "—",
+      contactEmail,
+      contactPhone,
+      location: location || "",
+    },
+  });
+
+  const created = await prisma.organisation.findUnique({ where: { id: orgId } });
+  res.status(201).json(created);
+});
+
 /** GET /v1/organisations/:id */
 router.get("/:id", async (req: Request, res: Response) => {
   const org = await prisma.organisation.findUnique({ where: { id: req.params.id } });

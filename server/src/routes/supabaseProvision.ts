@@ -8,72 +8,16 @@
  *   SUPABASE_JWT_SECRET       Dashboard → Settings → API → JWT Secret (signing secret for user JWTs)
  */
 import { Router, type Request, type Response } from "express";
-import jwt from "jsonwebtoken";
 import { sendError } from "../middleware/error.js";
+import {
+  fetchProfileRole,
+  supabaseProjectUrl,
+  supabaseProvisionEnvReady,
+  supabaseServiceRoleKey,
+  verifySupabaseUserAccessToken,
+} from "../supabaseJwt.js";
 
 const router = Router();
-
-type JwtParts = {
-  sub?: string;
-  aud?: string;
-};
-
-function supabaseUrl(): string | undefined {
-  const u = process.env.SUPABASE_URL?.trim();
-  return u && u.length > 0 ? u.replace(/\/$/, "") : undefined;
-}
-
-function serviceRoleKey(): string | undefined {
-  const k = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  return k && k.length > 0 ? k : undefined;
-}
-
-function jwtSecret(): string | undefined {
-  const k = process.env.SUPABASE_JWT_SECRET?.trim();
-  return k && k.length > 0 ? k : undefined;
-}
-
-function verifySupabaseUserAccessToken(token: string): string | null {
-  const secret = jwtSecret();
-  const base = supabaseUrl();
-  if (!secret || !base) return null;
-  const issuer = `${base}/auth/v1`;
-  try {
-    const decoded = jwt.verify(token, secret, {
-      algorithms: ["HS256"],
-      audience: "authenticated",
-      issuer,
-    }) as JwtParts;
-    return typeof decoded.sub === "string" ? decoded.sub : null;
-  } catch {
-    try {
-      const decoded = jwt.verify(token, secret, {
-        algorithms: ["HS256"],
-        audience: "authenticated",
-      }) as JwtParts;
-      return typeof decoded.sub === "string" ? decoded.sub : null;
-    } catch {
-      return null;
-    }
-  }
-}
-
-async function fetchProfileRole(userId: string): Promise<string | null> {
-  const base = supabaseUrl();
-  const key = serviceRoleKey();
-  if (!base || !key) return null;
-  const url = `${base}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=role`;
-  const res = await fetch(url, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-  });
-  if (!res.ok) return null;
-  const rows = (await res.json().catch(() => [])) as { role?: string }[];
-  const role = rows[0]?.role;
-  return typeof role === "string" ? role : null;
-}
 
 const PROVISIONABLE_ROLES = [
   "admin",
@@ -89,10 +33,9 @@ const PROVISIONABLE_ROLES = [
 
 /** POST /v1/admin/provision-supabase-user */
 router.post("/provision-supabase-user", async (req: Request, res: Response) => {
-  const base = supabaseUrl();
-  const service = serviceRoleKey();
-  const secret = jwtSecret();
-  if (!base || !service || !secret) {
+  const base = supabaseProjectUrl();
+  const service = supabaseServiceRoleKey();
+  if (!supabaseProvisionEnvReady() || !base || !service) {
     sendError(
       res,
       503,
@@ -196,10 +139,9 @@ router.post("/provision-supabase-user", async (req: Request, res: Response) => {
 
 /** DELETE /v1/admin/supabase-auth-users/:userId — remove auth user (public.profiles cascades on delete). */
 router.delete("/supabase-auth-users/:userId", async (req: Request, res: Response) => {
-  const base = supabaseUrl();
-  const service = serviceRoleKey();
-  const secret = jwtSecret();
-  if (!base || !service || !secret) {
+  const base = supabaseProjectUrl();
+  const service = supabaseServiceRoleKey();
+  if (!supabaseProvisionEnvReady() || !base || !service) {
     sendError(
       res,
       503,

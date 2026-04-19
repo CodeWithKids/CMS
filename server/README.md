@@ -59,7 +59,7 @@ Server listens on **http://localhost:3001** (override with `PORT`). Ensure `DATA
 
 - **Login:** `POST /v1/auth/login` with `{ "email": "...", "password": "..." }`. All seeded users have password `password`.
 - **Protected routes:** Send `Authorization: Bearer <accessToken>`.
-- **JWT secret:** Set `JWT_SECRET` in production (e.g. in Render Environment). The app will not start in production if `JWT_SECRET` is missing or still the dev default.
+- **JWT secret:** Set `JWT_SECRET` in production on the API host. The app will not start in production if `JWT_SECRET` is missing or still the dev default.
 
 ## Data
 
@@ -73,14 +73,14 @@ For a **production** SPA (e.g. on Vercel at `https://app.codewithkids.africa`), 
 
 ## Production API environment
 
-Set these on **whatever runs Express** (Render, Railway, Fly.io, a VPS, etc.). Do **not** rely on Vercel env vars for CORS—those only apply to the static frontend build.
+Set these on **whatever runs Express** (Railway, Fly.io, a VPS, Docker, etc.). `DATABASE_URL` can point at **Supabase Postgres** if you use Supabase for the database. Do **not** rely on static-host env vars for CORS—set `CORS_ORIGIN` on the API process.
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `NODE_ENV` | Yes | Set to `production` so CORS uses the allow-list and JWT startup checks run. |
 | `JWT_SECRET` | Yes | Strong random secret; server **exits** if missing or left as the dev default. |
 | `DATABASE_URL` | Yes | PostgreSQL connection string. |
-| `CORS_ORIGIN` | No | Comma-separated browser **origins** allowed to call the API (scheme + host, no trailing slash). If omitted in production, defaults include `https://app.codewithkids.africa` and `https://cwk-hub.onrender.com` (see `src/config/corsOrigins.ts`). |
+| `CORS_ORIGIN` | No | Comma-separated browser **origins** allowed to call the API (scheme + host, no trailing slash). If omitted in production, defaults include `https://app.codewithkids.africa` only (see `src/config/corsOrigins.ts`). Add your real Hub URL here or via env. |
 
 **Recommended example** when the hub lives on Vercel:
 
@@ -103,15 +103,15 @@ CORS_ORIGIN=https://app.codewithkids.africa,https://cms-git-feature-branch-codew
 
 This API authenticates protected routes with **`Authorization: Bearer <token>`** (see [Auth](#auth)); it does **not** set session cookies. The server still enables `credentials: true` in CORS for compatibility. If you later add cookie-based auth, you will need appropriate **`SameSite` / `Secure`** cookie attributes and the browser client must send `credentials: 'include'` on requests—say so in an issue and we can align CORS + client code.
 
-## Deploying to Render
+## Deploying the API
 
-1. **Build command:** `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`  
-   Run migrations during build so the container **start** is fast (no DB work on wake-up). Ensure `DATABASE_URL` is available at build time (Render injects env by default).
+1. **Build command (typical):** `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`  
+   Run migrations during build so **start** only runs Node. Ensure `DATABASE_URL` is available at build time on your host (Supabase connection string or other Postgres).
 2. **Start command:** `npm start` (starts the server only; migrations already ran at build).
-3. **Environment variables** (set in the Render dashboard; do not commit). See [Production API environment](#production-api-environment) for the full list. Summary:
-   - `DATABASE_URL` — from the Render Postgres service (Internal Database URL).
-   - `JWT_SECRET` — use a long, random string (e.g. `openssl rand -base64 32`). Required in production; the server exits if unset or left as the dev default.
+3. **Environment variables** on the API service (do not commit). See [Production API environment](#production-api-environment). Summary:
+   - `DATABASE_URL` — Postgres URL (e.g. **Supabase → Project Settings → Database** connection string).
+   - `JWT_SECRET` — long random string (e.g. `openssl rand -base64 32`). Required in production.
    - `NODE_ENV` — `production`.
-   - `CORS_ORIGIN` — optional; comma-separated frontend origins. If unset, defaults include `https://app.codewithkids.africa` and `https://cwk-hub.onrender.com`.
-4. **Health check:** In Render, set the health check path to `/health`. The API responds with `{ "status": "ok", "service": "cwk-hub-api" }`.
-5. **Cold start (free tier):** The first request after the service has been idle can be slow while the instance spins up. To reduce perceived delay you can use a cron job to ping `/health` periodically, or upgrade the service.
+   - `CORS_ORIGIN` — comma-separated frontend origins for your deployed Hub (see table above).
+4. **Health check:** Configure your platform’s health check to `GET /health`. Response: `{ "status": "ok", "service": "cwk-hub-api" }`.
+5. **Cold starts:** On hosts that sleep idle instances, the first request after idle may be slow; ping `/health` on a schedule if needed, or use a non-sleeping plan.

@@ -1,11 +1,10 @@
 /**
  * Browser origins allowed to call this API (CORS).
- * Set CORS_ORIGIN on the API host (Render, Railway, VPS, etc.) — not on Vercel.
- * Comma-separated list, e.g. https://app.codewithkids.africa,https://cwk-hub.onrender.com
+ * Set CORS_ORIGIN on whatever runs Express (Railway, Fly.io, VPS, Docker, etc.) — not on the static SPA host.
+ * Comma-separated list, e.g. https://app.codewithkids.africa,https://your-hub.vercel.app
  */
 
 const DEFAULT_PRODUCTION_ORIGINS = [
-  "https://cwk-hub.onrender.com",
   "https://app.codewithkids.africa",
 ];
 
